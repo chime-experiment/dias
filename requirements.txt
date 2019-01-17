@@ -1,0 +1,2 @@
+-e git+https://github.com/radiocosmology/caput#egg=caput
+-e git+ssh://git@bitbucket.org/chime/ch_util.git#egg=ch_util
