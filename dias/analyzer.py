@@ -41,7 +41,7 @@ class Analyzer(config.Reader):
 
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
-    archive_data_dir = config.Property(prototype=string)
+    archive_data_dir = config.Property(prototype=str)
 
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks
