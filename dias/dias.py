@@ -31,7 +31,7 @@ def load_analyzers():
     config_dir = global_config.task_config_dir
     for config_file in os.listdir(config_dir):
         
-        if config_file.endswith("ad.conf"):
+        if config_file.endswith(".conf"):
                         
             # caput config reader class for task config
             task_config = config_task()
@@ -42,10 +42,10 @@ def load_analyzers():
 
 def import_analyzer_class(name):
     """
-    Imports the Analyzer class given by name.  If name includes a module,
+    Finds the Analyser class given by name.  If name includes a module,
     first imports the module.
 
-    Returns the imported class.
+    Returns the class specified, if found.  On error, raises ImportError.
     """
 
     # Split the name into a module and a classname
