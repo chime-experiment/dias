@@ -7,15 +7,15 @@ import logging
 from caput import config
 import yaml
 import os
-from dias.analyzers.sample_analyzer import *
 
 # Set the module logger.
 logger = logging.getLogger(__name__)
 
 
 class service(config.Reader):
-    task_config_dir = config.Property(default=os.getcwd() + '/tasks', proptype=str,
-                                      key='task_config_dir')
+    task_config_dir = config.Property(default=os.getcwd() + '/tasks',
+                                      proptype=str, key='task_config_dir')
+    task_write_dir = config.Property(default='/tmp/', proptype=str)
 
     def __init__(self, config_path):
         self.config_path = config_path
@@ -24,7 +24,7 @@ class service(config.Reader):
         self.load_analyzers()
 
         # Setup tasks
-        # self.setup_tasks()
+        self.setup_tasks()
 
     def setup_tasks(self):
         for task in self.tasks:
@@ -53,8 +53,13 @@ class service(config.Reader):
                 task_config = yaml.load(task_file)
 
                 # Load the analyzer for this task from the task config
-                task = self.import_analyzer_class(task_config['analyzer'])
-                task.read_config(self, task_config)
+                analyzer_class = self.import_analyzer_class(task_config['analyzer'])
+
+                task_name = config_file[:-5]
+                write_dir = task_name + '/' + task_name
+
+                task = analyzer_class(task_name, write_dir)
+                task.read_config(task_config)
                 self.tasks.append(task)
 
                 task_file.close()

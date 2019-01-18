@@ -37,11 +37,10 @@ class Analyzer(config.Reader):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
         logging.basicConfig(format=LOG_FORMAT)
-        self.logger.info('Loaded analyzer.')
 
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
-    archive_data_dir = config.Property(prototype=str)
+    archive_data_dir = config.Property(proptype=str)
 
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks
