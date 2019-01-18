@@ -7,24 +7,32 @@ import logging
 from caput import config
 import yaml
 import os
+from dias import prometheus
 
 # Set the module logger.
 logger = logging.getLogger(__name__)
 
 
 class service(config.Reader):
+
+    # Config variables
     task_config_dir = config.Property(default=os.getcwd() + '/tasks',
                                       proptype=str, key='task_config_dir')
     task_write_dir = config.Property(default='/tmp/', proptype=str)
+    prometheus_client_port = config.Property(default=4444, proptype=int)
 
     def __init__(self, config_path):
         self.config_path = config_path
+
         self.tasks = list()
 
         self.load_analyzers()
 
         # Setup tasks
         self.setup_tasks()
+
+        # Start prometheus client
+        self.prometheus = prometheus.Prometheus(self.prometheus_client_port)
 
     def setup_tasks(self):
         for task in self.tasks:

@@ -5,6 +5,7 @@ import logging
 from ch_util import data_index
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
+from dias import prometheus
 
 # This is how a log line produced by analyzers will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
@@ -49,7 +50,29 @@ class Analyzer(config.Reader):
         return data_index.Finder(acqs=acqs,
                 node_spoof= { "gong" : archive_data_dir })
 
-    #prometheus = dias.Prometheus()
+    def task_metric(self, metric_name, value, documentation=None, labels=dict(),
+                    unit=''):
+        """Add a prometheus task metric. The current time will be added as
+        timestamp. Use this to export metrics about tasks internals.
+        The metric will be exported with the full name:
+        `dias_task_<task name>_<metric_name>`."""
+        labels['analyzer'] = __name__
+        metric_name = 'dias_task_' + self.name + '_' + metric_name
+        prometheus._add_metric(metric_name, value, documentation,
+                               timestamp=None, labels=labels, unit=unit)
+
+    def data_metric(self, metric_name, value, timestamp, documentation=None,
+                    labels=dict(), unit=''):
+        """Add a prometheus data metric. A timestamp has to be supplied that
+        points to the time the data it describes is from. Use this to export
+        metrics about the data you are analyzing.
+        The metric will be exported with the full name:
+        `dias_data_<task name>_<metric_name>`."""
+        labels['task'] = self.name
+        labels['analyzer'] = __name__
+        metric_name = 'dias_data_' + self.name + '_' + metric_name
+        prometheus._add_metric(metric_name, value, documentation, timestamp,
+                               labels, unit)
 
 
     # Overridable Attributes
