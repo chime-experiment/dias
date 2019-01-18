@@ -6,6 +6,7 @@ from ch_util import data_index
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
 
+LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 
 class Analyzer(config.Reader):
     """Base class for all dias analyzers.
@@ -26,18 +27,15 @@ class Analyzer(config.Reader):
     finish
     """
 
-    # Set the module logger.
-    logger = logging.getLogger(__name__)
-    FORMAT = '[%(asctime)s] %(name)s: %(message)s'
-    logging.basicConfig(format=FORMAT)
-    logger.setLevel(logging.INFO)
-
-
     def __init__(self, name, write_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
+        # Set the module logger.
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.INFO)
+        logging.basicConfig(format=LOG_FORMAT)
 
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
