@@ -43,27 +43,25 @@ class Analyzer(config.Reader):
 
     def task_metric(self, metric_name, value, documentation=None, labels=dict(),
                     unit=''):
-        """Add a prometheus task metric. The current time will be added as
-        timestamp. Use this to export metrics about tasks internals.
-        The metric will be exported with the full name:
+        """Add a prometheus task metric. Use this to export metrics about tasks
+        internals. The metric will be exported with the full name:
         `dias_task_<task name>_<metric_name>`."""
         labels['analyzer'] = __name__
         metric_name = 'dias_task_' + self.name + '_' + metric_name
         prometheus._add_metric(metric_name, value, documentation,
                                timestamp=None, labels=labels, unit=unit)
 
-    def data_metric(self, metric_name, value, timestamp, documentation=None,
+    def data_metric(self, metric_name, value, documentation=None,
                     labels=dict(), unit=''):
-        """Add a prometheus data metric. A timestamp has to be supplied that
-        points to the time the data it describes is from. Use this to export
+        """Add a prometheus data metric. Use this to export
         metrics about the data you are analyzing.
         The metric will be exported with the full name:
         `dias_data_<task name>_<metric_name>`."""
         labels['task'] = self.name
         labels['analyzer'] = __name__
         metric_name = 'dias_data_' + self.name + '_' + metric_name
-        prometheus._add_metric(metric_name, value, documentation, timestamp,
-                               labels, unit)
+        prometheus._add_metric(metric_name, value, documentation,
+                               timestamp=None, labels=labels, unit=unit)
 
 
     # Overridable Attributes

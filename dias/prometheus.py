@@ -32,6 +32,7 @@ class Prometheus():
         """Add a prometheus metric. Private method for class internal use.
         Instead call task_metric or data_metric methods of the analyzer base
          class."""
+        # TODO: find a way to add a past timestamp for data metrics
 
         labels['host'] = self.host
 
