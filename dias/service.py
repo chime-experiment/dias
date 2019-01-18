@@ -7,6 +7,7 @@ import logging
 from caput import config
 import yaml
 import os
+from dias.analyzers.sample_analyzer import *
 
 # Set the module logger.
 logger = logging.getLogger(__name__)

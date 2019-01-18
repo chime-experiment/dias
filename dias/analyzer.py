@@ -48,7 +48,7 @@ class Analyzer(config.Reader):
         """
         
         return data_index.Finder(acqs=acqs,
-                node_spoof=["gong" : archive_data_dir])
+                node_spoof= { "gong" : archive_data_dir })
 
     #prometheus = dias.Prometheus()
 
