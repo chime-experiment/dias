@@ -45,9 +45,11 @@ The first of these are any `caput` config properties that were defined in your a
 * **period**: indicating the schedule for this task
 * **start_time**: a time indicating the _phase_ of your task (optional)
 
-For this example, we might have a file called `my_task.conf` containing:
+For this example, we might have a file called `trivial_task.conf` containing:
 ```YAML
-analyzer: "dias.analyzer.my_analyzer.MyAnalyzer" # Assuming the filename we used for the MyAnalyzer class was my_analyzer.py
+analyzer: "dias.analyzer.trivial_analyzer.TrivialAnalyzer" # Assuming the filename we used for
+                                                           # the TrivialAnalyzer class was
+                                                           # trivial_analyzer.py
 period: "1h"
 this_thing: 33.3
 that_thing: 12
