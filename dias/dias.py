@@ -31,7 +31,7 @@ def load_analyzers():
     config_dir = global_config.task_config_dir
     for config_file in os.listdir(config_dir):
         
-        if config_file.endswith("ad.conf"):
+        if config_file.endswith(".conf"):
                         
             # caput config reader class for task config
             task_config = config_task()
