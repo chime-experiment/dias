@@ -12,10 +12,10 @@ def load_analyzers():
 
 def import_analyzer_class(name):
     """
-    Imports the Analyser class given by name.  If name includes a module,
+    Finds the Analyser class given by name.  If name includes a module,
     first imports the module.
 
-    Returns the imported class.
+    Returns the class specified, if found.  On error, raises ImportError.
     """
 
     # Split the name into a module and a classname
