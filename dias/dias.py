@@ -12,7 +12,7 @@ def load_analyzers():
 
 def import_analyzer_class(name):
     """
-    Imports the Analyser class given by name.  If name includes a module,
+    Imports the Analyzer class given by name.  If name includes a module,
     first imports the module.
 
     Returns the imported class.
