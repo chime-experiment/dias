@@ -32,12 +32,12 @@ def load_analyzers():
     for config_file in os.listdir(config_dir):
         
         if config_file.endswith("ad.conf"):
-            
-            task_file = open(os.path.join(config_dir, config_file),"r")
-            
+                        
             # caput config reader class for task config
             task_config = config_task()
+            task_file = open(os.path.join(config_dir, config_file),"r")
             task_config.read_config(yaml.load(task_file))
+            task_file.close()
     
 
 def import_analyzer_class(name):
