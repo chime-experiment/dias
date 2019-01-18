@@ -2,6 +2,7 @@
 # -------------------
 
 import logging
+from ch_util import data_index
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
 
@@ -40,6 +41,14 @@ class Analyzer(config.Reader):
 
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
+    archive_data_dir = config.Property(prototype=string)
+
+    def Finder(self, acqs=()):
+        """Returns a ch_util Finder object for use by Analyzer tasks
+        """
+        
+        return data_index.Finder(acqs=acqs,
+                node_spoof=["gong" : archive_data_dir])
 
     #prometheus = dias.Prometheus()
 
