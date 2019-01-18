@@ -5,6 +5,7 @@ import logging
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
 
+# This is how a log line produced by analyzers will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 
 class Analyzer(config.Reader):
@@ -35,6 +36,7 @@ class Analyzer(config.Reader):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
         logging.basicConfig(format=LOG_FORMAT)
+        self.logger.info('Loaded analyzer.')
 
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
