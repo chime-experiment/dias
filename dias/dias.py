@@ -1,3 +1,4 @@
+import importlib
 import logging
 from caput import config
 import yaml
@@ -29,5 +30,38 @@ def load_analyzers():
             task_config.read_config(yaml.load(task_file))
             print(task_config.analyzer)
 
-if __name__=="__main__":
-    load_analyzers()
+def import_analyzer_class(name):
+    """
+    Imports the Analyzer class given by name.  If name includes a module,
+    first imports the module.
+
+    Returns the imported class.
+    """
+
+    # Split the name into a module and a classname
+    (modulename, separator, classname) = name.rpartition('.')
+
+    # Check if we successfully split
+    if separator == "":
+        # No module, look for name in globals list
+        try:
+            clas = globals()[classname]
+        except KeyError:
+            raise ImportError("Analyzer class {0} not found".format(classname))
+    else:
+        # Try to load the module
+        try:
+            ext_module = importlib.import_module(modulename)
+        except ImportError:
+            raise ImportError("Analyzer module {0} not found".format(
+                modulename))
+
+        # Now, find the class in the module
+        try:
+            clas = getattr(ext_module, classname)
+        except AttributeError:
+            raise ImportError(
+                    "Analyzer class {0} not found in module {1}".format(
+                        classname, modulename))
+
+    return clas
