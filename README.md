@@ -27,7 +27,7 @@ Use `caput.config` to define some configuration properties, which can be read fr
 ```python
     this_thing      = config.Property(proptype=float, default='3.14')
     that_thing      = config.Property(proptype=int, default='0')
-    the_other_thing = config.Property(proptype=string, default='pie')
+    the_other_thing = config.Property(proptype=str, default='pie')
 ```
 Define a `run()` method that contains the analyzer's code.  This method will be called when it is time to run your analysis task:
 ```python
