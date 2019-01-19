@@ -61,9 +61,10 @@ The analyzer may also define:
 ```
 will result in
 ```
-[2019-01-18 14:07:57,903] my_task: Some message only needed for debugging my analyzer.
-[2019-01-18 14:07:57,905] my_task: Something terrible happened!
+[2019-01-18 14:07:57,903] trivial_task: Some message only needed for debugging my analyzer.
+[2019-01-18 14:07:57,905] trivial_task: Something terrible happened!
 ```
+(where "trivial_task" is the name of the task we defined in the `trivial_task.conf` file below).
 * **task_metric(metric_name, value, documentation=None, labels=dict(), unit=''):** A method the analyzer base class provides to export housekeeping metrics of the task.
 ```python
     def run(self):
@@ -91,6 +92,7 @@ TODO: How to use.
         f = self.Finder(...)
         f.only_corr()
 ```
+It works exactly the same as calling `ch_util.data_index.Finder(...)`, except this one sets the `node_spoof` parameter for you (and will ignore any `node_spoof` you specify).
  
 ## Tasks
 The other piece is the configuration file which tells the `dias` scheduler about your analysis task.  Create a YAML file in the `tasks` directory.  You can call it whatever you want, but the name must end in `.conf`.  Whatever you call it will end up being the task's _name_.
@@ -104,9 +106,11 @@ The first of these are any `caput` config properties that were defined in your a
 * **period**: indicating the schedule for this task
 * **start_time**: a time indicating the _phase_ of your task (optional)
 
-For this example, we might have a file called `my_task.conf` containing:
+For this example, we might have a file called `trivial_task.conf` containing:
 ```YAML
-analyzer: "dias.analyzer.my_analyzer.MyAnalyzer" # Assuming the filename we used for the MyAnalyzer class was my_analyzer.py
+analyzer: "dias.analyzer.trivial_analyzer.TrivialAnalyzer" # Assuming the filename we used for
+                                                           # the TrivialAnalyzer class was
+                                                           # trivial_analyzer.py
 period: "1h"
 this_thing: 33.3
 that_thing: 12
