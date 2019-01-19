@@ -8,9 +8,13 @@ from caput import config
 import yaml
 import os
 from dias import prometheus
+from dias.utils.time_strings import str2timedelta
 
 # This is how a log line produced by dias will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
+
+# Minimum value for config value trigger_interval dias allows (in minutes)
+MIN_TRIGGER_INTERVAL_MINUTES = 10
 
 class service(config.Reader):
 
@@ -21,6 +25,9 @@ class service(config.Reader):
     task_write_dir = config.Property(proptype=str)
     prometheus_client_port = config.Property(proptype=int)
     log_level = config.Property(default='INFO', proptype=logging.getLevelName)
+    trigger_interval = config.Property(default='1h', proptype=str2timedelta)
+    archive_data_dir = config.Property(default='', proptype=str)
+
 
     def __init__(self, config_path):
         self.config_path = config_path
@@ -36,6 +43,14 @@ class service(config.Reader):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(self.log_level)
         logging.basicConfig(format=LOG_FORMAT)
+
+        # Check config values
+        if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
+            msg = 'Config value `trigger_interval` is too small (' +\
+                  self.trigger_interval + '). dias does not allow' +\
+                  'values smaller than ' + MIN_TRIGGER_INTERVAL_MINUTES +\
+                  ' minutes.'
+            raise AttributeError(msg)
 
         # Start prometheus client
         self.prometheus = prometheus.Prometheus(self.prometheus_client_port)

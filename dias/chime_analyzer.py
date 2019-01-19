@@ -1,8 +1,9 @@
 # CHIME-specifc Analyzer Base Class
 # --------------------------------
 
-from dias import analyzer
+from dias.analyzer import Analyzer
 from ch_util import data_index
+from caput import config
 
 class CHIMEAnalyzer(Analyzer):
     """A base dias analyzer class with CHIME-specific extensions.
@@ -16,6 +17,6 @@ class CHIMEAnalyzer(Analyzer):
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks
         """
-        
+
         return data_index.Finder(acqs=acqs,
-                node_spoof = { "gong" : archive_data_dir })
+                node_spoof = { "gong" : self.archive_data_dir })
