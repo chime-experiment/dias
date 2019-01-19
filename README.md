@@ -36,12 +36,12 @@ Define a `run()` method that contains the analyzer's code.  This method will be 
        #do stuff here
 ```
 The analyzer may also define:
- - A `setup()` method which will be run once on dias start-up.
+ - A `setup()` method which will be run once, when the dias scheduler process is first started.
  ```python
     def setup():
         # Do stuff that should be done when dias starts up.
  ```
- - A `finish()` method which will be run once on dias termination.
+ - A `finish()` method which will be run once if the dias scheduler terminates.
 ```python
     def finish():
         # Do stuff that should be done when dias shuts down.
