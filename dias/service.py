@@ -15,10 +15,11 @@ LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 class service(config.Reader):
 
     # Config variables
-    task_config_dir = config.Property(default=os.getcwd() + '/tasks',
-                                      proptype=str, key='task_config_dir')
-    task_write_dir = config.Property(default='/tmp/', proptype=str)
-    prometheus_client_port = config.Property(default=4444, proptype=int)
+    task_config_dir = config.Property(
+        default=os.path.join(os.getcwd(), 'tasks'), proptype=str,
+        key='task_config_dir')
+    task_write_dir = config.Property(proptype=str)
+    prometheus_client_port = config.Property(proptype=int)
     log_level = config.Property(default='INFO', proptype=logging.getLevelName)
 
     def __init__(self, config_path):
@@ -74,7 +75,7 @@ class service(config.Reader):
                 task_name = config_file[:-5]
 
                 # This is where we tell the task to write its output
-                write_dir = self.task_write_dir + '/' + task_name
+                write_dir = os.path.join(self.task_write_dir, task_name)
 
                 # Create the directory if it doesn't exist
                 if not os.path.isdir(write_dir):
