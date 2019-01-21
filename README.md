@@ -32,18 +32,18 @@ class TrivialAnalyzer(CHIMEAnalyzer):
 ```
 Define a `run()` method that contains the analyzer's code.  This method will be called when it is time to run your analysis task:
 ```python
-   def run():
+   def run(self):
        #do stuff here
 ```
 The analyzer may also define:
  - A `setup()` method which will be run once, when the dias scheduler process is first started.
  ```python
-    def setup():
+    def setup(self):
         # Do stuff that should be done when dias starts up.
  ```
  - A `finish()` method which will be run once if the dias scheduler terminates.
 ```python
-    def finish():
+    def finish(self):
         # Do stuff that should be done when dias shuts down.
  ```
  
