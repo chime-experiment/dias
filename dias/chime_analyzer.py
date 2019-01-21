@@ -12,7 +12,7 @@ class CHIMEAnalyzer(Analyzer):
     CHIME-specific convenience methods.
     """
 
-    archive_data_dir = config.Property(proptype=str)
+    archive_data_dir = config.Property(proptype=str, default='')
 
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks

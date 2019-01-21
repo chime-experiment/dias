@@ -9,6 +9,7 @@ import yaml
 import os
 from dias import prometheus
 from dias.utils.time_strings import str2timedelta
+import copy
 
 # This is how a log line produced by dias will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
@@ -26,8 +27,9 @@ class service(config.Reader):
     prometheus_client_port = config.Property(proptype=int)
     log_level = config.Property(default='INFO', proptype=logging.getLevelName)
     trigger_interval = config.Property(default='1h', proptype=str2timedelta)
-    archive_data_dir = config.Property(default='', proptype=str)
 
+    # For CHIMEAnalyzer
+    archive_data_dir = config.Property(default='', proptype=str)
 
     def __init__(self, config_path):
         self.config_path = config_path
@@ -36,7 +38,8 @@ class service(config.Reader):
 
         # Read and apply dias global config
         global_file = open(self.config_path, "r")
-        self.read_config(yaml.load(global_file))
+        self.global_config = yaml.load(global_file)
+        self.read_config(self.global_config)
         global_file.close()
 
         # Set the module logger.
@@ -80,7 +83,12 @@ class service(config.Reader):
                 # caput config reader class for task config
                 task_file = open(os.path.join(self.task_config_dir,
                                               config_file),"r")
-                task_config = yaml.load(task_file)
+
+                # use any values configured on global level
+                task_config = copy.deepcopy(self.global_config)
+
+                # override with values from task config if specified
+                task_config.update(yaml.load(task_file))
 
                 # Load the analyzer for this task from the task config
                 analyzer_class = self.import_analyzer_class(task_config['analyzer'])
@@ -104,6 +112,8 @@ class service(config.Reader):
 
                 task = analyzer_class(task_name, write_dir, self.prometheus)
                 task.read_config(task_config)
+                task.init_logger()
+
                 self.tasks.append(task)
 
                 task_file.close()

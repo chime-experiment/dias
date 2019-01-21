@@ -24,20 +24,22 @@ class Analyzer(config.Reader):
     finish
     """
 
+    # Config values
+    start_time = config.Property(proptype=str2datetime)
+    period = config.Property(proptype=str2timedelta)
+    log_level = config.Property(default="INFO", proptype=logging.getLevelName)
+
     def __init__(self, name, write_dir, prometheus):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
-
-        # Set the module logger.
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.INFO)
-
         self._prometheus = prometheus
 
-    start_time = config.Property(proptype=str2datetime)
-    period = config.Property(proptype=str2timedelta)
+    def init_logger(self):
+        """Set up the logger. Call this after reading the config."""
+        self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(self.log_level)
 
     def task_metric(self, metric_name, value, documentation=None, labels=dict(),
                     unit=''):
