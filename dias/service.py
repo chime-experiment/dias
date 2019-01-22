@@ -69,9 +69,6 @@ class service(config.Reader):
         for task in self.tasks:
             task.setup()
 
-    def run_tasks(self):
-        pass
-
     def load_analyzers(self):
         """
         Locate and load all task config files

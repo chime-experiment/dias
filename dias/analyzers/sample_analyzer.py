@@ -41,6 +41,7 @@ class SampleAnalyzer(analyzer.Analyzer):
                 '{}.'.format(self.write_dir))
 
         # Export a task metric that counts how often this task ran.
+        # It will be called dias_task_<task name>_runs_count.
         self.run_counter += 1
         self.task_metric('runs_count', self.run_counter)
 
