@@ -4,6 +4,7 @@
 import logging
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
+from dias.service import DEFAULT_LOG_LEVEL
 
 class Analyzer(config.Reader):
     """Base class for all dias analyzers.
@@ -27,7 +28,8 @@ class Analyzer(config.Reader):
     # Config values
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
-    log_level = config.Property(default="INFO", proptype=logging.getLevelName)
+    log_level = config.Property(default=DEFAULT_LOG_LEVEL,
+                                proptype=logging.getLevelName)
 
     def __init__(self, name, write_dir, prometheus):
         """Constructor of analyzer base class.
@@ -47,7 +49,7 @@ class Analyzer(config.Reader):
         internals. The metric will be exported with the full name:
         `dias_task_<task name>_<metric_name>`."""
         labels['analyzer'] = __name__
-        metric_name = 'dias_task_' + self.name + '_' + metric_name
+        metric_name = 'dias_task_{}_{}'.format(self.name, metric_name)
         self._prometheus.add_metric(metric_name, value, documentation,
                                     timestamp=None, labels=labels, unit=unit)
 
@@ -59,7 +61,7 @@ class Analyzer(config.Reader):
         `dias_data_<task name>_<metric_name>`."""
         labels['task'] = self.name
         labels['analyzer'] = __name__
-        metric_name = 'dias_data_' + self.name + '_' + metric_name
+        metric_name = 'dias_data_{}_{}'.format(self.name, metric_name)
         self._prometheus.add_metric(metric_name, value, documentation,
                                      timestamp=None, labels=labels, unit=unit)
 

@@ -24,8 +24,8 @@ class Prometheus():
         # Set the module logger.
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        self.logger.info('Starting prometheus client on port ' + str(port) +
-                               '.')
+        self.logger.info('Starting prometheus client on port {}.'
+                         .format(str(port)))
 
     def add_metric(self, metric_name, value, documentation='',
                     timestamp=None, labels=dict(), unit=''):

@@ -4,6 +4,7 @@
 from dias.analyzer import Analyzer
 from ch_util import data_index
 from caput import config
+from dias.service import DEFAULT_ARCHIVE_DIR
 
 class CHIMEAnalyzer(Analyzer):
     """A base dias analyzer class with CHIME-specific extensions.
@@ -12,7 +13,8 @@ class CHIMEAnalyzer(Analyzer):
     CHIME-specific convenience methods.
     """
 
-    archive_data_dir = config.Property(proptype=str, default='')
+    archive_data_dir = config.Property(proptype=str,
+                                       default=DEFAULT_ARCHIVE_DIR)
 
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks

@@ -13,6 +13,8 @@ import copy
 
 # This is how a log line produced by dias will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
+DEFAULT_LOG_LEVEL = 'INFO'
+DEFAULT_ARCHIVE_DIR = ''
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
@@ -29,7 +31,8 @@ class service(config.Reader):
     trigger_interval = config.Property(default='1h', proptype=str2timedelta)
 
     # For CHIMEAnalyzer
-    archive_data_dir = config.Property(default='', proptype=str)
+    archive_data_dir = config.Property(default=DEFAULT_ARCHIVE_DIR,
+                                       proptype=str)
 
     def __init__(self, config_path):
         self.config_path = config_path
@@ -49,10 +52,10 @@ class service(config.Reader):
 
         # Check config values
         if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
-            msg = 'Config value `trigger_interval` is too small (' +\
-                  self.trigger_interval + '). dias does not allow' +\
-                  'values smaller than ' + MIN_TRIGGER_INTERVAL_MINUTES +\
-                  ' minutes.'
+            msg = 'Config value `trigger_interval` is too small ({}). '\
+                    'dias does not allow values smaller than {} minutes.'\
+                .format(self.trigger_interval,
+                        MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
         # Start prometheus client
@@ -91,7 +94,8 @@ class service(config.Reader):
                 task_config.update(yaml.load(task_file))
 
                 # Load the analyzer for this task from the task config
-                analyzer_class = self.import_analyzer_class(task_config['analyzer'])
+                analyzer_class = \
+                    self.import_analyzer_class(task_config['analyzer'])
 
                 # Remove .conf from the config file name to get the name of the
                 # task
@@ -102,13 +106,12 @@ class service(config.Reader):
 
                 # Create the directory if it doesn't exist
                 if not os.path.isdir(write_dir):
-                    self.logger.info('Creating new write directory for task `'
-                                      + task_name + '`: ' + write_dir)
+                    self.logger.info('Creating new write directory for task '\
+                            '`{}`: {}.'.format(task_name, write_dir))
                     os.makedirs(write_dir)
                 else:
-                    self.logger.info('Set write directory for task `'
-                                     + task_name + '` to existing path: ' +
-                                     write_dir)
+                    self.logger.info('Set write directory for task `{}`: {}.'
+                                     .format(task_name, write_dir))
 
                 task = analyzer_class(task_name, write_dir, self.prometheus)
                 task.read_config(task_config)

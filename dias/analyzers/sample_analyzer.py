@@ -21,8 +21,8 @@ class SampleAnalyzer(analyzer.Analyzer):
 
     def setup(self):
         """Setup stage: this is called when dias starts up."""
-        self.logger.info('Starting up. My name is ' + self.name +
-                            ' and I am of type ' + __name__ + '.')
+        self.logger.info('Starting up. My name is {} and I am of type {}.'
+                         .format(self.name, __name__))
         self.run_counter = 0
 
     def run(self):
@@ -34,10 +34,11 @@ class SampleAnalyzer(analyzer.Analyzer):
         end_time = datetime.now() - self.offset
         start_time = end_time - self.period
 
-        self.logger.info('Analyzing data between ' + datetime2str(start_time) +
-                         ' and ' + datetime2str(end_time) + '.')
-        self.logger.info('If I had any data, I would probably throw stuff at ' +
-                         self.write_dir)
+        self.logger.info('Analyzing data between {} and {}.'
+                         .format(datetime2str(start_time),
+                                 datetime2str(end_time)))
+        self.logger.info('If I had any data, I would probably throw stuff at '\
+                '{}.'.format(self.write_dir))
 
         # Export a task metric that counts how often this task ran.
         self.run_counter += 1
