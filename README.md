@@ -94,7 +94,7 @@ TODO: How to use.
 ```
 It works exactly the same as calling `ch_util.data_index.Finder(...)`, except this one sets the `node_spoof` parameter for you (and will ignore any `node_spoof` you specify).
  
-## Tasks
+## TaskOBs
 The other piece is the configuration file which tells the `dias` scheduler about your analysis task.  Create a YAML file in the `tasks` directory.  You can call it whatever you want, but the name must end in `.conf`.  Whatever you call it will end up being the task's _name_.
 
 This file contains two types of configuration data:
@@ -119,7 +119,16 @@ the_other_thing: "a string"
 ## Testing analyzers
 
 After defining your task by creating the `task_name.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
+```
+scripts/dias tryrun task_name
+```
+(Make sure the uninstalled dias can by found by the python interpeter first.)
 
-  scripts/dias tryrun task_name
-
-It will start a new dias instance, load the configuration file `task_name.conf`, run it once, immediately, and then exit.  Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.
+With the `tryrun` action, the `dias` script will:
+* start a new dias instance
+* load the global configuration as well as the configuration file `task_name.conf` (and ignore all other task config files)
+* run your analyzer's `setup()`, if present
+* run your analyzer's `run()` once, immediately
+* run your analyzer's `finish()` once, if present
+* finally, exit
+Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
