@@ -86,7 +86,7 @@ subparsers = parser.add_subparsers(
         title="actions",
         metavar="ACTION",
         help="The action to perform.  " \
-                "For action-specific help, use: `ACTION -h'"
+                "For action-specific help, use: `ACTION -h'")
 
 configtest_parser = subparsers.add_parser(
         'configtest',
