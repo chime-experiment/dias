@@ -116,3 +116,10 @@ this_thing: 33.3
 that_thing: 12
 the_other_thing: "a string"
 ```
+## Testing analyzers
+
+After defining your task by creating the `task_name.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
+
+  scripts/dias tryrun task_name
+
+It will start a new dias instance, load the configuration file `task_name.conf`, run it once, immediately, and then exit.  Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.
