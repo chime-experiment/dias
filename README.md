@@ -116,3 +116,21 @@ this_thing: 33.3
 that_thing: 12
 the_other_thing: "a string"
 ```
+## Testing analyzers
+
+After defining your task by creating the `trivial_task.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
+```
+scripts/dias tryrun trivial_task
+```
+(Make sure the uninstalled dias can by found by the python interpeter first.)
+
+With the `tryrun` action, the `dias` script will:
+
+* start a new dias instance
+* load the global configuration as well as the configuration file `trivial_task.conf` (and ignore all other task config files)
+* run your analyzer's `setup()`, if present
+* run your analyzer's `run()` once, immediately
+* run your analyzer's `finish()` once, if present
+* finally, exit
+
+Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).

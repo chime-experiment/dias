@@ -1,13 +1,8 @@
-# dias Service
-# ------------
-
-
 import importlib
-import logging
 from caput import config
+import logging
 import yaml
 import os
-from dias import prometheus
 from dias.utils.time_strings import str2timedelta
 import copy
 
@@ -19,11 +14,11 @@ DEFAULT_ARCHIVE_DIR = ''
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
-class service(config.Reader):
+class ConfigLoader(config.Reader):
 
     # Config variables
     task_config_dir = config.Property(
-        default=os.path.join(os.getcwd(), 'tasks'), proptype=str,
+        proptype=str,
         key='task_config_dir')
     task_write_dir = config.Property(proptype=str)
     prometheus_client_port = config.Property(proptype=int)
@@ -34,7 +29,7 @@ class service(config.Reader):
     archive_data_dir = config.Property(default=DEFAULT_ARCHIVE_DIR,
                                        proptype=str)
 
-    def __init__(self, config_path):
+    def __init__(self, config_path, limit_task = None):
         self.config_path = config_path
 
         self.tasks = list()
@@ -45,11 +40,6 @@ class service(config.Reader):
         self.read_config(self.global_config)
         global_file.close()
 
-        # Set the module logger.
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(self.log_level)
-        logging.basicConfig(format=LOG_FORMAT)
-
         # Check config values
         if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
@@ -58,18 +48,20 @@ class service(config.Reader):
                         MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
-        # Start prometheus client
-        self.prometheus = prometheus.Prometheus(self.prometheus_client_port)
+        # Set the default task config dir, which is the
+        # subdirectory "task" in the directory containing dais.conf
+        if self.task_config_dir is None:
+            self.task_config_dir = os.path.join(
+                    os.path.dirname(self.config_path), "tasks")
 
-        # Setup tasks
-        self.load_analyzers()
-        self.setup_tasks()
+        # Load all the analyzers
+        self.load_analyzers(limit_task)
 
-    def setup_tasks(self):
-        for task in self.tasks:
-            task.setup()
+        # Don't do anything if we have no tasks
+        if len(self.tasks) < 1:
+            raise IndexError("No tasks have been defined.")
 
-    def load_analyzers(self):
+    def load_analyzers(self, limit_task):
         """
         Locate and load all task config files
         """
@@ -79,6 +71,15 @@ class service(config.Reader):
             # Task config files starting with an underscore (_) are disabled.
             if config_file.endswith(".conf") and not\
                     config_file.startswith("_"):
+
+                # Remove .conf from the config file name to get the name of the
+                # task
+                task_name = os.path.splitext(config_file)[0]
+
+                # If we've limited ourselves to a particular task,
+                # skip everything else
+                if limit_task is not None and task_name != limit_task:
+                    continue
 
                 # caput config reader class for task config
                 task_file = open(os.path.join(self.task_config_dir,
@@ -92,34 +93,20 @@ class service(config.Reader):
 
                 # Load the analyzer for this task from the task config
                 analyzer_class = \
-                    self.import_analyzer_class(task_config['analyzer'])
-
-                # Remove .conf from the config file name to get the name of the
-                # task
-                task_name = config_file[:-5]
+                    self._import_analyzer_class(task_config['analyzer'])
 
                 # This is where we tell the task to write its output
                 write_dir = os.path.join(self.task_write_dir, task_name)
 
-                # Create the directory if it doesn't exist
-                if not os.path.isdir(write_dir):
-                    self.logger.info('Creating new write directory for task '\
-                            '`{}`: {}.'.format(task_name, write_dir))
-                    os.makedirs(write_dir)
-                else:
-                    self.logger.info('Set write directory for task `{}`: {}.'
-                                     .format(task_name, write_dir))
-
-                task = analyzer_class(task_name, write_dir, self.prometheus)
+                task = analyzer_class(task_name, write_dir)
                 task.read_config(task_config)
-                task.init_logger()
 
                 self.tasks.append(task)
 
                 task_file.close()
 
 
-    def import_analyzer_class(self, name):
+    def _import_analyzer_class(self, name):
         """
         Finds the Analyser class given by name.  If name includes a module,
         first imports the module.
@@ -134,7 +121,7 @@ class service(config.Reader):
         if separator == "":
             # No module, look for name in globals list
             try:
-                clas = globals()[classname]
+                class_ = globals()[classname]
             except KeyError:
                 raise ImportError("Analyzer class {0} not found".format(classname))
         else:
@@ -147,10 +134,10 @@ class service(config.Reader):
 
             # Now, find the class in the module
             try:
-                clas = getattr(ext_module, classname)
+                class_ = getattr(ext_module, classname)
             except AttributeError:
                 raise ImportError(
                         "Analyzer class {0} not found in module {1}".format(
                             classname, modulename))
 
-        return clas
+        return class_
