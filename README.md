@@ -118,16 +118,16 @@ the_other_thing: "a string"
 ```
 ## Testing analyzers
 
-After defining your task by creating the `task_name.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
+After defining your task by creating the `trivial_task.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
 ```
-scripts/dias tryrun task_name
+scripts/dias tryrun trivial_task
 ```
 (Make sure the uninstalled dias can by found by the python interpeter first.)
 
 With the `tryrun` action, the `dias` script will:
 
 * start a new dias instance
-* load the global configuration as well as the configuration file `task_name.conf` (and ignore all other task config files)
+* load the global configuration as well as the configuration file `trivial_task.conf` (and ignore all other task config files)
 * run your analyzer's `setup()`, if present
 * run your analyzer's `run()` once, immediately
 * run your analyzer's `finish()` once, if present
