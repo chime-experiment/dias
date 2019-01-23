@@ -1,0 +1,164 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import argparse
+from dias.config_loader import ConfigLoader
+from dias.scheduler import Scheduler
+
+def do_configtest(args):
+    # Load and discard the config
+    ConfigLoader(args.conf)
+    print("configuration ok")
+
+def do_start(args):
+    raise NotImplementedError;
+
+def do_stop(args):
+    raise NotImplementedError;
+
+def do_restart(args):
+    do_stop(args)
+    do_start(args)
+
+def do_tryrun(args):
+    # Load config
+    loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
+
+    # Create the scheduler
+    scheduler = Scheduler(
+            loaded_conf,
+            # Create a "fake" prometheus client
+            local_prometheus = True,
+            # Log to stdout
+            log_stdout = True,
+            )
+
+    # Run task set-up
+    if not args.no_setup:
+        scheduler.setup_tasks()
+
+    # Run the "next" (i.e. only) task
+    scheduler.next_task().run()
+
+    # Run task finish
+    if not args.no_finish:
+        scheduler.finish_tasks()
+
+    # Shutdown the scheduler
+    del scheduler
+
+    exit(0)
+
+
+def do_runner(args):
+    raise NotImplementedError;
+
+# The default dias.conf path.
+# The default here should be suitable for running dias
+# without installing it.  An installed dias should always
+# specify the location of its configuration file, either
+# on the command line or else in the environment
+dias_conf=os.getenv("DIAS_CONF",
+        os.path.normpath(os.path.join(sys.path[0], "../conf/dias.conf")))
+
+parser = argparse.ArgumentParser(
+        description="This is the dias control program.",
+        epilog="""\
+If no configuration file is specified via -c, dias will use the value
+of the environmental variable DIAS_CONF, if present.  If DIAS_CONF
+is not available, this script will use: {0} which should be suitable
+for running dias without first installing it.
+""".format(dias_conf)
+        )
+
+# Global options
+
+parser.add_argument(
+        "-c", "--conf",
+        metavar="PATH",
+        help="read dias.conf file specified by PATH",
+        default=dias_conf
+        )
+
+# Command parsers
+subparsers = parser.add_subparsers(
+        title="actions",
+        metavar="ACTION",
+        help="The action to perform.  " \
+                "For action-specific help, use: `ACTION -h'"
+
+configtest_parser = subparsers.add_parser(
+        'configtest',
+        help='check the configureation and exit')
+configtest_parser.set_defaults(func=do_configtest)
+
+start_parser = subparsers.add_parser(
+        'start',
+        help='start an instance of the scheduler')
+start_parser.add_argument(
+        '-p', '--pidfile',
+        metavar="PIDFILE",
+        help="write process PID to PIDFILE"
+        )
+start_parser.set_defaults(func=do_start)
+
+restart_parser = subparsers.add_parser(
+        'restart',
+        help='restart an instance of the scheduler'
+        )
+restart_parser.add_argument(
+        '-p', '--pidfile',
+        metavar="PIDFILE",
+        help="read/write process PID from/to PIDFILE"
+        )
+restart_parser.set_defaults(func=do_restart)
+
+stop_parser = subparsers.add_parser('stop',
+        help='stop an instance of the scheduler'
+        )
+stop_parser.add_argument('-p',
+        metavar="PIDFILE",
+        help="read process PID from PIDFILE"
+        )
+stop_parser.set_defaults(func=do_stop)
+
+runner_parser = subparsers.add_parser(
+        'runner',
+        help='run a single task repeatedly, on its schedule'
+        )
+runner_parser.set_defaults(func=do_runner)
+runner_parser.add_argument(
+        "task",
+        help="The name of the task to run"
+        )
+
+tryrun_parser = subparsers.add_parser(
+        'tryrun',
+        help='run a single task once'
+        )
+tryrun_parser.set_defaults(func=do_tryrun)
+tryrun_parser.add_argument(
+        "task",
+        help="The name of the task to run"
+        )
+tryrun_parser.add_argument(
+        "-s", "--no-setup",
+        action="store_true",
+        help="Skip execution of the tasks's setup routine"
+        )
+tryrun_parser.add_argument(
+        "-f", "--no-finish",
+        action="store_true",
+        help="Skip execution of the tasks's finish routine"
+        )
+
+parsed_args = parser.parse_args()
+
+# Run the selected action, if specified
+if hasattr(parsed_args, "func"):
+    parsed_args.func(parsed_args);
+else:
+    parser.print_help()
+    print("dias: error: an action must be specified")
+    exit(1)

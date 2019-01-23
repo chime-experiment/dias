@@ -31,12 +31,11 @@ class Analyzer(config.Reader):
     log_level = config.Property(default=DEFAULT_LOG_LEVEL,
                                 proptype=logging.getLevelName)
 
-    def __init__(self, name, write_dir, prometheus):
+    def __init__(self, name, write_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
-        self._prometheus = prometheus
 
     def init_logger(self):
         """Set up the logger. Call this after reading the config."""
