@@ -23,7 +23,13 @@ class SampleAnalyzer(analyzer.Analyzer):
         """Setup stage: this is called when dias starts up."""
         self.logger.info('Starting up. My name is {} and I am of type {}.'
                          .format(self.name, __name__))
-        self.run_counter = 0
+
+        # Add a task metric that counts how often this task ran.
+        # It will be exported as dias_task_<task_name>_runs_total.
+        self.run_counter = self.add_task_metric("runs",
+                                                "Number of times the task ran.",
+                                                unit="total")
+
 
     def run(self):
         """Main task stage: analyze data from the last period.
@@ -40,10 +46,8 @@ class SampleAnalyzer(analyzer.Analyzer):
         self.logger.info('If I had any data, I would probably throw stuff at '\
                 '{}.'.format(self.write_dir))
 
-        # Export a task metric that counts how often this task ran.
-        # It will be called dias_task_<task name>_runs_count.
-        self.run_counter += 1
-        self.task_metric('runs_count', self.run_counter)
+        # Increment (+1).
+        self.run_counter.inc()
 
     def finish(self):
         """Final stage: this is called when dias shuts down."""

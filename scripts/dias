@@ -25,11 +25,12 @@ def do_tryrun(args):
     # Load config
     loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
 
+    # Create a "fake" prometheus client (This will assign a random free port).
+    loaded_conf.prometheus_client_port = 0
+
     # Create the scheduler
     scheduler = Scheduler(
             loaded_conf,
-            # Create a "fake" prometheus client
-            local_prometheus = True,
             # Log to stdout
             log_stdout = True,
             )
