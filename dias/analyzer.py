@@ -4,7 +4,7 @@
 import logging
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
-from dias.service import DEFAULT_LOG_LEVEL
+from dias.config_loader import DEFAULT_LOG_LEVEL
 
 class Analyzer(config.Reader):
     """Base class for all dias analyzers.
