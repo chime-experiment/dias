@@ -5,6 +5,8 @@ import logging
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
 from dias.config_loader import DEFAULT_LOG_LEVEL
+from prometheus_client import Gauge
+
 
 class Analyzer(config.Reader):
     """Base class for all dias analyzers.
@@ -42,28 +44,27 @@ class Analyzer(config.Reader):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.log_level)
 
-    def task_metric(self, metric_name, value, documentation=None, labels=dict(),
-                    unit=''):
-        """Add a prometheus task metric. Use this to export metrics about tasks
-        internals. The metric will be exported with the full name:
-        `dias_task_<task name>_<metric_name>`."""
-        labels['analyzer'] = __name__
-        metric_name = 'dias_task_{}_{}'.format(self.name, metric_name)
-        self._prometheus.add_metric(metric_name, value, documentation,
-                                    timestamp=None, labels=labels, unit=unit)
+    def add_task_metric(self, metric_name, description, labelnames=[], unit=''):
+        """Add a gauge metric. It will be exported with the full name
+        `dias_task_<task name>_<metric_name>_<unit>`.
+        Pass the metric name without the prefix and unit according to
+        prometheus naming conventions
+        (https://prometheus.io/docs/practices/naming/#metric-names).
+        Use a base unit as described here
+        (https://prometheus.io/docs/practices/naming/#base-units)."""
+        name = 'dias_task_{}_{}'.format(self.name, metric_name)
+        return Gauge(name, description, labelnames=labelnames, unit=unit)
 
-    def data_metric(self, metric_name, value, documentation=None,
-                    labels=dict(), unit=''):
-        """Add a prometheus data metric. Use this to export
-        metrics about the data you are analyzing.
-        The metric will be exported with the full name:
-        `dias_data_<task name>_<metric_name>`."""
-        labels['task'] = self.name
-        labels['analyzer'] = __name__
-        metric_name = 'dias_data_{}_{}'.format(self.name, metric_name)
-        self._prometheus.add_metric(metric_name, value, documentation,
-                                     timestamp=None, labels=labels, unit=unit)
-
+    def add_data_metric(self, name, description, labelnames=[], unit=''):
+        """Add a gauge metric. It will be exported with the full name
+        `dias_data_<task name>_<metric_name>_<unit>`.
+        Pass the metric name without the prefix and unit according to
+        prometheus naming conventions
+        (https://prometheus.io/docs/practices/naming/#metric-names).
+        Use a base unit as described here
+        (https://prometheus.io/docs/practices/naming/#base-units)."""
+        name = 'dias_data_{}_{}'.format(self.name, name)
+        return Gauge(name, description, labelnames=labelnames, unit=unit)
 
     # Overridable Attributes
     # -----------------------

@@ -1,6 +1,8 @@
 import logging
 import os
-from dias import prometheus
+import threading
+from prometheus_client import make_wsgi_app
+from wsgiref.simple_server import make_server
 
 # This is how a log line produced by dias will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
@@ -18,7 +20,7 @@ This function will block until the scheduler has terminated.
 
 class Scheduler:
 
-    def __init__(self, config, local_prometheus = False, log_stdout = False):
+    def __init__(self, config, log_stdout = False):
         self.config = config
 
         # Set the module logger.
@@ -26,18 +28,20 @@ class Scheduler:
         self.logger.setLevel(self.config.log_level)
         logging.basicConfig(format=LOG_FORMAT)
 
-        # Start prometheus client
-        self.prometheus = prometheus.Prometheus(
-                self.config.prometheus_client_port)
+        # Set a server to export (expose to prometheus) the data (in a thread)
+        app = make_wsgi_app()
+        httpd = make_server('', config.prometheus_client_port, app)
+        t = threading.Thread(target=httpd.serve_forever)
+        t.daemon = True
+        t.start()
+        self.logger.info('Starting prometheus client on port {}.'
+                         .format(httpd.server_port))
 
         # Prepare tasks
         self.prepare_tasks()
 
     def prepare_tasks(self):
         for task in self.config.tasks:
-            # Associate prometheus client
-            task._prometheus = self.prometheus
-
             # initialse the task's logger
             task.init_logger()
 
