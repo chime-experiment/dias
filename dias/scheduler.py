@@ -1,7 +1,3 @@
-# dias Service
-# ------------
-
-
 import logging
 import os
 from dias import prometheus
@@ -11,6 +7,14 @@ LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
+
+def stop_scheduler(pidfile):
+    """\
+Stop a running scheduler.  The PID of the scheduler is given in the file provided.
+
+This function will block until the scheduler has terminated.
+"""
+    raise NotImplementedError
 
 class Scheduler:
 

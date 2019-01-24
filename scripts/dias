@@ -4,7 +4,7 @@ import sys
 import os
 import argparse
 from dias.config_loader import ConfigLoader
-from dias.scheduler import Scheduler
+from dias.scheduler import Scheduler, stop_scheduler
 
 def do_configtest(args):
     # Load and discard the config
@@ -12,10 +12,17 @@ def do_configtest(args):
     print("configuration ok")
 
 def do_start(args):
-    raise NotImplementedError;
+    # Load config
+    loaded_conf = ConfigLoader(args.conf)
+
+    # Create the scheduler
+    scheduler = Scheduler(loaded_conf)
+
+    # Start the scheduler
+    scheduler.start(args.pidfile)
 
 def do_stop(args):
-    raise NotImplementedError;
+    stop_scheduler(args.pidfile)
 
 def do_restart(args):
     do_stop(args)
@@ -47,8 +54,6 @@ def do_tryrun(args):
 
     # Shutdown the scheduler
     del scheduler
-
-    exit(0)
 
 
 def do_runner(args):
@@ -99,6 +104,7 @@ start_parser = subparsers.add_parser(
 start_parser.add_argument(
         '-p', '--pidfile',
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="write process PID to PIDFILE"
         )
 start_parser.set_defaults(func=do_start)
@@ -110,6 +116,7 @@ restart_parser = subparsers.add_parser(
 restart_parser.add_argument(
         '-p', '--pidfile',
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="read/write process PID from/to PIDFILE"
         )
 restart_parser.set_defaults(func=do_restart)
@@ -117,8 +124,10 @@ restart_parser.set_defaults(func=do_restart)
 stop_parser = subparsers.add_parser('stop',
         help='stop an instance of the scheduler'
         )
-stop_parser.add_argument('-p',
+stop_parser.add_argument(
+        '-p', "--pidfile",
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="read process PID from PIDFILE"
         )
 stop_parser.set_defaults(func=do_stop)
@@ -162,3 +171,5 @@ else:
     parser.print_help()
     print("dias: error: an action must be specified")
     exit(1)
+
+exit(0)
