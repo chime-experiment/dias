@@ -65,18 +65,38 @@ will result in
 [2019-01-18 14:07:57,905] trivial_task: Something terrible happened!
 ```
 (where "trivial_task" is the name of the task we defined in the `trivial_task.conf` file below).
-* **task_metric(metric_name, value, documentation=None, labels=dict(), unit=''):** A method the analyzer base class provides to export housekeeping metrics of the task.
+* **add_task_metric(metric_name, description (optional), labelnames (optional), unit (optional)):**
+
+A method the analyzer base class provides to create housekeeping metrics of the task. It returns a [`prometheus_client.Gauge`](https://github.com/prometheus/client_python#gauge) that can be used to update the value of the metric.
+The example
 ```python
+    def setup(self):
+        self.some_metric = self.add_task_metric("something", unit='total')
+        self.some_metric.set(1.2)
+
     def run(self):
-        self.task_metric("something_total", 7)
+        self.some_metric.inc()
 ```
-will export a prometheus metric called `dias_task_<task_name>_something_total` with the value `7`.
-* **data_metric(metric_name, value, documentation=None, labels=dict(), unit=''):** A method the analyzer base class provides to export metrics desribing the analyzed data.
+will export a prometheus metric called `dias_task_<task_name>_something_total` with the initial value *1.2* that gets incremented on each run of the task.
+* **add_data_metric(metric_name, description (optional), labelnames (optional), unit (optional)):**
+
+ A method the analyzer base class provides to create metrics describing the analyzed data.
+ It returns a [`prometheus_client.Gauge`](https://github.com/prometheus/client_python#gauge) that can be used to update the value of the metric.
+The example
 ```python
+    def setup(self):
+        self.some_metric = self.add_data_metric("some_time", unit='seconds')
+
     def run(self):
-        self.data_metric("my_metric_seconds", 23.555)
+        self.some_metric.set(1)
+
 ```
-will export a prometheus metric called `dias_data_<task_name>_my_metric_seconds` with the value `23.555`.
+will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
+ which will be set to *1* on every run of the task.
+
+ * Metric labels: If a list of strings is passed as the parameter `labelnames`
+ when calling `add_task_metric` or `add_data_metric`, the value of the metric
+ can be set depending on label values, as described [here](https://github.com/prometheus/client_python#labels).
 
 * **period:** A `datetime.timedelta` object, defining the time between task runs. The value is set in the tasks config file.
 * **start_time:** A `datetime.datetime` object, defining the phase of the task as the first time the task is run. The value is set in the tasks config file.
