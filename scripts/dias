@@ -16,7 +16,7 @@ def do_start(args):
     loaded_conf = ConfigLoader(args.conf)
 
     # Create the scheduler
-    scheduler = Scheduler(loaded_conf)
+    scheduler = Scheduler(loaded_conf, args.log_level)
 
     # Start the scheduler
     scheduler.start(args.pidfile)
@@ -30,7 +30,8 @@ def do_restart(args):
 
 def do_tryrun(args):
     # Load config
-    loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
+    loaded_conf = ConfigLoader(args.conf, args.log_level,
+            limit_task=args.task)
 
     # Create a "fake" prometheus client (This will assign a random free port).
     loaded_conf.prometheus_client_port = 0
@@ -39,7 +40,7 @@ def do_tryrun(args):
     scheduler = Scheduler(
             loaded_conf,
             # Log to stdout
-            log_stdout = True,
+            log_stdout=True,
             )
 
     # Run task set-up
@@ -65,7 +66,7 @@ def do_runner(args):
 # without installing it.  An installed dias should always
 # specify the location of its configuration file, either
 # on the command line or else in the environment
-dias_conf=os.getenv("DIAS_CONF",
+dias_conf = os.getenv("DIAS_CONF",
         os.path.normpath(os.path.join(sys.path[0], "../conf/dias.conf")))
 
 parser = argparse.ArgumentParser(
@@ -86,6 +87,19 @@ parser.add_argument(
         help="read dias.conf file specified by PATH",
         default=dias_conf
         )
+parser.add_argument(
+        "-l", "--log-level",
+        help='set the log level to LEVEL, one of: "critical", "error", ' \
+                '"warning", "info", "debug".  If specified, this will ' \
+                'override a log level specified in the conf files for ' \
+                'all tasks',
+        default=None,
+        metavar="LEVEL",
+        choices=['critical', 'error', 'warning', 'info', 'debug']
+        )
+
+# Default values
+parser.set_defaults(start_now=False)
 
 # Command parsers
 subparsers = parser.add_subparsers(
@@ -96,7 +110,7 @@ subparsers = parser.add_subparsers(
 
 configtest_parser = subparsers.add_parser(
         'configtest',
-        help='check the configureation and exit')
+        help='check the configuration and exit')
 configtest_parser.set_defaults(func=do_configtest)
 
 start_parser = subparsers.add_parser(

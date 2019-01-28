@@ -22,23 +22,32 @@ class ConfigLoader(config.Reader):
         key='task_config_dir')
     task_write_dir = config.Property(proptype=str)
     prometheus_client_port = config.Property(proptype=int)
-    log_level = config.Property(default='INFO', proptype=logging.getLevelName)
+    log_level = config.Property(proptype=logging.getLevelName)
     trigger_interval = config.Property(default='1h', proptype=str2timedelta)
 
     # For CHIMEAnalyzer
     archive_data_dir = config.Property(default=DEFAULT_ARCHIVE_DIR,
                                        proptype=str)
 
-    def __init__(self, config_path, limit_task = None):
+    def __init__(self, config_path, limit_task=None, log_level=None):
         self.config_path = config_path
-
-        self.tasks = list()
+        self.log_level_override = log_level
 
         # Read and apply dias global config
         global_file = open(self.config_path, "r")
         self.global_config = yaml.load(global_file)
-        self.read_config(self.global_config)
         global_file.close()
+
+        # Set log level, if necessary.  We do this in global_config
+        # instead of setting self.log_level directly so that it will
+        # be propagated into tasks.
+        self.global_config.set_default('log_level', DEFAULT_LOG_LEVEL)
+
+        if log_level is not None:
+            self.global_config['log_level'] = log_level.upper()
+
+        # Apply global config
+        self.read_config(self.global_config)
 
         # Check config values
         if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
@@ -65,6 +74,8 @@ class ConfigLoader(config.Reader):
         """
         Locate and load all task config files
         """
+
+        self.tasks = list()
 
         for config_file in os.listdir(self.task_config_dir):
             # Only accept files ending in .conf as task configs.

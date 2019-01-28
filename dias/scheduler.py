@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import time
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
 
@@ -20,7 +21,7 @@ This function will block until the scheduler has terminated.
 
 class Scheduler:
 
-    def __init__(self, config, log_stdout = False):
+    def __init__(self, config, log_stdout=False):
         self.config = config
 
         # Set the module logger.
@@ -41,9 +42,24 @@ class Scheduler:
         self.prepare_tasks()
 
     def prepare_tasks(self):
+
+        # This is the notional start time of the scheduler
+        reference_time = time.time()
+
         for task in self.config.tasks:
             # initialse the task's logger
-            task.init_logger()
+            task.init_logger(self.config.log_level_override)
+
+            # Pick a start time if the task hasn't declared one
+            if task.start_time is None:
+                if self.config.start_now:
+                    task.start_time = reference_time
+                else:
+                    task.start_time = reference_time + random.random() * task.period
+
+            # Advance start time into the non-past:
+            while task.start_time <= reference_time:
+                task.start_time += task.period
 
             # Create the task's output directory if it doesn't exist
             if not os.path.isdir(task.write_dir):
@@ -54,6 +70,16 @@ class Scheduler:
                 self.logger.info('Set write directory for task `{}`: {}.'
                         .format(task.name, task.write_dir))
 
+        # Sort tasks by start_time
+        self.config.tasks.sort(key=lambda task: task.start_time,
+                reverse=True)
+
+        self.logger.info("Initialised {0} tasks".format(len(self.config.tasks)))
+        if self.config.log_level == 'DEBUG':
+            for i in range(len(self.config.tasks)):
+                self.logger.debug("  {0}: {1} @ {2}".format(i, self.config.tasks[i].name,
+                    self.config.tasks[i].start_time))
+
 
     def setup_tasks(self):
         for task in self.config.tasks:
@@ -63,7 +89,8 @@ class Scheduler:
         """Returns the next scheduled task"""
         return self.config.tasks[0]
 
-    def run_tasks(self):
+    def start(self):
+        """This is the entry point for the scheduler main loop"""
         raise NotImplementedError
 
     def finish_tasks(self):
