@@ -3,7 +3,7 @@
 import sys
 import os
 import argparse
-from dias.config_loader import ConfigLoader
+from dias.config_loader import ConfigLoader, DiasUsageError
 from dias.scheduler import Scheduler
 
 def do_configtest(args):
@@ -23,7 +23,12 @@ def do_restart(args):
 
 def do_tryrun(args):
     # Load config
-    loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
+    try:
+        loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
+    except DiasUsageError as err:
+        parser.print_help()
+        print("\ndias: error: Failed loading config: {}".format(err))
+        exit(1)
 
     # Create a "fake" prometheus client (This will assign a random free port).
     loaded_conf.prometheus_client_port = 0
@@ -161,5 +166,5 @@ if hasattr(parsed_args, "func"):
     parsed_args.func(parsed_args);
 else:
     parser.print_help()
-    print("dias: error: an action must be specified")
+    print("\ndias: error: an action must be specified")
     exit(1)

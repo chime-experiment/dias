@@ -14,6 +14,16 @@ DEFAULT_ARCHIVE_DIR = ''
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
+class DiasUsageError(Exception):
+    """Exception raised for errors in the usage of dias.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+
 class ConfigLoader(config.Reader):
 
     # Config variables
@@ -35,7 +45,11 @@ class ConfigLoader(config.Reader):
         self.tasks = list()
 
         # Read and apply dias global config
-        global_file = open(self.config_path, "r")
+        try:
+            global_file = open(self.config_path, "r")
+        except Exception as exc:
+            raise DiasUsageError('Failed to open dias config file: {}'
+                                 .format(exc))
         self.global_config = yaml.load(global_file)
         self.read_config(self.global_config)
         global_file.close()
