@@ -107,6 +107,11 @@ will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
  * Metric labels: If a list of strings is passed as the parameter `labelnames`
  when calling `add_task_metric` or `add_data_metric`, the value of the metric
  can be set depending on label values, as described [here](https://github.com/prometheus/client_python#labels).
+ Example with labels being `frequency` and `input`:
+ ```python
+ m = self.add_data_metric("my_metric", labelnames=['frequency, 'input'])
+ m.labels(frequency=7.5, input='some_value').inc()
+ ```
 
 * **period:** A `datetime.timedelta` object, defining the time between task runs. The value is set in the tasks config file.
 * **start_time:** A `datetime.datetime` object, defining the phase of the task as the first time the task is run. The value is set in the tasks config file.
