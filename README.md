@@ -104,7 +104,7 @@ The example
 will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
  which will be set to *1* on every run of the task.
 
- * Metric labels: If a list of strings is passed as the parameter `labelnames`
+ * **Metric labels:** If a list of strings is passed as the parameter `labelnames`
  when calling `add_task_metric` or `add_data_metric`, the value of the metric
  can be set depending on label values, as described [here](https://github.com/prometheus/client_python#labels).
  Example with labels being `frequency` and `input`:
