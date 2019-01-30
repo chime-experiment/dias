@@ -9,11 +9,12 @@ Dependencies are:
 
 ## Configuration
 The path to the configuration file can be passed to `dias` by `-c path/to/dias.conf`, otherwise `dias` will search for a configuration file at `../conf/dias.conf`. This should be a YAML file with the following keys:
- * **log_level:** Global log level: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` or `NOTSET` (default: `INFO`)
- * **trigger_interval:** A time interval specifying hours, minutes and/or seconds (e.g. `2h15m30s` or `12h30m`). This tells `dias` how often to look for tasks that need to be triggered (minimum: `10m`, default: `1h`).
+ * **log_level:** String. Global log level: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` or `NOTSET` (default: `INFO`)
+ * **trigger_interval:** String. A time interval specifying hours, minutes and/or seconds (e.g. `2h15m30s` or `12h30m`). This tells `dias` how often to look for tasks that need to be triggered (minimum: `10m`, default: `1h`).
  * **task_config_dir:** Path to the [task files](#tasks) (default: `tasks` in the same directory as the config file)
- * **task_write_dir:** Path to write task data to.
- * **prometheus_client_port:** Port to run the dias client on.
+ * **task_write_dir:** String. Path to write task output data to.
+ * **task_state_dir:** String. Path to write task state data to.
+ * **prometheus_client_port:** Int. Port to run the dias client on.
  
  For an example, see [`conf/dias.conf`](conf/dias.conf).
 
