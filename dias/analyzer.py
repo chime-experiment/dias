@@ -32,13 +32,13 @@ class Analyzer(config.Reader):
     log_level = config.Property(default=None,
                                 proptype=logging.getLevelName)
 
-    def __init__(self, name, log_level, write_dir, state_dir):
+    def __init__(self, name, config, write_dir, state_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
         self.state_dir = state_dir
-        self._default_log_level = log_level
+        self._default_log_level = config.log_level
 
     def init_logger(self):
         """Set up the logger. Call this after reading the config."""

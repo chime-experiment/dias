@@ -4,13 +4,13 @@ This is a basic example for how to write an analyzer for dias.
 """
 
 
-from dias import analyzer
+from dias import chime_analyzer
 from datetime import datetime
 from caput import config
 from dias.utils.time_strings import str2timedelta, datetime2str
 
 
-class SampleAnalyzer(analyzer.Analyzer):
+class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """Sample Analyzer for dias.
     This subclass of dias.analyzer.Analyzer describes the new analyzer.
     """
@@ -31,7 +31,6 @@ class SampleAnalyzer(analyzer.Analyzer):
         self.run_counter = self.add_task_metric("runs",
                                                 "Number of times the task ran.",
                                                 unit="total")
-
 
     def run(self):
         """Main task stage: analyze data from the last period.

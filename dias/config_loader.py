@@ -1,45 +1,36 @@
 import importlib
-from caput import config
 import logging
 import yaml
 import os
 from dias.utils.time_strings import str2timedelta
 import copy
 
-# This is how a log line produced by dias will look:
+# This is how a log line produced by dias will look like:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
-DEFAULT_ARCHIVE_DIR = ''
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
+
 class DiasUsageError(Exception):
-    """Exception raised for errors in the usage of dias.
-
-    Attributes:
-        message -- explanation of the error
-    """
-
     def __init__(self, message):
+        """Exception raised for errors in the usage of dias.
+           :param message: Explanation of the error.
+        """
         self.message = message
 
-class ConfigLoader(config.Reader):
 
-    # Config variables
-    task_config_dir = config.Property(
-        proptype=str,
-        key='task_config_dir')
-    task_write_dir = config.Property(proptype=str)
-    task_state_dir = config.Property(proptype=str)
-    prometheus_client_port = config.Property(proptype=int)
-    log_level = config.Property(default=DEFAULT_LOG_LEVEL,
-                                proptype=logging.getLevelName)
-    trigger_interval = config.Property(default='1h', proptype=str2timedelta)
+class DiasConfigError(Exception):
+    def __init__(self, message):
+        """
+        Exception raised for errors in the dias config..
+       :param message: Explanation of the error.
+        """
+        self.message = message
 
-    # For CHIMEAnalyzer
-    archive_data_dir = config.Property(default=DEFAULT_ARCHIVE_DIR,
-                                       proptype=str)
+
+class ConfigLoader():
 
     def __init__(self, config_path, limit_task = None):
         logging.basicConfig(format=LOG_FORMAT)
@@ -55,7 +46,22 @@ class ConfigLoader(config.Reader):
             raise DiasUsageError('Failed to open dias config file: {}'
                                  .format(exc))
         self.global_config = yaml.load(global_file)
-        self.read_config(self.global_config)
+
+        # Load config variables
+        self.task_config_dir = self.read_config_variable(
+            'task_config_dir', proptype=str, default='')
+        self.task_write_dir = self.read_config_variable(
+            'task_write_dir', proptype=str)
+        self.task_state_dir = self.read_config_variable(
+            'task_state_dir', proptype=str)
+        self.prometheus_client_port = self.read_config_variable(
+            'prometheus_client_port', proptype=int)
+        self.log_level = self.read_config_variable(
+            'log_level', default=DEFAULT_LOG_LEVEL,
+            proptype=logging.getLevelName)
+        self.trigger_interval = self.read_config_variable(
+            'trigger_interval', default='1h', proptype=str2timedelta)
+
         global_file.close()
 
         # Check config values
@@ -68,7 +74,7 @@ class ConfigLoader(config.Reader):
 
         # Set the default task config dir, which is the
         # subdirectory "task" in the directory containing dais.conf
-        if self.task_config_dir is None:
+        if self.task_config_dir is '':
             self.task_config_dir = os.path.join(
                     os.path.dirname(self.config_path), "tasks")
 
@@ -78,6 +84,36 @@ class ConfigLoader(config.Reader):
         # Don't do anything if we have no tasks
         if len(self.tasks) < 1:
             raise IndexError("No tasks have been defined.")
+
+    def read_config_variable(self, key, proptype, default=None):
+        """
+        Reads a config variable from the global config.
+        :param config: A dictionary in which to look for the given key.
+        :param key: The key (name) of the variable.
+        :param proptype: A function validating the loaded value.
+        :param default: The default value (default: None).
+        :return: The value of the config variable.
+        """
+        try:
+            value = self.global_config[key]
+        except KeyError:
+            if default is None:
+                raise DiasConfigError("Could not find variable {} in config."
+                                      .format(key))
+            else:
+                value = default
+
+        try:
+            value = proptype(value)
+        except Exception as exc:
+            raise DiasConfigError("Value ({}) for config variable {} not "
+                                  "accepted: {}".format(value, key, exc))
+        finally:
+            if value is None:
+                raise DiasConfigError("Value ({}) for config variable {} not "
+                                      "accepted: Not of type {}."
+                                      .format(value, key, proptype))
+        return value
 
     def load_analyzers(self, limit_task):
         """
@@ -120,8 +156,7 @@ class ConfigLoader(config.Reader):
                 # starts up.
                 state_dir = os.path.join(self.task_state_dir, task_name)
 
-                task = analyzer_class(task_name, self.log_level, write_dir,
-                                      state_dir)
+                task = analyzer_class(task_name, self, write_dir, state_dir)
                 task.read_config(task_config)
 
                 self.tasks.append(task)
