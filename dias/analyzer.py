@@ -4,7 +4,6 @@
 import logging
 from caput import config
 from dias.utils.time_strings import str2timedelta, str2datetime
-from dias.config_loader import DEFAULT_LOG_LEVEL
 from prometheus_client import Gauge
 
 
@@ -30,18 +29,23 @@ class Analyzer(config.Reader):
     # Config values
     start_time = config.Property(proptype=str2datetime)
     period = config.Property(proptype=str2timedelta)
-    log_level = config.Property(default=DEFAULT_LOG_LEVEL,
+    log_level = config.Property(default=None,
                                 proptype=logging.getLevelName)
 
-    def __init__(self, name, write_dir):
+    def __init__(self, name, log_level, write_dir, state_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
+        self.state_dir = state_dir
+        self._default_log_level = log_level
 
     def init_logger(self):
         """Set up the logger. Call this after reading the config."""
         self.logger = logging.getLogger(self.name)
+        if self.log_level is None:
+            self.log_level = self._default_log_level
+
         self.logger.setLevel(self.log_level)
 
     def add_task_metric(self, metric_name, description, labelnames=[], unit=''):

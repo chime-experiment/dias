@@ -106,3 +106,6 @@ venv.bak/
 # Vim backups and swap files
 *~
 .*.swp
+
+# PyCharm IDE
+.idea

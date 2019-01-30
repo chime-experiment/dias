@@ -1,15 +1,11 @@
 # dias Service
 # ------------
 
-
 import logging
 import os
 import threading
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
-
-# This is how a log line produced by dias will look:
-LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
@@ -21,8 +17,7 @@ class Scheduler:
 
         # Set the module logger.
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(self.config.log_level)
-        logging.basicConfig(format=LOG_FORMAT)
+        self.logger.setLevel(config.log_level)
 
         # Set a server to export (expose to prometheus) the data (in a thread)
         app = make_wsgi_app()
@@ -43,12 +38,21 @@ class Scheduler:
 
             # Create the task's output directory if it doesn't exist
             if not os.path.isdir(task.write_dir):
-                self.logger.info('Creating new write directory for task ' \
+                self.logger.debug('Creating new write directory for task ' \
                         '`{}`: {}.'.format(task.name, task.write_dir))
                 os.makedirs(task.write_dir)
             else:
-                self.logger.info('Set write directory for task `{}`: {}.'
+                self.logger.debug('Set write directory for task `{}`: {}.'
                         .format(task.name, task.write_dir))
+
+            # Create the task's state directory if it doesn't exist
+            if not os.path.isdir(task.state_dir):
+                self.logger.debug('Creating new state directory for task ' \
+                        '`{}`: {}.'.format(task.name, task.state_dir))
+                os.makedirs(task.state_dir)
+            else:
+                self.logger.debug('Set state directory for task `{}`: {}.'
+                        .format(task.name, task.state_dir))
 
 
     def setup_tasks(self):

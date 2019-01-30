@@ -4,7 +4,7 @@
 from dias.analyzer import Analyzer
 from ch_util import data_index
 from caput import config
-from dias.service import DEFAULT_ARCHIVE_DIR
+from dias.config_loader import DEFAULT_ARCHIVE_DIR
 
 class CHIMEAnalyzer(Analyzer):
     """A base dias analyzer class with CHIME-specific extensions.

@@ -31,8 +31,10 @@ class ConfigLoader(config.Reader):
         proptype=str,
         key='task_config_dir')
     task_write_dir = config.Property(proptype=str)
+    task_state_dir = config.Property(proptype=str)
     prometheus_client_port = config.Property(proptype=int)
-    log_level = config.Property(default='INFO', proptype=logging.getLevelName)
+    log_level = config.Property(default=DEFAULT_LOG_LEVEL,
+                                proptype=logging.getLevelName)
     trigger_interval = config.Property(default='1h', proptype=str2timedelta)
 
     # For CHIMEAnalyzer
@@ -40,6 +42,8 @@ class ConfigLoader(config.Reader):
                                        proptype=str)
 
     def __init__(self, config_path, limit_task = None):
+        logging.basicConfig(format=LOG_FORMAT)
+
         self.config_path = config_path
 
         self.tasks = list()
@@ -112,7 +116,12 @@ class ConfigLoader(config.Reader):
                 # This is where we tell the task to write its output
                 write_dir = os.path.join(self.task_write_dir, task_name)
 
-                task = analyzer_class(task_name, write_dir)
+                # This is where they can write a state until next time dias
+                # starts up.
+                state_dir = os.path.join(self.task_state_dir, task_name)
+
+                task = analyzer_class(task_name, self.log_level, write_dir,
+                                      state_dir)
                 task.read_config(task_config)
 
                 self.tasks.append(task)
