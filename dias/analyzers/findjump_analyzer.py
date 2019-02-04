@@ -25,6 +25,12 @@ Functions
     finger_finder
 
 """
+# === Start Python 2/3 compatibility
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from future.builtins import *  # noqa  pylint: disable=W0401, W0614
+from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
+# === End Python 2/3 compatibility
 
 import os
 import time
@@ -36,7 +42,7 @@ import numpy as np
 import h5py
 import pywt
 
-from ch_util import tools, ephemeris, andata
+from ch_util import tools, ephemeris, andata, data_index
 from ch_util.fluxcat import FluxCatalog
 
 from caput import config
@@ -222,9 +228,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     # Config parameters defining frequency selection
     freq_collapse = config.Property(proptype=bool, default=False)
-    freq_low = config.Property(proptype=float, default=None)
-    freq_high = config.Property(proptype=float, default=None)
-    freq_step = config.Property(proptype=float, default=None)
+    freq_low = config.Property(proptype=float, default=600.0)
+    freq_high = config.Property(proptype=float, default=700.0)
+    freq_step = config.Property(proptype=float, default=0.390625)
     freq_physical = config.Property(proptype=list,
                     default=[758.203125, 665.625, 558.203125, 433.59375])
 
@@ -376,15 +382,16 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     rdr = andata.CorrReader(data_files)
 
                     rdr.select_time_range(tstart, tend)
-                    rdr.dataset_sel = ['vis']
+                    datasets = ['vis']
                     if self.freq_collapse:
-                        rdr.dataset_sel.append('flags/vis_weight')
+                        datasets.append('flags/vis_weight')
+                    rdr.dataset_sel = datasets
 
                     auto_sel = np.array([ii for ii, pp in enumerate(rdr.prod) if pp[0] == pp[1]])
                     auto_sel = andata._convert_to_slice(auto_sel)
                     rdr.prod_sel = auto_sel
 
-                    if not self.freq_collapse and self.freq_physical is not None:
+                    if not self.freq_collapse and self.freq_physical:
 
                         if hasattr(self.freq_physical, '__iter__'):
                             freq_physical = self.freq_physical
@@ -428,7 +435,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                             flag_quiet &= ~_flag_transit(ss, this_time, window=self.transit_window)
 
                     # If requested, collapse over frequency axis
-                    auto = data.vis.real
+                    auto = data.vis[:].real
                     fractional_auto = auto * tools.invert_no_zero(np.median(auto, axis=-1, keepdims=True)) - 1.0
 
                     if self.freq_collapse:
