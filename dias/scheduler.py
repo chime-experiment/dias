@@ -1,7 +1,11 @@
+import concurrent.futures
 import logging
 import os
 import threading
 import time
+from dias.job import Job
+from dias.task_queue import TaskQueue
+from dias.utils.time_strings import timestamp2str
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
 
@@ -19,80 +23,123 @@ This function will block until the scheduler has terminated.
 """
     raise NotImplementedError
 
-class Scheduler:
+def _prometheus_client(barrier, logger, port):
+    """Boilerplate for the prometheus client thread"""
 
+    # Create the WSGI HTTP app
+    app = make_wsgi_app()
+    httpd = make_server('', port, app)
+    logger.info('Starting prometheus client on port {}.'
+                     .format(httpd.server_port))
+
+    # Signal we're ready
+    barrier.wait()
+
+    # Go
+    httpd.serve_forever()
+
+class Scheduler:
     def __init__(self, config, log_stdout=False):
         self.config = config
+        self.jobs = list()
 
         # Set the module logger.
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(self.config.log_level)
+        self.logger.setLevel(config['log_level'])
         logging.basicConfig(format=LOG_FORMAT)
 
-        # Set a server to export (expose to prometheus) the data (in a thread)
-        app = make_wsgi_app()
-        httpd = make_server('', config.prometheus_client_port, app)
-        t = threading.Thread(target=httpd.serve_forever)
-        t.daemon = True
-        t.start()
-        self.logger.info('Starting prometheus client on port {}.'
-                         .format(httpd.server_port))
+        # Synchronization barrier
+        barrier = threading.Barrier(2)
+        
+        # Create the prometheus client thread
+        self.prom_client = threading.Thread(
+            target=_prometheus_client,
+            args=(barrier, self.logger, config['prometheus_client_port']))
+        self.prom_client.daemon = True
+        self.prom_client.start()
+
+        # Wait for prometheus client start-up
+        barrier.wait()
 
         # Prepare tasks
-        self.prepare_tasks()
+        self.init_task_queue()
 
-    def prepare_tasks(self):
-
+    def init_task_queue(self):
         # This is the notional start time of the scheduler
         reference_time = time.time()
 
+        # Get all the tasks ready
         for task in self.config.tasks:
-            # initialse the task's logger
-            task.init_logger(self.config.log_level_override)
+            task.prepare(
+                    reference_time,
+                    log_level_override=self.config['log_level_override'],
+                    start_now=self.config['start_now'])
 
-            # Pick a start time if the task hasn't declared one
-            if task.start_time is None:
-                if self.config.start_now:
-                    task.start_time = reference_time
-                else:
-                    task.start_time = reference_time + random.random() * task.period
+        # Create the tasks queue
+        self.queue = TaskQueue(self.config.tasks)
 
-            # Advance start time into the non-past:
-            while task.start_time <= reference_time:
-                task.start_time += task.period
+        # Don't need this anymore
+        del self.config.tasks
 
-            # Create the task's output directory if it doesn't exist
-            if not os.path.isdir(task.write_dir):
-                self.logger.info('Creating new write directory for task ' \
-                        '`{}`: {}.'.format(task.name, task.write_dir))
-                os.makedirs(task.write_dir)
-            else:
-                self.logger.info('Set write directory for task `{}`: {}.'
-                        .format(task.name, task.write_dir))
-
-        # Sort tasks by start_time
-        self.config.tasks.sort(key=lambda task: task.start_time,
-                reverse=True)
-
-        self.logger.info("Initialised {0} tasks".format(len(self.config.tasks)))
-        if self.config.log_level == 'DEBUG':
+        self.logger.info("Initialised {0} tasks".format(len(self.queue)))
+        if self.config['log_level'] == 'DEBUG':
             for i in range(len(self.config.tasks)):
-                self.logger.debug("  {0}: {1} @ {2}".format(i, self.config.tasks[i].name,
-                    self.config.tasks[i].start_time))
-
+                self.logger.debug("  {0}: {1} @ {2}".format(i, self.queue[i].name,
+                    self.queue[i].start_time))
 
     def setup_tasks(self):
-        for task in self.config.tasks:
+        for task in self.queue:
             task.setup()
 
     def next_task(self):
         """Returns the next scheduled task"""
-        return self.config.tasks[0]
+        return self.queue.next_task()
 
-    def start(self):
+    def execute_task(self, task):
+        """Submit a task to the executor.  Returns a job object"""
+
+        # Create a new job. This will submit the task to the executor
+        job = Job(task, executor)
+
+        # Remember the job
+        self.jobs.append(job)
+
+        # Re-schedule the task for next time
+        task.increment()
+        self.queue.update(task)
+
+    def start(self, pidfile=None):
         """This is the entry point for the scheduler main loop"""
-        raise NotImplementedError
+
+        # This is the executor for workers
+        self.executor = concurrent.futures.ThreadPoolExecutor()
+
+        # Service loop
+        while True:
+            task_next = self.queue.next_task() 
+            self.logger.info("  Next task scheduled is: {0} at {1} UTC".format(
+                task_next.name, timestamp2str(task_next.start_time)))
+
+            # If it's time to execute the next task, do so
+            if time.time() >= task_next.start_time:
+                # Create a new job for the task and remember it 
+                self.execute_task(task_next)
+
+                # short-circuit the loop to look for another task ready to be scheduled
+                continue
+
+            # Look for jobs that have completed
+            remaining = []
+            for job in self.jobs:
+                if job.done():
+                    pass
+                else:
+                    remaining.append(job)
+            self.jobs = remaining
+
+            # Wait for next iteration
+            time.sleep(10)
 
     def finish_tasks(self):
-        for task in self.config.tasks:
+        for task in self.queue:
             task.finish()

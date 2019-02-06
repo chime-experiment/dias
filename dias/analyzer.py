@@ -28,6 +28,7 @@ class Analyzer(config.Reader):
 
     # Config values
     start_time = config.Property(proptype=str2datetime)
+    log_level = config.Property(proptype=logging.getLevelName)
     period = config.Property(proptype=str2timedelta)
 
     def __init__(self, name, write_dir):

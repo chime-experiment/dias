@@ -1,37 +1,21 @@
 import importlib
-from caput import config
 import logging
 import yaml
 import os
 from dias.utils.time_strings import str2timedelta
+from dias.task import Task
 import copy
 
 # This is how a log line produced by dias will look:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
-DEFAULT_ARCHIVE_DIR = ''
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
-class ConfigLoader(config.Reader):
-
-    # Config variables
-    task_config_dir = config.Property(
-        proptype=str,
-        key='task_config_dir')
-    task_write_dir = config.Property(proptype=str)
-    prometheus_client_port = config.Property(proptype=int)
-    log_level = config.Property(proptype=logging.getLevelName)
-    trigger_interval = config.Property(default='1h', proptype=str2timedelta)
-
-    # For CHIMEAnalyzer
-    archive_data_dir = config.Property(default=DEFAULT_ARCHIVE_DIR,
-                                       proptype=str)
-
-    def __init__(self, config_path, limit_task=None, log_level=None):
+class ConfigLoader:
+    def __init__(self, config_path, limit_task=None):
         self.config_path = config_path
-        self.log_level_override = log_level
 
         # Read and apply dias global config
         global_file = open(self.config_path, "r")
@@ -41,26 +25,20 @@ class ConfigLoader(config.Reader):
         # Set log level, if necessary.  We do this in global_config
         # instead of setting self.log_level directly so that it will
         # be propagated into tasks.
-        self.global_config.set_default('log_level', DEFAULT_LOG_LEVEL)
-
-        if log_level is not None:
-            self.global_config['log_level'] = log_level.upper()
-
-        # Apply global config
-        self.read_config(self.global_config)
+        self.global_config.setdefault('log_level', DEFAULT_LOG_LEVEL)
 
         # Check config values
-        if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
+        if str2timedelta(self['trigger_interval']).seconds * 60 \
+                < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
                     'dias does not allow values smaller than {} minutes.'\
-                .format(self.trigger_interval,
-                        MIN_TRIGGER_INTERVAL_MINUTES)
+                .format(self['trigger_interval'], MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
         # Set the default task config dir, which is the
         # subdirectory "task" in the directory containing dais.conf
-        if self.task_config_dir is None:
-            self.task_config_dir = os.path.join(
+        if not 'task_config_dir' in self or self['task_config_dir'] is None:
+            self['task_config_dir'] = os.path.join(
                     os.path.dirname(self.config_path), "tasks")
 
         # Load all the analyzers
@@ -77,7 +55,7 @@ class ConfigLoader(config.Reader):
 
         self.tasks = list()
 
-        for config_file in os.listdir(self.task_config_dir):
+        for config_file in os.listdir(self['task_config_dir']):
             # Only accept files ending in .conf as task configs.
             # Task config files starting with an underscore (_) are disabled.
             if config_file.endswith(".conf") and not\
@@ -93,8 +71,8 @@ class ConfigLoader(config.Reader):
                     continue
 
                 # caput config reader class for task config
-                task_file = open(os.path.join(self.task_config_dir,
-                                              config_file),"r")
+                task_file = open(os.path.join(self['task_config_dir'],
+                    config_file),"r")
 
                 # use any values configured on global level
                 task_config = copy.deepcopy(self.global_config)
@@ -102,15 +80,18 @@ class ConfigLoader(config.Reader):
                 # override with values from task config if specified
                 task_config.update(yaml.load(task_file))
 
+                # This is where we tell the task to write its output
+                write_dir = os.path.join(self['task_write_dir'], task_name)
+
+                # create the task object
+                task = Task(task_name, task_config, write_dir)
+
                 # Load the analyzer for this task from the task config
                 analyzer_class = \
                     self._import_analyzer_class(task_config['analyzer'])
 
-                # This is where we tell the task to write its output
-                write_dir = os.path.join(self.task_write_dir, task_name)
-
-                task = analyzer_class(task_name, write_dir)
-                task.read_config(task_config)
+                task.analyzer = analyzer_class(task_name, write_dir)
+                task.analyzer.read_config(task_config)
 
                 self.tasks.append(task)
 
@@ -152,3 +133,16 @@ class ConfigLoader(config.Reader):
                             classname, modulename))
 
         return class_
+
+    # Data model
+    def __getitem__(self, key):
+        return self.global_config[key]
+
+    def __setitem__(self, key, value):
+        self.global_config[key] = value
+
+    def __contains__(self, key):
+        return self.global_config.__contains__(key)
+    
+    def __iter__(self):
+        return self.global_config.__iter__()

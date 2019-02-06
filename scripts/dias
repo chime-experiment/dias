@@ -15,8 +15,12 @@ def do_start(args):
     # Load config
     loaded_conf = ConfigLoader(args.conf)
 
+    # Add command line config
+    loaded_conf['start_now'] = args.start_now
+    loaded_conf['log_level_override'] = args.log_level
+
     # Create the scheduler
-    scheduler = Scheduler(loaded_conf, args.log_level)
+    scheduler = Scheduler(loaded_conf)
 
     # Start the scheduler
     scheduler.start(args.pidfile)

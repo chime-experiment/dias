@@ -20,8 +20,17 @@ def str2timedelta(time_str):
             time_params[name] = int(param)
     return timedelta(**time_params)
 
+def str2total_seconds(time_str):
+    return str2timedelta(time_str).total_seconds()
+
 def str2datetime(time_str):
     return datetime.strptime(time_str, DATETIME_FORMAT)
 
+def str2timestamp(time_str):
+    return str2datetime(time_str).timestamp()
+
 def datetime2str(dt):
     return dt.strftime(DATETIME_FORMAT)
+
+def timestamp2str(ts):
+    return datetime.utcfromtimestamp(ts).strftime(DATETIME_FORMAT)
