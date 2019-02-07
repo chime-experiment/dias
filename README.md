@@ -62,7 +62,7 @@ The analyzer may also define:
  * **name:** A string containing the task's name (i.e. the name of the config file).
  ```python
     def run(self):
-        self.name()
+        print("I am " + self.name)
  ```
  * **logger:** A logger object which can be used to write to the dias log file (for text output, instead of using print statements). See the [python logging facility](https://docs.python.org/3/library/logging.html) on how to use it.
  ```python
@@ -72,10 +72,10 @@ The analyzer may also define:
 ```
 will result in
 ```
-[2019-01-18 14:07:57,903] trivial_task: Some message only needed for debugging my analyzer.
-[2019-01-18 14:07:57,905] trivial_task: Something terrible happened!
+[2019-01-18 14:07:57,903] dias[trivial_task]: Some message only needed for debugging my analyzer.
+[2019-01-18 14:07:57,905] dias[trivial_task]: Something terrible happened!
 ```
-(where "trivial_task" is the name of the task we defined in the `trivial_task.conf` file below).
+(where "trivial_task" is the name of the task we define in the `trivial_task.conf` file below).
 * **add_task_metric(metric_name, description (optional), labelnames (optional), unit (optional)):**
 
 A method the analyzer base class provides to create housekeeping metrics of the task. It returns a [`prometheus_client.Gauge`](https://github.com/prometheus/client_python#gauge) that can be used to update the value of the metric.
@@ -115,7 +115,7 @@ will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
  ```
 
 * **period:** A `datetime.timedelta` object, defining the time between task runs. The value is set in the tasks config file.
-* **start_time:** A `datetime.datetime` object, defining the phase of the task as the first time the task is run. The value is set in the tasks config file.
+* **start_time:** A `datetime.datetime` object, indicating the time at which the running task was scheduled for execution.
 * **write_dir:** The directory name for output data as a string. The analyzer code should write all its output data into this directory. The value is set in the tasks config file.
 * **state_dir:** A directory where the task is allowed to store a small amount of data to save its state on disk. The value is set in the tasks config file.
 
@@ -132,7 +132,7 @@ It works exactly the same as calling `ch_util.data_index.Finder(...)`, except th
 
 A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the `node_spoof` parameter passed to `Finder`.
  
-## Tasks
+## Defining a task
 The other piece is the configuration file which tells the `dias` scheduler about your analysis task.  Create a YAML file in the `tasks` directory.  You can call it whatever you want, but the name must end in `.conf`.  Whatever you call it will end up being the task's _name_.
 
 This file contains two types of configuration data:
@@ -142,7 +142,9 @@ This file contains two types of configuration data:
 The first of these are any `caput` config properties that were defined in your analyzer.  The second of these is the properties:
 * **analyzer**: the import path to the analyzer class containing the code to execute
 * **period**: indicating the schedule for this task
-* **start_time**: a time indicating the _phase_ of your task (optional)
+* **start_time**: a time indicating when you want the task to first run.  This is mostly used to determine the _phase_ of your task.  If this value is in the future, the
+scheduler won't run your task until that time arrives.  This is optional.  If not given, the scheduler will start the task at an arbitrary time within one `period` of the
+start of the scheduler.
 
 For this example, we might have a file called `trivial_task.conf` containing:
 ```YAML
