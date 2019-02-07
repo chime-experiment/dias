@@ -5,7 +5,7 @@ import logging
 import os
 import threading
 import time
-from dias import Job, TaskQueue
+from dias import Job, TaskQueue, DiasConcurrencyError
 from dias.utils import timestamp2str
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
@@ -92,10 +92,15 @@ class Scheduler:
         """Submit a task to the executor.  Returns a job object"""
 
         # Create a new job. This will submit the task to the executor
-        job = Job(task, self.executor)
+        try:
+            # Raises DiasConcurrencyError if the task is currently running
+            job = Job(task, self.executor)
 
-        # Remember the job
-        self.jobs.append(job)
+            # Remember the job
+            self.jobs.append(job)
+        except DiasConcurrencyError:
+            self.logger.warning("Job running long.  "
+                    "Skipping execution of task {0}".format(task.name))
 
         # Re-schedule the task for next time
         task.increment()

@@ -6,5 +6,5 @@ from .chime_analyzer import CHIMEAnalyzer
 from .task import Task
 from .task_queue import TaskQueue
 from .config_loader import ConfigLoader, DiasUsageError, DiasConfigError
-from .job import Job
+from .job import Job, DiasConcurrencyError
 from .scheduler import Scheduler, stop_scheduler
