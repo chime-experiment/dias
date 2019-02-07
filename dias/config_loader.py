@@ -2,7 +2,8 @@ import importlib
 import logging
 import yaml
 import os
-from dias.utils.time_strings import str2timedelta
+from dias.utils import str2timedelta
+from dias import DiasException, Task
 import copy
 
 # This is how a log line produced by dias will look like:
@@ -12,32 +13,29 @@ DEFAULT_LOG_LEVEL = 'INFO'
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
-
-class DiasUsageError(Exception):
+class DiasUsageError(DiasException):
+    """\
+Exception raised for errors in the usage of dias.
+:param message: Explanation of the error.
+"""
     def __init__(self, message):
-        """Exception raised for errors in the usage of dias.
-           :param message: Explanation of the error.
-        """
         self.message = message
 
 
-class DiasConfigError(Exception):
+class DiasConfigError(DiasException):
+    """\
+Exception raised for errors in the dias config..
+:param message: Explanation of the error.
+"""
     def __init__(self, message):
-        """
-        Exception raised for errors in the dias config..
-       :param message: Explanation of the error.
-        """
         self.message = message
 
 
-class ConfigLoader():
-
-    def __init__(self, config_path, limit_task = None):
+class ConfigLoader:
+    def __init__(self, config_path, limit_task=None):
         logging.basicConfig(format=LOG_FORMAT)
 
         self.config_path = config_path
-
-        self.tasks = list()
 
         # Read and apply dias global config
         try:
@@ -47,52 +45,47 @@ class ConfigLoader():
                                  .format(exc))
         self.global_config = yaml.load(global_file)
 
-        # Load config variables
-        self.task_config_dir = self.read_config_variable(
-            'task_config_dir', proptype=str, default='')
-        self.task_write_dir = self.read_config_variable(
-            'task_write_dir', proptype=str)
-        self.task_state_dir = self.read_config_variable(
-            'task_state_dir', proptype=str)
-        self.prometheus_client_port = self.read_config_variable(
-            'prometheus_client_port', proptype=int)
-        self.log_level = self.read_config_variable(
-            'log_level', default=DEFAULT_LOG_LEVEL,
-            proptype=logging.getLevelName)
-        self.trigger_interval = self.read_config_variable(
-            'trigger_interval', default='1h', proptype=str2timedelta)
-
         global_file.close()
 
-        # Check config values
-        if self.trigger_interval.seconds * 60 < MIN_TRIGGER_INTERVAL_MINUTES:
+        # Validate the config variables
+
+        # The default task config dir is the subdirectory "task" in
+        # the directory containing dais.conf
+        self._check_config_variable(
+                'task_config_dir', proptype=str,
+                default=os.path.join(
+                    os.path.dirname(self.config_path), "tasks"))
+        self._check_config_variable('task_write_dir', proptype=str)
+        self._check_config_variable('task_state_dir', proptype=str)
+        self._check_config_variable('prometheus_client_port', proptype=int)
+        self._check_config_variable(
+                'log_level', default=DEFAULT_LOG_LEVEL,
+                proptype=logging.getLevelName)
+        self._check_config_variable(
+                'trigger_interval', default='1h', proptype=str2timedelta)
+
+        if str2timedelta(self['trigger_interval']).seconds * 60 \
+                < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
                     'dias does not allow values smaller than {} minutes.'\
-                .format(self.trigger_interval,
-                        MIN_TRIGGER_INTERVAL_MINUTES)
+                .format(self['trigger_interval'], MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
-        # Set the default task config dir, which is the
-        # subdirectory "task" in the directory containing dais.conf
-        if self.task_config_dir is '':
-            self.task_config_dir = os.path.join(
-                    os.path.dirname(self.config_path), "tasks")
-
         # Load all the analyzers
-        self.load_analyzers(limit_task)
+        self._load_analyzers(limit_task)
 
         # Don't do anything if we have no tasks
         if len(self.tasks) < 1:
             raise IndexError("No tasks have been defined.")
 
-    def read_config_variable(self, key, proptype, default=None):
+    def _check_config_variable(self, key, proptype, default=None):
         """
-        Reads a config variable from the global config.
+        Validates a config variable from the global config.
         :param config: A dictionary in which to look for the given key.
         :param key: The key (name) of the variable.
         :param proptype: A function validating the loaded value.
         :param default: The default value (default: None).
-        :return: The value of the config variable.
+        Raises an exception on error.
         """
         try:
             value = self.global_config[key]
@@ -101,7 +94,7 @@ class ConfigLoader():
                 raise DiasConfigError("Could not find variable {} in config."
                                       .format(key))
             else:
-                value = default
+                value = self[key] = default
 
         try:
             value = proptype(value)
@@ -113,14 +106,15 @@ class ConfigLoader():
                 raise DiasConfigError("Value ({}) for config variable {} not "
                                       "accepted: Not of type {}."
                                       .format(value, key, proptype))
-        return value
 
-    def load_analyzers(self, limit_task):
+    def _load_analyzers(self, limit_task):
         """
         Locate and load all task config files
         """
 
-        for config_file in os.listdir(self.task_config_dir):
+        self.tasks = list()
+
+        for config_file in os.listdir(self['task_config_dir']):
             # Only accept files ending in .conf as task configs.
             # Task config files starting with an underscore (_) are disabled.
             if config_file.endswith(".conf") and not\
@@ -136,8 +130,8 @@ class ConfigLoader():
                     continue
 
                 # caput config reader class for task config
-                task_file = open(os.path.join(self.task_config_dir,
-                                              config_file),"r")
+                task_file = open(os.path.join(self['task_config_dir'],
+                    config_file),"r")
 
                 # use any values configured on global level
                 task_config = copy.deepcopy(self.global_config)
@@ -145,19 +139,22 @@ class ConfigLoader():
                 # override with values from task config if specified
                 task_config.update(yaml.load(task_file))
 
+                # This is where we tell the task to write its output
+                write_dir = os.path.join(self['task_write_dir'], task_name)
+
+                # This is where they can write a state until next time dias
+                # starts up.
+                state_dir = os.path.join(self['task_state_dir'], task_name)
+
+                # create the task object
+                task = Task(task_name, task_config, write_dir, state_dir)
+
                 # Load the analyzer for this task from the task config
                 analyzer_class = \
                     self._import_analyzer_class(task_config['analyzer'])
 
-                # This is where we tell the task to write its output
-                write_dir = os.path.join(self.task_write_dir, task_name)
-
-                # This is where they can write a state until next time dias
-                # starts up.
-                state_dir = os.path.join(self.task_state_dir, task_name)
-
-                task = analyzer_class(task_name, self, write_dir, state_dir)
-                task.read_config(task_config)
+                task.analyzer = analyzer_class(task_name, write_dir, state_dir)
+                task.analyzer.read_config(task_config)
 
                 self.tasks.append(task)
 
@@ -199,3 +196,16 @@ class ConfigLoader():
                             classname, modulename))
 
         return class_
+
+    # Data model
+    def __getitem__(self, key):
+        return self.global_config[key]
+
+    def __setitem__(self, key, value):
+        self.global_config[key] = value
+
+    def __contains__(self, key):
+        return self.global_config.__contains__(key)
+    
+    def __iter__(self):
+        return self.global_config.__iter__()
