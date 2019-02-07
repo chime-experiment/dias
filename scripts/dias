@@ -48,11 +48,7 @@ def do_tryrun(args):
     loaded_conf['prometheus_client_port'] = 0
 
     # Create the scheduler
-    scheduler = Scheduler(
-            loaded_conf,
-            # Log to stdout
-            log_stdout=True
-            )
+    scheduler = Scheduler(loaded_conf)
 
     # Run the "next" (i.e. only) task
     scheduler.next_task().analyzer.run()

@@ -37,7 +37,7 @@ def _prometheus_client(barrier, logger, port):
     httpd.serve_forever()
 
 class Scheduler:
-    def __init__(self, config, log_stdout=False):
+    def __init__(self, config):
         self.config = config
         self.jobs = list()
 
