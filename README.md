@@ -27,7 +27,7 @@ The base analyzer inherits from the [caput](https://github.com/radiocosmology/ca
 
 The easiest way to create an analyzer is to create a new file in the `dias/analyzers` subpackage directory.  Import the CHIME analyzer (or the base analyzer, if you don't need CHIME-specific stuff).  Dias analyzers use the `caput.config.Reader` for configuration data, so import that, too:
 ```python
-from dias.chime_analyzer import CHIMEAnalyzer
+from dias import CHIMEAnalyzer
 from caput import config
 ```
 Make a subclass of the base `CHIMEAnalyzer` class:

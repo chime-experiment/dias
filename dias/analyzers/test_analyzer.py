@@ -1,9 +1,9 @@
 
 
-from dias.analyzer import Analyzer
+from dias import Analyzer
+from dias.utils import str2timedelta, datetime2str
 from datetime import datetime
 from time import sleep
-from dias.utils.time_strings import str2timedelta, datetime2str
 from caput import config
 
 class TestAnalyzer(Analyzer):
