@@ -3,8 +3,7 @@
 import sys
 import os
 import argparse
-from dias.config_loader import ConfigLoader, DiasUsageError
-from dias.scheduler import Scheduler, stop_scheduler
+from dias import ConfigLoader, DiasUsageError, Scheduler, stop_scheduler
 
 def do_configtest(args):
     # Load and discard the config

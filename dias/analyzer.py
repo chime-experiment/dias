@@ -3,7 +3,7 @@
 
 import logging
 from caput import config
-from dias.utils.time_strings import str2timedelta, str2datetime
+from dias.utils import str2timedelta, str2datetime
 from prometheus_client import Gauge
 
 

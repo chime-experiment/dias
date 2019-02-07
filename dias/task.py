@@ -1,6 +1,6 @@
 import os
 import random
-from dias.utils.time_strings import str2timestamp, str2total_seconds
+from dias.utils import str2timestamp, str2total_seconds
 
 class Task:
     """\

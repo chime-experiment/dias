@@ -5,9 +5,8 @@ import logging
 import os
 import threading
 import time
-from dias.job import Job
-from dias.task_queue import TaskQueue
-from dias.utils.time_strings import timestamp2str
+from dias import Job, TaskQueue
+from dias.utils import timestamp2str
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
 

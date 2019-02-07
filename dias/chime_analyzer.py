@@ -2,7 +2,7 @@
 # --------------------------------
 
 from caput import config
-from dias.analyzer import Analyzer
+from dias import Analyzer
 from ch_util import data_index
 
 class CHIMEAnalyzer(Analyzer):

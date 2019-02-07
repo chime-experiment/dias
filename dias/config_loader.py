@@ -2,8 +2,8 @@ import importlib
 import logging
 import yaml
 import os
-from dias.utils.time_strings import str2timedelta
-from dias.task import Task
+from dias.utils import str2timedelta
+from dias import DiasException, Task
 import copy
 
 # This is how a log line produced by dias will look like:
@@ -12,13 +12,6 @@ DEFAULT_LOG_LEVEL = 'INFO'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
-
-class DiasException(Exception):
-    """\
-Dias base exception class
-"""
-    def __init__(self, message):
-        self.message = message
 
 class DiasUsageError(DiasException):
     """\
