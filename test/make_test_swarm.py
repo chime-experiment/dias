@@ -6,6 +6,8 @@
 # Usage:
 #
 #  python3 make_test_swarm.py TEMPORARY_PATH_FOR_CONFIG NUM_ANALYZERS
+#
+# TEMPORARY_PATH_FOR_CONFIG must not exist already
 
 import math
 import random
@@ -17,15 +19,8 @@ taskdir = os.path.join(basedir, "tasks")
 
 num_analyzers = int(sys.argv[2])
 
-try:
-    os.mkdir(basedir)
-except FileExistsError:
-    pass
-
-try:
-    os.mkdir(taskdir)
-except FileExistsError:
-    pass
+os.mkdir(basedir)
+os.mkdir(taskdir)
 
 # Make dias.conf
 with open(os.path.join(basedir, "dias.conf"), "w") as dias_conf:
