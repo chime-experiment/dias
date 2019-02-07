@@ -10,6 +10,14 @@ DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def str2timedelta(time_str):
+    # Check for simple numeric seconds
+    try:
+        seconds = int(time_str)
+        return timedelta(seconds=seconds)
+    except ValueError:
+        pass
+
+    # Otherwise parse time
     parts = TIMEDELTA_REGEX.match(time_str)
     if not parts:
         return

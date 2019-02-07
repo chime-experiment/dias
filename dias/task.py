@@ -1,4 +1,5 @@
 import os
+import random
 from dias.utils.time_strings import str2timestamp, str2total_seconds
 
 class Task:
@@ -47,7 +48,7 @@ analyzer along with associated bookkeeping data
         # Create the task's output directory if it doesn't exist
         if not os.path.isdir(self.write_dir):
             self.analyzer.logger.info(
-                    'Creating new output directory: {0}: {}.'.format(
+                    'Creating new output directory: {0}'.format(
                         self.write_dir))
             os.makedirs(self.write_dir)
         else:
@@ -63,6 +64,9 @@ analyzer along with associated bookkeeping data
             self.analyzer.logger.debug('Set state directory for task `{}`: {}.'
                     .format(self.name, self.state_dir))
 
+        # Run the setup
+        self.analyzer.setup()
+
     def running(self):
         return self.runcount > 0
 
@@ -72,9 +76,9 @@ analyzer along with associated bookkeeping data
 
         # Run the task
         self.runcount += 1
-        self.analyzer.logger.info("Running.")
+        self.analyzer.logger.info("Start-up.")
         result = self.analyzer.run()
-        self.analyzer.logger.info("Completed; result: {0}".format(repr(result)))
+        self.analyzer.logger.info("Shut-down; result: {0}".format(repr(result)))
         self.runcount -= 1
 
         # TODO Clean up, check for disk space overage, etc.

@@ -30,7 +30,7 @@ In some ways this works like a list, but be careful."""
     def sort(self):
         """Sorts the task queue by start time"""
         self.lock.acquire()
-        self.tasks.sort(reverse=True)
+        self.tasks.sort()
         self.lock.release()
 
     def update(self, task):
@@ -38,9 +38,9 @@ In some ways this works like a list, but be careful."""
         self.lock.acquire()
 
         # Delete the old task by linear search
-        for index, item in self.tasks.enumerate():
+        for index, item in enumerate(self.tasks):
             if item == task:
-                del self.tasks[old]
+                del self.tasks[index]
                 break
 
         # Insert at the new location by binary search

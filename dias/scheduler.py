@@ -43,7 +43,7 @@ class Scheduler:
         self.jobs = list()
 
         # Set the module logger.
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('dias')
         self.logger.setLevel(config['log_level'])
 
         # Synchronization barrier
@@ -81,13 +81,9 @@ class Scheduler:
 
         self.logger.info("Initialised {0} tasks".format(len(self.queue)))
         if self.config['log_level'] == 'DEBUG':
-            for i in range(len(self.config.tasks)):
+            for i in range(len(self.queue)):
                 self.logger.debug("  {0}: {1} @ {2}".format(i, self.queue[i].name,
                     self.queue[i].start_time))
-
-    def setup_tasks(self):
-        for task in self.queue:
-            task.setup()
 
     def next_task(self):
         """Returns the next scheduled task"""
@@ -97,7 +93,7 @@ class Scheduler:
         """Submit a task to the executor.  Returns a job object"""
 
         # Create a new job. This will submit the task to the executor
-        job = Job(task, executor)
+        job = Job(task, self.executor)
 
         # Remember the job
         self.jobs.append(job)
@@ -140,4 +136,4 @@ class Scheduler:
 
     def finish_tasks(self):
         for task in self.queue:
-            task.finish()
+            task.analyzer.finish()

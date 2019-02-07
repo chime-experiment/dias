@@ -43,6 +43,7 @@ def do_tryrun(args):
 
     # Add command line config
     loaded_conf['log_level_override'] = args.log_level
+    loaded_conf['start_now'] = True
 
     # Create a "fake" prometheus client (This will assign a random free port).
     loaded_conf['prometheus_client_port'] = 0
@@ -54,12 +55,8 @@ def do_tryrun(args):
             log_stdout=True
             )
 
-    # Run task set-up
-    if not args.no_setup:
-        scheduler.setup_tasks()
-
     # Run the "next" (i.e. only) task
-    scheduler.next_task().run()
+    scheduler.next_task().analyzer.run()
 
     # Run task finish
     if not args.no_finish:
@@ -70,7 +67,7 @@ def do_tryrun(args):
 
 
 def do_runner(args):
-    raise NotImplementedError;
+    raise NotImplementedError
 
 # The default dias.conf path.
 # The default here should be suitable for running dias
@@ -178,11 +175,6 @@ tryrun_parser.add_argument(
         help="The name of the task to run"
         )
 tryrun_parser.add_argument(
-        "-s", "--no-setup",
-        action="store_true",
-        help="Skip execution of the tasks's setup routine"
-        )
-tryrun_parser.add_argument(
         "-f", "--no-finish",
         action="store_true",
         help="Skip execution of the tasks's finish routine"
@@ -192,7 +184,7 @@ parsed_args = parser.parse_args()
 
 # Run the selected action, if specified
 if hasattr(parsed_args, "func"):
-    parsed_args.func(parsed_args);
+    parsed_args.func(parsed_args)
 else:
     parser.print_help()
     print("\ndias: error: an action must be specified")
