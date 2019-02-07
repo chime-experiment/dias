@@ -38,7 +38,7 @@ class Analyzer(config.Reader):
         self.write_dir = write_dir
         self.state_dir = state_dir
 
-    def init_logger(self, log_level_override):
+    def init_logger(self, log_level_override=None):
         """Set up the logger. Call this after reading the config."""
         self.logger = logging.getLogger('dias[{0}]'.format(self.name))
         if log_level_override:
