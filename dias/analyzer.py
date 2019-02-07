@@ -31,19 +31,20 @@ class Analyzer(config.Reader):
     log_level = config.Property(proptype=logging.getLevelName)
     period = config.Property(proptype=str2timedelta)
 
-    def __init__(self, name, write_dir):
+    def __init__(self, name, write_dir, state_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
+        self.state_dir = state_dir
 
     def init_logger(self, log_level_override):
         """Set up the logger. Call this after reading the config."""
         self.logger = logging.getLogger(self.name)
         if log_level_override:
-            self.logger.setLevel(log_level_override)
-        else:
-            self.logger.setLevel(self.log_level)
+            self.log_level = log_level_override
+
+        self.logger.setLevel(self.log_level)
 
     def add_task_metric(self, metric_name, description, labelnames=[], unit=''):
         """Add a gauge metric. It will be exported with the full name

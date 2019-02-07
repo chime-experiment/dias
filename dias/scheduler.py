@@ -1,3 +1,5 @@
+# dias Scheduler
+# -------------
 import concurrent.futures
 import logging
 import os
@@ -8,9 +10,6 @@ from dias.task_queue import TaskQueue
 from dias.utils.time_strings import timestamp2str
 from prometheus_client import make_wsgi_app
 from wsgiref.simple_server import make_server
-
-# This is how a log line produced by dias will look:
-LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
@@ -46,7 +45,6 @@ class Scheduler:
         # Set the module logger.
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(config['log_level'])
-        logging.basicConfig(format=LOG_FORMAT)
 
         # Synchronization barrier
         barrier = threading.Barrier(2)

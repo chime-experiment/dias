@@ -6,28 +6,71 @@ from dias.utils.time_strings import str2timedelta
 from dias.task import Task
 import copy
 
-# This is how a log line produced by dias will look:
+# This is how a log line produced by dias will look like:
 LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
+class DiasException(Exception):
+    """\
+Dias base exception class
+"""
+    def __init__(self, message):
+        self.message = message
+
+class DiasUsageError(DiasException):
+    """\
+Exception raised for errors in the usage of dias.
+:param message: Explanation of the error.
+"""
+    def __init__(self, message):
+        self.message = message
+
+
+class DiasConfigError(DiasException):
+    """\
+Exception raised for errors in the dias config..
+:param message: Explanation of the error.
+"""
+    def __init__(self, message):
+        self.message = message
+
+
 class ConfigLoader:
     def __init__(self, config_path, limit_task=None):
+        logging.basicConfig(format=LOG_FORMAT)
+
         self.config_path = config_path
 
         # Read and apply dias global config
-        global_file = open(self.config_path, "r")
+        try:
+            global_file = open(self.config_path, "r")
+        except Exception as exc:
+            raise DiasUsageError('Failed to open dias config file: {}'
+                                 .format(exc))
         self.global_config = yaml.load(global_file)
+
         global_file.close()
 
-        # Set log level, if necessary.  We do this in global_config
-        # instead of setting self.log_level directly so that it will
-        # be propagated into tasks.
-        self.global_config.setdefault('log_level', DEFAULT_LOG_LEVEL)
+        # Validate the config variables
 
-        # Check config values
+        # The default task config dir is the subdirectory "task" in
+        # the directory containing dais.conf
+        self._check_config_variable(
+                'task_config_dir', proptype=str,
+                default=os.path.join(
+                    os.path.dirname(self.config_path), "tasks"))
+        self._check_config_variable('task_write_dir', proptype=str)
+        self._check_config_variable('task_state_dir', proptype=str)
+        self._check_config_variable('prometheus_client_port', proptype=int)
+        self._check_config_variable(
+                'log_level', default=DEFAULT_LOG_LEVEL,
+                proptype=logging.getLevelName)
+        self._check_config_variable(
+                'trigger_interval', default='1h', proptype=str2timedelta)
+
         if str2timedelta(self['trigger_interval']).seconds * 60 \
                 < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
@@ -35,20 +78,43 @@ class ConfigLoader:
                 .format(self['trigger_interval'], MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
-        # Set the default task config dir, which is the
-        # subdirectory "task" in the directory containing dais.conf
-        if not 'task_config_dir' in self or self['task_config_dir'] is None:
-            self['task_config_dir'] = os.path.join(
-                    os.path.dirname(self.config_path), "tasks")
-
         # Load all the analyzers
-        self.load_analyzers(limit_task)
+        self._load_analyzers(limit_task)
 
         # Don't do anything if we have no tasks
         if len(self.tasks) < 1:
             raise IndexError("No tasks have been defined.")
 
-    def load_analyzers(self, limit_task):
+    def _check_config_variable(self, key, proptype, default=None):
+        """
+        Validates a config variable from the global config.
+        :param config: A dictionary in which to look for the given key.
+        :param key: The key (name) of the variable.
+        :param proptype: A function validating the loaded value.
+        :param default: The default value (default: None).
+        Raises an exception on error.
+        """
+        try:
+            value = self.global_config[key]
+        except KeyError:
+            if default is None:
+                raise DiasConfigError("Could not find variable {} in config."
+                                      .format(key))
+            else:
+                value = self[key] = default
+
+        try:
+            value = proptype(value)
+        except Exception as exc:
+            raise DiasConfigError("Value ({}) for config variable {} not "
+                                  "accepted: {}".format(value, key, exc))
+        finally:
+            if value is None:
+                raise DiasConfigError("Value ({}) for config variable {} not "
+                                      "accepted: Not of type {}."
+                                      .format(value, key, proptype))
+
+    def _load_analyzers(self, limit_task):
         """
         Locate and load all task config files
         """
@@ -83,14 +149,18 @@ class ConfigLoader:
                 # This is where we tell the task to write its output
                 write_dir = os.path.join(self['task_write_dir'], task_name)
 
+                # This is where they can write a state until next time dias
+                # starts up.
+                state_dir = os.path.join(self['task_state_dir'], task_name)
+
                 # create the task object
-                task = Task(task_name, task_config, write_dir)
+                task = Task(task_name, task_config, write_dir, state_dir)
 
                 # Load the analyzer for this task from the task config
                 analyzer_class = \
                     self._import_analyzer_class(task_config['analyzer'])
 
-                task.analyzer = analyzer_class(task_name, write_dir)
+                task.analyzer = analyzer_class(task_name, write_dir, state_dir)
                 task.analyzer.read_config(task_config)
 
                 self.tasks.append(task)

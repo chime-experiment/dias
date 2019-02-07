@@ -7,8 +7,19 @@ Dependencies are:
 * [caput](https://github.com/radiocosmology/caput)
 * [ch_util](https://bitbucket.org/chime/ch_util/src/master/ch_util/) for the CHIME-specific analyzer
 
+## Configuration
+The path to the configuration file can be passed to `dias` by `-c path/to/dias.conf`, otherwise `dias` will search for a configuration file at `../conf/dias.conf`. This should be a YAML file with the following keys:
+ * **log_level:** String. Global log level: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` or `NOTSET` (default: `INFO`)
+ * **trigger_interval:** String. A time interval specifying hours, minutes and/or seconds (e.g. `2h15m30s` or `12h30m`). This tells `dias` how often to look for tasks that need to be triggered (minimum: `10m`, default: `1h`).
+ * **task_config_dir:** Path to the [task files](#tasks) (default: `tasks` in the same directory as the config file)
+ * **task_write_dir:** String. Path to write task output data to.
+ * **task_state_dir:** String. Path to write task state data to.
+ * **prometheus_client_port:** Int. Port to run the dias client on.
+ 
+ For an example, see [`conf/dias.conf`](conf/dias.conf).
+
 ## Analyzers
-An _analyzer_ is a code block implementing a particular data analysis task.  It should be created by subclassing either the base `dias.analyzer.Analyzer` class or else (more likely for CHIME data analysis) the CHIME-specific `dias.chime_analyzer.CHIMEAnalyzer`, which is itself a subclass of the base `Analyzer`.
+An _analyzer_ is a code block implementing a particular data analysis task.  It should be created by subclassing either the base `dias.analyzer.Analyzer` class or else (more likely for CHIME data analysis) the CHIME-specific `dias.chime_analyzers.CHIMEAnalyzer`, which is itself a subclass of the base `Analyzer`.
 
 The base analyzer inherits from the [caput](https://github.com/radiocosmology/caput) `config.Reader` class.
 
@@ -65,18 +76,43 @@ will result in
 [2019-01-18 14:07:57,905] trivial_task: Something terrible happened!
 ```
 (where "trivial_task" is the name of the task we defined in the `trivial_task.conf` file below).
-* **task_metric(metric_name, value, documentation=None, labels=dict(), unit=''):** A method the analyzer base class provides to export housekeeping metrics of the task.
+* **add_task_metric(metric_name, description (optional), labelnames (optional), unit (optional)):**
+
+A method the analyzer base class provides to create housekeeping metrics of the task. It returns a [`prometheus_client.Gauge`](https://github.com/prometheus/client_python#gauge) that can be used to update the value of the metric.
+The example
 ```python
+    def setup(self):
+        self.some_metric = self.add_task_metric("something", unit='total')
+        self.some_metric.set(1.2)
+
     def run(self):
-        self.task_metric("something_total", 7)
+        self.some_metric.inc()
 ```
-will export a prometheus metric called `dias_task_<task_name>_something_total` with the value `7`.
-* **data_metric(metric_name, value, documentation=None, labels=dict(), unit=''):** A method the analyzer base class provides to export metrics desribing the analyzed data.
+will export a prometheus metric called `dias_task_<task_name>_something_total` with the initial value *1.2* that gets incremented on each run of the task.
+* **add_data_metric(metric_name, description (optional), labelnames (optional), unit (optional)):**
+
+ A method the analyzer base class provides to create metrics describing the analyzed data.
+ It returns a [`prometheus_client.Gauge`](https://github.com/prometheus/client_python#gauge) that can be used to update the value of the metric.
+The example
 ```python
+    def setup(self):
+        self.some_metric = self.add_data_metric("some_time", unit='seconds')
+
     def run(self):
-        self.data_metric("my_metric_seconds", 23.555)
+        self.some_metric.set(1)
+
 ```
-will export a prometheus metric called `dias_data_<task_name>_my_metric_seconds` with the value `23.555`.
+will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
+ which will be set to *1* on every run of the task.
+
+ * **Metric labels:** If a list of strings is passed as the parameter `labelnames`
+ when calling `add_task_metric` or `add_data_metric`, the value of the metric
+ can be set depending on label values, as described [here](https://github.com/prometheus/client_python#labels).
+ Example with labels being `frequency` and `input`:
+ ```python
+ m = self.add_data_metric("my_metric", labelnames=['frequency, 'input'])
+ m.labels(frequency=7.5, input='some_value').inc()
+ ```
 
 * **period:** A `datetime.timedelta` object, defining the time between task runs. The value is set in the tasks config file.
 * **start_time:** A `datetime.datetime` object, defining the phase of the task as the first time the task is run. The value is set in the tasks config file.
@@ -93,6 +129,8 @@ TODO: How to use.
         f.only_corr()
 ```
 It works exactly the same as calling `ch_util.data_index.Finder(...)`, except this one sets the `node_spoof` parameter for you (and will ignore any `node_spoof` you specify).
+
+A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the `node_spoof` parameter passed to `Finder`.
  
 ## Tasks
 The other piece is the configuration file which tells the `dias` scheduler about your analysis task.  Create a YAML file in the `tasks` directory.  You can call it whatever you want, but the name must end in `.conf`.  Whatever you call it will end up being the task's _name_.
@@ -108,7 +146,7 @@ The first of these are any `caput` config properties that were defined in your a
 
 For this example, we might have a file called `trivial_task.conf` containing:
 ```YAML
-analyzer: "dias.analyzer.trivial_analyzer.TrivialAnalyzer" # Assuming the filename we used for
+analyzer: "dias.analyzers.trivial_analyzer.TrivialAnalyzer" # Assuming the filename we used for
                                                            # the TrivialAnalyzer class was
                                                            # trivial_analyzer.py
 period: "1h"
