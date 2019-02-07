@@ -43,7 +43,7 @@ def do_tryrun(args):
 
     # Add command line config
     loaded_conf['log_level_override'] = args.log_level
-    
+
     # Create a "fake" prometheus client (This will assign a random free port).
     loaded_conf['prometheus_client_port'] = 0
 

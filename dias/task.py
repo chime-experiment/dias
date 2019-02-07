@@ -6,8 +6,9 @@ class Task:
 The Task class is used by the scheduler to hold a task's instantiated
 analyzer along with associated bookkeeping data
 """
-    def __init__(self, task_name, task_config, write_dir):
+    def __init__(self, task_name, task_config, write_dir, state_dir):
         self.write_dir = write_dir
+        self.state_dir = state_dir
         self.name = task_name
 
         self.runcount = 0
@@ -53,6 +54,14 @@ analyzer along with associated bookkeeping data
             self.analyzer.logger.info('Write directory for task: {0}.'
                     .format(self.write_dir))
 
+        # Create the task's state directory if it doesn't exist
+        if not os.path.isdir(self.state_dir):
+            self.analyzer.logger.debug('Creating new state directory ' \
+                    'for task `{}`: {}.'.format(self.name, self.state_dir))
+            os.makedirs(self.state_dir)
+        else:
+            self.analyzer.logger.debug('Set state directory for task `{}`: {}.'
+                    .format(self.name, self.state_dir))
 
     def running(self):
         return self.runcount > 0
