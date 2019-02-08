@@ -181,8 +181,7 @@ With the `tryrun` action, the `dias` script will:
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
 
 ### Using an installed dias
-If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which
-aren't installed by `setup.py`.  Do this with the `-c` option to `script/dias`:
+If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which aren't installed by `setup.py`).  Do this with the `-c` option to `script/dias`:
 ```
 scripts/dias -c /path/to/dias/conf/dias.conf tryrun trivial_task
 ```
