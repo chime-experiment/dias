@@ -158,11 +158,16 @@ the_other_thing: "a string"
 ```
 ## Testing analyzers
 
-After defining your task by creating the `trivial_task.conf` file, you can test your task and analyzer in-place without installing `dias` by simply running the script:
+After defining your task by creating the `trivial_task.conf` file, it's time to test it.
+
+We'll do this without installing dias first, and instead run things in-place.  First make sure python can find dias:
+```
+export PYTHONPATH=/path/to/dias
+```
+where `/path/to/dias` is the path containing dias's `setup.py`.  Then you can test things by running the script:
 ```
 scripts/dias tryrun trivial_task
 ```
-(Make sure the uninstalled dias can by found by the python interpeter first.)
 
 With the `tryrun` action, the `dias` script will:
 
@@ -174,3 +179,11 @@ With the `tryrun` action, the `dias` script will:
 * finally, exit
 
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
+
+### Using an installed dias
+If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which
+aren't installed by `setup.py`.  Do this with the `-c` option to `script/dias`:
+```
+scripts/dias -c /path/to/dias/conf/dias.conf tryrun trivial_task
+```
+where `/path/to/dias/conf/dias.conf` is the `dias.conf` file located in your working copy of dias.
