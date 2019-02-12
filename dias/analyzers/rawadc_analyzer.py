@@ -18,7 +18,7 @@ class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
     cwd = os.getcwd()
     # Config parameter for this anlyzer can be specified by assigning class
     # attributes a caput.config.Property
-    acq_dir = config.Property(proptype='str', default='/mnt/gong/ssiegel/rawflag')
+    acq_dir = config.Property(proptype='str', default='/mnt/recv2/rawflag')
 
     def setup(self):
         """Setup stage: this is called when dias starts up."""
@@ -26,8 +26,8 @@ class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.debug('State Info Loaded From {}.'.format(self.state_dir))
         
         # Ultimately, these variables will be set from state data
-        self.last_dir_copied = "20181007T031648Z_chime_rawflag"
-        self.last_file_copied = ""
+        self.last_dir_copied = '20190119T184425Z_chime_rawflag'
+        self.last_file_copied = ''
         self.logger.debug('Last Directory Copied: {}.'.format(os.path.join(self.acq_dir,self.last_dir_copied))
         self.logger.debug('Last File Copied From Last Directory: {}.'.format(self.last_file_copied))
         
@@ -50,8 +50,8 @@ class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                              os.path.join(self.write_dir,self.last_dir_copied))
                 #os.system("cp -p {} {}".format(os.path.join(curr_path,file),
                 #                               os.path.join(self.write_dir,self.last_dir_copied))
-                os.system("rsync -aze ssh {} {}".format(os.path.join(curr_path,file),
-                                                        os.path.join(self.write_dir,self.last_dir_copied))
+                os.system("rsync -az {} {}".format(os.path.join(curr_path,file),
+                                                   os.path.join(self.write_dir,self.last_dir_copied))
                 self.last_file_copied = file
     
     def make_dir(self):
