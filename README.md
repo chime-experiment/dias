@@ -110,8 +110,12 @@ will export a prometheus metric called `dias_data_<task_name>_some_time_seconds`
  can be set depending on label values, as described [here](https://github.com/prometheus/client_python#labels).
  Example with labels being `frequency` and `input`:
  ```python
- m = self.add_data_metric("my_metric", labelnames=['frequency, 'input'])
- m.labels(frequency=7.5, input='some_value').inc()
+     def setup(self):
+         self.some_metric = self.add_data_metric("my_metric", labelnames=['frequency', 'input'])
+         
+     def run(self):
+         self.some_metric.labels(frequency=7.5, input='some_value').set(1)
+         self.some_metric.labels(frequency=8.5, input='some_value').inc()
  ```
 
 * **period:** A `datetime.timedelta` object, defining the time between task runs. The value is set in the tasks config file.
@@ -181,8 +185,7 @@ With the `tryrun` action, the `dias` script will:
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
 
 ### Using an installed dias
-If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which
-aren't installed by `setup.py`.  Do this with the `-c` option to `script/dias`:
+If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which aren't installed by `setup.py`).  Do this with the `-c` option to `script/dias`:
 ```
 scripts/dias -c /path/to/dias/conf/dias.conf tryrun trivial_task
 ```
