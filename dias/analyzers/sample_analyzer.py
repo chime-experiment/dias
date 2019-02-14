@@ -4,13 +4,13 @@ This is a basic example for how to write an analyzer for dias.
 """
 
 
-from dias import chime_analyzer
+from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config
-from dias.utils.time_strings import str2timedelta, datetime2str
+from dias.utils import str2timedelta, datetime2str
 
 
-class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
+class SampleAnalyzer(CHIMEAnalyzer):
     """Sample Analyzer for dias.
     This subclass of dias.analyzer.Analyzer describes the new analyzer.
     """
