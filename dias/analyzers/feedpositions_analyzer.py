@@ -47,7 +47,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     def setup(self):
         self.logger.info('Starting up. My name is ' + self.name +
                             ' and I am of type ' + __name__ + '.')
-        self.resid_metric = self.add_data_metric("ew_pos_residuals_analyzer_run", unit='', labelnames=['source'])
+        self.resid_metric = self.add_data_metric("ew_pos_residuals_analyzer_run", "if feedposition task has run or not for specific source", labelnames=['source'], unit='')
        
     def run(self):
         
