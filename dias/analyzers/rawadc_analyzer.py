@@ -1,9 +1,3 @@
-"""Example dias analyzer.
-
-This is a basic example for how to write an analyzer for dias.
-"""
-
-
 from dias import chime_analyzer
 from datetime import datetime
 from caput import config
@@ -12,33 +6,39 @@ import os
 
 
 class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
-    """Dias task for the raw adc flagging broker.
+    """Dias task for the raw adc flagging broker.  This task will copy data products 
+    output from the flagging broker to a location where they can be access by theremin.
     This subclass of dias.analyzer.Analyzer describes the new analyzer.
     """
-    cwd = os.getcwd()
+    
     # Config parameter for this anlyzer can be specified by assigning class
-    # attributes a caput.config.Property
-    acq_dir = config.Property(proptype='str', default='/mnt/recv2/rawflag')
+    # attributes a caput.config.Property.
+    # Currently, flagging broker writes data products to recv2 which is also
+    # currently mounted on coconut.
+    # In the long run, it might be better for the broker to write directly to gong.
+    acq_dir = config.Property(proptype=str, default='/mnt/recv2/rawflag')
+    write_dir = config.Property(proptype=str, default='/home/dwulf/test_dias')
+    state_dir = config.Property(proptype=str, default='/home/dwulf/test_dias')
 
     def setup(self):
-        """Setup stage: this is called when dias starts up."""
+        """Setup stage: this is called when dias starts up.
+        """
         self.logger.info('Starting {}'.format(self.name))
-        self.logger.debug('State Info Loaded From {}.'.format(self.state_dir))
         
-        # Ultimately, these variables will be set from state data
-        self.last_dir_copied = '20190119T184425Z_chime_rawflag'
-        self.last_file_copied = ''
-        self.logger.debug('Last Directory Copied: {}.'.format(os.path.join(self.acq_dir,self.last_dir_copied))
-        self.logger.debug('Last File Copied From Last Directory: {}.'.format(self.last_file_copied))
+        state_file = open(os.path.join(self.state_dir,self.name+'.state'),'r')
+        self.last_dir_copied, self.last_file_copied = state_file.read().splitlines()
+        self.logger.debug('State Info Loaded From {}'.format(os.path.join(self.state_dir,self.name+'.state')))
         
-        # Verify that desitnation directory exists
-        #self.make_dir()
+        self.logger.debug('Last Directory Copied: {}'.format(os.path.join(self.acq_dir,self.last_dir_copied)))
+        self.logger.debug('Last File Copied From Last Directory: {}'.format(self.last_file_copied))
 
         # Add a task metric that counts how often this task ran.
-        # It will be exported as dias_task_<task_name>_runs_total.
-        #self.run_counter = self.add_task_metric("runs",
-        #                                        "Number of times the task ran.",
-        #                                        unit="total")
+        self.run_counter = self.add_task_metric("runs",
+                                                "Number of times the task ran.",
+                                                unit="total")
+        self.file_counter = self.add_task_metric("files",
+                                                 "Number of files copied.",
+                                                 unit="total")
 
     def copy_current_dir(self):
         """Copy all files in curr_path that were written after the last_file_copied
@@ -46,22 +46,13 @@ class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
         curr_path = os.path.join(self.acq_dir,self.last_dir_copied)
         for file in os.listdir(curr_path):
             if file>self.last_file_copied:
-                self.logger.debug('Copying {} to {}.'.format(os.path.join(curr_path,file),
-                                                             os.path.join(self.write_dir,self.last_dir_copied))
-                #os.system("cp -p {} {}".format(os.path.join(curr_path,file),
-                #                               os.path.join(self.write_dir,self.last_dir_copied))
+                self.logger.debug('Copying {} to {}'.format(os.path.join(curr_path,file),
+                                                             os.path.join(self.write_dir,self.last_dir_copied,'')))
                 os.system("rsync -az {} {}".format(os.path.join(curr_path,file),
-                                                   os.path.join(self.write_dir,self.last_dir_copied))
+                                                   os.path.join(self.write_dir,self.last_dir_copied,'')))
                 self.last_file_copied = file
+                self.file_counter.inc()
     
-    def make_dir(self):
-        """ Obsolete if using rsync (destination directory will be made automatically if
-        if doesn't already exist)
-        If it doesn't already exist, make a directory in write_dir that corresponds to the 
-        source directory in acq_dir
-        """
-        if self.last_dir_copied not in os.listdir(self.write_dir):
-            os.system("mkdir {}".format(os.path.join(self.write_dir,self.last_dir_copied))
                       
     def next_dir(self):
         """Check whether additional directories need to be copied and return the next one
@@ -82,27 +73,20 @@ class RawAdcAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.copy_current_dir()
         next_directory = self.next_dir()             
         while next_directory is not None:
-            self.logger.debug('Moving on to {}.'.format(os.path.join(self.acq_dir,next_directory))
+            self.logger.debug('Moving on to {}.'.format(os.path.join(self.acq_dir,next_directory)))
             self.last_dir_copied = next_directory
             self.last_file_copied = ""
-            #self.make_dir()
             self.copy_current_dir()          
             next_directory = self.next_dir()
-                          
-        # Calculate the start and end of the passed period, which in this
-        # example is the time we want to analyze data of.
-        #end_time = datetime.now() - self.offset
-        #start_time = end_time - self.period
-        #self.logger.info('Analyzing data between {} and {}.'
-        #                 .format(datetime2str(start_time),
-        #                         datetime2str(end_time)))
-        #self.logger.info('If I had any data, I would probably throw stuff at '\
-        #        '{}.'.format(self.write_dir))
-        # Increment (+1).
-        #self.run_counter.inc()
+            
+        self.run_counter.inc()
 
     def finish(self):
         """Final stage: this is called when dias shuts down."""
+        state_file = open(os.path.join(self.state_dir,self.name+'.state'),'w')
+        state_file.write(self.last_dir_copied+'\n')
+        state_file.write(self.last_file_copied)
+        state_file.close()
+        self.logger.debug('State information written to {}'.format(os.path.join(self.state_dir,self.name+'.state')))
         self.logger.info('Shutting down.')
-        #self.logger.debug('I could save some stuff I would like to keep until '
-        #                  'next setup in {}.'.format(self.state_dir))
+        
