@@ -107,7 +107,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             with h5py.File(os.path.join(self.write_dir, time_str + '_' + night_source + '_positions.h5'), 'w') as f:
                 f.create_dataset('east_west_pos', data=ew_positions, dtype=float)
                 f.create_dataset('east_west_resid', data=residuals, dtype=float)
-                f.create_dataset('axis/freq', data=frequencies, dtype=float)
+                f.create_dataset('axis/freq', data=freq_sel, dtype=float)
                 f.create_dataset('axis/input', data=np.arange(NINPUT), dtype=int)
                 f.close()
         
@@ -173,7 +173,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         # Determine the number of good frequencies out of 10 for this analyzer and send to prometheus
         num_good_freq = len(freq_sel) - count
         self.freq_metric.labels(source=src).set(num_good_freq)
-
+        self.logger.info('Exporting number of good frequencies (non RFI contaminated) in this data to Prometheus')
         tshape = data['evec'].shape[-1]
     
         # Make some empty arrays for the orthogonalized eigenvectors
@@ -191,7 +191,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     
         # Reference eigenvector to the first good feed for the NS(P1) and EW(P2) polarisation
         for i in range(0, NCYL*NPOL, NPOL):
-            evec[:, i*NYCLPOL:(i+1)*NCYLPOL, :] = vy_vec[:, i*NCYLPOL:(i+1)*NCYLPOL, :] / np.exp(1J* np.angle(vy_vec[:, self.ref_feed_P1, :]))[:, np.newaxis, :]
+            evec[:, i*NCYLPOL:(i+1)*NCYLPOL, :] = vy_vec[:, i*NCYLPOL:(i+1)*NCYLPOL, :] / np.exp(1J* np.angle(vy_vec[:, self.ref_feed_P1, :]))[:, np.newaxis, :]
             evec[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL, :] = vx_vec[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL, :] / np.exp(1J* np.angle(vx_vec[:, self.ref_feed_P2, :]))[:, np.newaxis, :]
     	
         # Create empty arrays for East-West positions and residuals
