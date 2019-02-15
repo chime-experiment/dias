@@ -136,6 +136,33 @@ It works exactly the same as calling `ch_util.data_index.Finder(...)`, except th
 
 A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the `node_spoof` parameter passed to `Finder`.
  
+### Coding style
+When writing an analyzer, don't use magic numbers. Instead you can implement them as config variables or constants on module level.
+```diff
+- BAD EXAMPLE:
+```
+```python
+class MyAnalyzer(CHIMEAnalyzer):
+    def run(self):
+        freqs = [1, 2, 3]
+        for f in range freqs:
+            if f > 2:
+```
+
+```diff
++ GOOD EXAMPLE:
+```
+```python
+CHIME_N2_FREQS = [1, 2, 3]
+
+class MyAnalyzer(CHIMEAnalyzer):
+    max_freq = Property(proptype=int)
+    
+    def run(self):
+        for f in CHIME_N2_FREQS:
+            if f > self.max_freq:
+```
+ 
 ## Defining a task
 The other piece is the configuration file which tells the `dias` scheduler about your analysis task.  Create a YAML file in the `tasks` directory.  You can call it whatever you want, but the name must end in `.conf`.  Whatever you call it will end up being the task's _name_.
 
