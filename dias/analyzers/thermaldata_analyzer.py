@@ -1,6 +1,6 @@
-"""Example dias analyzer.
+"""Analyzers to check the integrity of data related to the thermal modeling of
+CHIME complex gain.
 
-This is a basic example for how to write an analyzer for dias.
 """
 
 
@@ -12,14 +12,29 @@ import numpy as np
 
 
 class ThermalDataAnalyzer(CHIMEAnalyzer):
-    """Sample Analyzer for dias.
-    This subclass of dias.analyzer.Analyzer describes the new analyzer.
+    """Analyzer to check the integrity of data related to the thermal modeling
+    of CHIME complex gain.
+
+    For now it only checks for cable loop data.
     """
 
     # Config parameter for this anlyzer can be specified by assigning class
     # attributes a caput.config.Property
     offset = config.Property(proptype=str2timedelta, default='12h')
     trange = config.Property(proptype=str2timedelta, default='1h')
+
+
+    # For now, the inputs corresponding to cable delays are hard-coded
+    # TODO: Make these inputs a config parameter
+    # or better: figure out the loops from the database
+    # (These need to be ordered.)
+    loop_ids = [944, 1314, 2034]  # IDs of cable loops
+    ref_ids = [688, 1058, 2032]  # IDs of reference NS signal for each loop
+    ncables = len(loop_ids)  # Number of cable loops
+    tns = 1./2./np.pi/1E6*1E9  # To convert to nano-seconds
+    nchecks = 1  # Number of times to check.
+    checkoffset = 20  # Start checking from this time bin.
+
 
     def setup(self):
         """Setup stage: this is called when dias starts up."""
@@ -48,16 +63,6 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         start_time = datetime.now() - self.offset
         end_time = start_time + self.trange
 
-        # For now, the inputs corresponding to cable delays are hard-coded
-        # TODO: Make these inputs a config parameter
-        # or better: figure out the lopps from the database
-        # These need to be ordered.
-        loop_ids = [944, 1314, 2034] 
-        ref_ids = [688, 1058, 2032]
-        ncables = len(loop_ids)
-        tns = 1./2./np.pi/1E6*1E9  # To convert to nano-seconds
-
-        # TODO: there must be a better way than loading data_index here
         from ch_util import data_index
         f = self.Finder()
         f.set_time_range(start_time, end_time)
@@ -65,19 +70,19 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         # f.print_results_summary()
 
         results_list = f.get_results()
+        # I only use the first acquisition found 
         result = results_list[0]
         read = result.as_reader()
         prods = read.prod
         freq = read.freq['centre']
         ntimes = len(read.time)
-        nchecks = 1  # Number of times to check
-        time_indices = np.linspace(20, ntimes, nchecks,
+        time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
                                    endpoint=False, dtype=int)
 
         # Determine prod_sel
         prod_sel = []
-        for ii in range(ncables):
-            chan_id, ref_id = loop_ids[ii], ref_ids[ii]
+        for ii in range(self.ncables):
+            chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
             pidx = np.where(
                       np.logical_or(
                          np.logical_and(prods['input_a'] == ref_id,
@@ -90,11 +95,12 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         data = result.as_loaded_data(prod_sel=np.array(prod_sel))
         phases = np.angle(data.vis)
 
-        for cc in range(ncables):
+        for cc in range(self.ncables):
             prms = self._get_fits(time_indices, phases[:, cc, :], freq)
             for tt in range(len(prms)):
-                delay = prms[tt][0]*tns  # Nanoseconds
-                self.delays.labels(chan_id=loop_ids[cc]).set(delay)
+                # First parameter is the slope
+                delay = prms[tt][0]*self.tns  # Nanoseconds
+                self.delays.labels(chan_id=self.loop_ids[cc]).set(delay)
 
         # Increment (+1).
         self.run_counter.inc()
@@ -113,9 +119,11 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         current_length = 1
         n = len(phase)
         if step is None:
-            L = 100
-            phase_fact = 2.*np.pi*L/(speed_factor*3E8)
-            step = phase_fact * abs(freq[1]-freq[0])*1E6
+            L = 100  # Initial estimate of loop length in meters.
+            thz = 1E6  # Convert MHz to Hz
+            c = 3E8  # Poor man's speed of light.
+            phase_fact = 2.*np.pi*L/(speed_factor*c)
+            step = phase_fact * abs(freq[1]-freq[0])*thz
         for ii in np.arange(1, n):
             bad_step = np.logical_or(
                                 abs(phase[ii]-phase[ii-1]) > step*(1.+tol),
@@ -148,7 +156,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         freqmask = abs(fitdiff) < masktol
         fitbreadth = float(np.sum(freqmask))/len(freq)
         fitquality = float(np.sum(abs(fitdiff) < qualtol))/len(freq)
-        # Unwrap data (Brilliant! I am actualy just adding factors of 2pi):
+        # Unwrap data (I am actualy just adding factors of 2pi):
         phaseunwrap = fitfunc+fitdiff 
     
         return prms, phaseunwrap, freqmask, fitbreadth, fitquality
@@ -177,26 +185,36 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     def _get_fits(self, tmidxs, allphase, freq, tol=0.08):
         """tol : in radians
         """
+        freq_ends = [415, 785]  # Beyond these frequencies, phase is weird.
+        phasetol = 0.5  # Tolerance. Remove phases closer to zero than this.
+        # When looking for the longest uninterrupted stretch, restrict ourselves
+        # to the centre of the range, between these frequency indices:
+        fit_stt, fit_stp = 400, 600  # Frequency indices.
+        # When fitting for the slope use only the centre 100 bins of the band.
+        fitlength = 100
+        # Stopping critetium for the fit quality differences 
+        fitqualdiff_tol = 1E-4 
+        # Maximum number of iterations before stopping
+        max_iter = 5
+        # Minimum number of remaining frequency points after masking 
+        # (only there to catch cases where all points are masked out)
+        minfreqpoints = 10
         prms_test, phaseunwrap_test, freq_test = [], [], []
         fitqual_test, tmidx_test, phase_test = [], [], []
         freqmask_test = []
         nf = len(freq)
-        remove_freq_ends = np.logical_and(freq > 415, freq < 785)  # Mask
+        remove_freq_ends = np.logical_and(freq > freq_ends[0], freq < freq_ends[1])  # Mask
    
         tmidxs = np.arange(allphase.shape[1])[tmidxs]
         for tm_idx in tmidxs:
     
             # Phases
             phase = allphase[:, tm_idx]
-            
             # Remove bad freqs:
-            phasetol = 0.5
             freqmask = np.logical_or(phase > phasetol,
                                      phase < -phasetol)
             
             # Find longest uninterrupted stretch
-            # Give it only the centre of the range
-            fit_stt, fit_stp = 400, 600
             stt_idx, length = self._find_longest_stretch(
                             phase[fit_stt:fit_stp], freq[fit_stt:fit_stp])
             stt_idx = stt_idx+fit_stt
@@ -209,21 +227,21 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     
             # Second fit
             # Fit only in the centre of the range:
-            fitmask = np.arange(nf) > stt_idx+int(length/2.)-100
             fitmask = np.logical_and(
-                        fitmask, np.arange(nf) < stt_idx+int(length/2.)+100)
+                            np.arange(nf) > stt_idx+int(length/2.)-fitlength,
+                            np.arange(nf) < stt_idx+int(length/2.)+fitlength)
             fitmask = np.logical_and(freqmask, fitmask)
             fitmask = np.logical_and(fitmask, remove_freq_ends)
             (prms, phaseunwrap, freqmask, 
              fitbreadth, fitquality) = self._fitphase(
-                                freq, phaseunwrap, phase, fitmask, masktol=0.5)
+                                freq, phaseunwrap, phase, fitmask)
     
             # Final fits (do at least one!)
             nfits = 0
             prev_fitqual = fitquality
             fitqualdiff = abs(fitquality - prev_fitqual)
-            while fitqualdiff > 0.0001 or nfits == 0:
-                if nfits == 5:
+            while fitqualdiff > fitqualdiff_tol or nfits == 0:
+                if nfits == max_iter:
                     self.logger.warning('Fits did not converge')
                     break
                 nfits += 1
@@ -231,7 +249,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 freqmask = np.logical_and(freqmask, remove_freq_ends)
                 (prms, phaseunwrap, freqmask, 
                  fitbreadth, fitquality) = self._fitphase(
-                            freq, phaseunwrap, phase, freqmask, masktol=0.5)
+                            freq, phaseunwrap, phase, freqmask)
                 freqmask = np.logical_and(freqmask, remove_freq_ends)
                 fitqualdiff = abs(fitquality - prev_fitqual)
             else:
@@ -240,10 +258,10 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                     phaseunwrap, prms, freq, freqmask, tol)
                 freqmask = np.logical_and(freqmask, remove_freq_ends)
                 # Sometimes the mask erases everything
-                if len(freq[freqmask]) > 10:
+                if len(freq[freqmask]) > minfreqpoints:
                     # One last fit
                     prms, phaseunwrap, freqmask, _, _ = self._fitphase(
-                        freq, phaseunwrap, phase, freqmask, masktol=0.5)
+                        freq, phaseunwrap, phase, freqmask)
                     # Final mask
                     freqmask = self._get_diffmask(
                         phaseunwrap, prms, freq, freqmask, tol)
@@ -264,8 +282,3 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             
         return prms_test
 
-    def finish(self):
-        """Final stage: this is called when dias shuts down."""
-        self.logger.info('Shutting down.')
-        self.logger.debug('I could save some stuff I would like to keep until '
-                          'next setup in {}.'.format(self.state_dir))
