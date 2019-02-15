@@ -138,9 +138,7 @@ A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the
  
 ### Coding style
 When writing an analyzer, don't use magic numbers. Instead you can implement them as config variables or constants on module level.
-```diff
-- BAD EXAMPLE:
-```
+#### BAD:
 ```python
 class MyAnalyzer(CHIMEAnalyzer):
     def run(self):
@@ -149,9 +147,7 @@ class MyAnalyzer(CHIMEAnalyzer):
             if f > 2:
 ```
 
-```diff
-+ GOOD EXAMPLE:
-```
+#### GOOD:
 ```python
 CHIME_N2_FREQS = [1, 2, 3]
 
