@@ -57,7 +57,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         self.end_time_night = time.unix_to_datetime(ephemeris.solar_rising(start_time, end_time))[0]
         self.start_time_night = time.unix_to_datetime(ephemeris.solar_setting(start_time, end_time))[0]
 
-        self.logger.info('Analyzing night data between UTC times' + datetime2str(self.start_time_night) +
+        self.logger.info('Analyzing night data between UTC times ' + datetime2str(self.start_time_night) +
                          ' and ' + datetime2str(self.end_time_night) + '.')
 
         
@@ -104,7 +104,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 self.logger.info('Fourier transform resolution in [m] from source: ' + night_source + " : " + str(resolution[0][0]))
                 self.logger.info('Writing positions from ' + night_source + ' data to ' +
                                  self.write_dir)
-                self.logger.info('Exporting East-West residuals to prometheus')
+                self.logger.info('Exporting value 1 (True) to prometheus, indicating that feedposition analyzer has run on source ' + night_source)
                 
                 # Export a task metric that gives ouput 1 when the task ran successfully
                 self.resid_metric.labels(source=night_source).set(1)
@@ -141,10 +141,27 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         time = data.index_map['time']['ctime'][:]
         # Get the frequencies
         freq = data.freq
-    
-        # TO DO: Check here the eigenvalues on versus off srouce and see if we are not dominated by RFI.
-        #
-    
+
+	# Check here the eigenvalues on versus off source and see if we are not dominated by RFI.
+        # Get the source RA and DEC 
+        ra, dec = ephemeris.object_coords(fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)        
+        lat = np.radians(ephemeris.CHIMELATITUDE)
+        ra_time = ephemeris.lsa(data.time)
+        ha = ra_time - ra
+	# In case we are dealing with CasA...
+        ha = ha - (ha > 180.0) * 360.0 + (ha < -180.0) * 360.0
+        ha = np.radians(ha)
+	# This is the index of the transit
+        transit_time = np.argmin(np.abs(ha))
+
+        # Find ratio of 2 largest eigenvalues on source versus off source
+        for i in range(len(freq_sel)):
+            eval_offsource = data['eval'][i, :2, 0]
+            eval_onsource = data['eval'][i, :2, transit_time]
+            ratio = eval_onsource / eval_offsource
+            if np.all(ratio < 2):
+                self.logger.warn("Eigenvalue ratio on source versus off source smaller than 2. Suspecting RFI contamination for this frequency " + str(freq_sel[i]))
+
         tshape = data['evec'].shape[-1]
     
         # Make some empty arrays for the orthogonalized eigenvectors
@@ -157,14 +174,16 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 vx_vec[f, :, i] = vx
                 vy_vec[f, :, i] = vy
 
-        # Combine the two polarisations into one vector evec
+	# Combine the two polarisations into one vector evec
         evec = np.zeros((len(freq_sel), 2048, len(time)), dtype=complex)
     
         # Reference eigenvector to the first good feed for the NS(P1) and EW(P2) polarisation
         for i in range(0, 8, 2):
             evec[:, i*256:(i+1)*256, :] = vy_vec[:, i*256:(i+1)*256, :] / np.exp(1J* np.angle(vy_vec[:, self.ref_feed_P1, :]))[:, np.newaxis, :]
             evec[:, (i+1)*256:(i+2)*256, :] = vx_vec[:, (i+1)*256:(i+2)*256, :] / np.exp(1J* np.angle(vx_vec[:, self.ref_feed_P2, :]))[:, np.newaxis, :]
-    
+    	
+        np.save('evec_tot.npy', evec)
+
         # Create empty arrays for East-West positions and residuals
         ew_positions = np.zeros((len(freq_sel), 2048), dtype=float)
         resolution = np.zeros((len(freq_sel), 2048), dtype=float)
@@ -193,8 +212,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             return vx, vy
 
         # Construct masks for the X and Y polarisations
-        Ax = (((np.arange(2048, dtype=np.int) / 256) % 2) == 1).astype(np.float64)
-        Ay = (((np.arange(2048, dtype=np.int) / 256) % 2) == 0).astype(np.float64)
+        Ax = (((np.arange(2048, dtype=np.int) // 256) % 2) == 1).astype(np.float64)
+        Ay = (((np.arange(2048, dtype=np.int) // 256) % 2) == 0).astype(np.float64)
 
         U = data['evec'][fsel, :2, :, time_index].T
         Lh = (data['eval'][fsel, :2, time_index])**0.5
