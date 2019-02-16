@@ -140,7 +140,7 @@ A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the
 When writing an analyzer, don't use magic numbers. Instead you can implement them as config variables or constants on module level.
 #### BAD:
 ```python
-class MyAnalyzer(CHIMEAnalyzer):
+class TrivialAnalyzer(CHIMEAnalyzer):
     def run(self):
         freqs = [1, 2, 3]
         for f in range freqs:
@@ -151,7 +151,7 @@ class MyAnalyzer(CHIMEAnalyzer):
 ```python
 CHIME_N2_FREQS = [1, 2, 3]
 
-class MyAnalyzer(CHIMEAnalyzer):
+class TrivialAnalyzer(CHIMEAnalyzer):
     max_freq = Property(proptype=int)
     
     def run(self):
