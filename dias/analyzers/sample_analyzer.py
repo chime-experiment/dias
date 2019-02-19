@@ -55,3 +55,8 @@ class SampleAnalyzer(CHIMEAnalyzer):
         self.logger.info('Shutting down.')
         self.logger.debug('I could save some stuff I would like to keep until '
                           'next setup in {}.'.format(self.state_dir))
+
+    def delete_callback(self, deleted_files):
+        """This gets called after run, if files have been deleted."""
+        self.logger.debug('Oh no, I still needed all of those: {}'
+                          .format(deleted_files))

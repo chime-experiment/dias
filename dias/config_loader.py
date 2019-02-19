@@ -3,7 +3,8 @@ import logging
 import yaml
 import os
 from dias.utils import str2timedelta
-from dias import DiasException, Task
+from dias import DiasConfigError, DiasUsageError, Task
+from prometheus_client import Gauge
 import copy
 
 # This is how a log line produced by dias will look like:
@@ -12,24 +13,6 @@ DEFAULT_LOG_LEVEL = 'INFO'
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
-
-class DiasUsageError(DiasException):
-    """\
-Exception raised for errors in the usage of dias.
-:param message: Explanation of the error.
-"""
-    def __init__(self, message):
-        self.message = message
-
-
-class DiasConfigError(DiasException):
-    """\
-Exception raised for errors in the dias config..
-:param message: Explanation of the error.
-"""
-    def __init__(self, message):
-        self.message = message
-
 
 class ConfigLoader:
     def __init__(self, config_path, limit_task=None):
@@ -76,7 +59,10 @@ class ConfigLoader:
 
         # Don't do anything if we have no tasks
         if len(self.tasks) < 1:
-            raise IndexError("No tasks have been defined.")
+            if limit_task is None:
+                raise IndexError("No tasks have been defined.")
+            else:
+                raise AttributeError("Task {} not found.".format(limit_task))
 
     def _check_config_variable(self, key, proptype, default=None):
         """
@@ -146,8 +132,26 @@ class ConfigLoader:
                 # starts up.
                 state_dir = os.path.join(self['task_state_dir'], task_name)
 
+                # Create per-task prometheus metrics. Labels are the task name
+                # and the directory type ('write' or 'state').
+                data_written_metric = Gauge('data_written',
+                                            'Total amount of data written, '
+                                            'including files deleted due to '
+                                            'disk space overage.',
+                                            labelnames=['task', 'directory'],
+                                            namespace='dias_task_{}'
+                                            .format(task_name),
+                                            unit='bytes')
+                disk_space_metric = Gauge('disk_space',
+                                          'Total amount of data on disk.',
+                                          labelnames=['task', 'directory'],
+                                          namespace='dias_task_{}'
+                                          .format(task_name),
+                                          unit='bytes')
+
                 # create the task object
-                task = Task(task_name, task_config, write_dir, state_dir)
+                task = Task(task_name, task_config, write_dir, state_dir,
+                            data_written_metric, disk_space_metric)
 
                 # Load the analyzer for this task from the task config
                 analyzer_class = \

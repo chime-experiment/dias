@@ -1,4 +1,4 @@
-# Helper functions to convert between string and datetime as well as timedelta
+# Helper functions to convert to and from strings.
 # ----------------------------------------------------------------------------
 
 import re
@@ -7,6 +7,9 @@ from datetime import timedelta,datetime
 
 TIMEDELTA_REGEX = re.compile(r'((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?')
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+DATA_UNITS = {"B": 1, "kB": 10**3, "MB": 10**6, "GB": 10**9, "TB": 10**12,
+              "PB": 10**15, "EB": 10**18, "ZB": 10**21}
+DATA_UNITS_SORTED = ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB"]
 
 
 def str2timedelta(time_str):
@@ -42,3 +45,23 @@ def datetime2str(dt):
 
 def timestamp2str(ts):
     return datetime.utcfromtimestamp(ts).strftime(DATETIME_FORMAT)
+
+def str2bytes(size):
+    try:
+        number, unit = [string.strip() for string in size.split()]
+    except ValueError:
+        raise ValueError("Didn't understand data size: '{}' (use SI prefixes "
+                         "and a whitespace between number and unit)."
+                         .format(size))
+    except AttributeError:
+        raise ValueError("Data size ('{}') should be of type string (is of"
+                         " type {})".format(size, type(size)))
+
+    return int(float(number) * DATA_UNITS[unit])
+
+def bytes2str(num):
+    for unit in DATA_UNITS_SORTED:
+        if abs(num) < 1000.0:
+            return "%3.1f %s" % (num, unit)
+        num /= 1000.0
+    return "%.1f %s" % (num, 'YB')
