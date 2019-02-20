@@ -7,9 +7,8 @@ from datetime import timedelta,datetime
 
 TIMEDELTA_REGEX = re.compile(r'((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?')
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-DATA_UNITS = {"B": 1, "kB": 10**3, "MB": 10**6, "GB": 10**9, "TB": 10**12,
-              "PB": 10**15, "EB": 10**18, "ZB": 10**21}
-DATA_UNITS_SORTED = ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB"]
+DATA_UNITS = {"B": 1, "kB": 10**3, "MB": 10**6, "GB": 10**9}
+DATA_UNITS_SORTED = ["B", "kB", "MB", "GB"]
 
 
 def str2timedelta(time_str):
@@ -64,4 +63,4 @@ def bytes2str(num):
         if abs(num) < 1000.0:
             return "%3.1f %s" % (num, unit)
         num /= 1000.0
-    return "%.1f %s" % (num, 'YB')
+    return "%.1f %s" % (num, 'TB')

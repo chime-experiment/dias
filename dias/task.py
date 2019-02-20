@@ -1,24 +1,38 @@
 import os
-from pathlib import Path
 import random
+
 from dias.utils import str2timestamp, str2total_seconds, bytes2str
+from pathlib import Path
+from prometheus_client import Gauge
 
 class Task:
     """\
 The Task class is used by the scheduler to hold a task's instantiated
 analyzer along with associated bookkeeping data
 """
-    def __init__(self, task_name, task_config, write_dir, state_dir,
-                 data_written_metric, disk_space_metric):
+    def __init__(self, task_name, task_config, write_dir, state_dir):
         self.write_dir = write_dir
         self.state_dir = state_dir
-        self.data_written_metric = data_written_metric
-        self.disk_space_metric = disk_space_metric
         self.data_space_used = 0
         self.state_space_used = 0
         self.name = task_name
 
         self.runcount = 0
+
+        # Create per-task prometheus metrics. Labels are the task name
+        # and the directory type ('write' or 'state').
+        self.data_written_metric = Gauge('data_written',
+                                         'Total amount of data written, '
+                                         'including files deleted due to '
+                                         'disk space overage.',
+                                         labelnames=['task', 'directory'],
+                                         namespace='dias_task',
+                                         unit='bytes')
+        self.disk_space_metric = Gauge('disk_space',
+                                       'Total amount of data on disk.',
+                                       labelnames=['task', 'directory'],
+                                       namespace='dias_task',
+                                       unit='bytes')
 
         # Extract important stuff from the task config
         self.period = task_config['period']
@@ -147,6 +161,15 @@ analyzer along with associated bookkeeping data
                     self.analyzer.logger.info("Deleting file: {}"
                                               .format(f.absolute()))
                     deleted_files.append(f)
+                    try:
+                        # Remove file or symbolic link
+                        f.unlink()
+                    except Exception as e:
+                        self.analyzer.logger.warning(
+                            "Unable to delete file '{}': {}"
+                                .format(f.absolute(), e))
+                        deleted_files.pop()
+                        disk_usage = total_data_size
             else:
                 disk_usage = total_data_size
 

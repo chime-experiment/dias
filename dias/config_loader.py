@@ -4,7 +4,6 @@ import yaml
 import os
 from dias.utils import str2timedelta
 from dias import DiasConfigError, DiasUsageError, Task
-from prometheus_client import Gauge
 import copy
 
 # This is how a log line produced by dias will look like:
@@ -132,26 +131,8 @@ class ConfigLoader:
                 # starts up.
                 state_dir = os.path.join(self['task_state_dir'], task_name)
 
-                # Create per-task prometheus metrics. Labels are the task name
-                # and the directory type ('write' or 'state').
-                data_written_metric = Gauge('data_written',
-                                            'Total amount of data written, '
-                                            'including files deleted due to '
-                                            'disk space overage.',
-                                            labelnames=['task', 'directory'],
-                                            namespace='dias_task_{}'
-                                            .format(task_name),
-                                            unit='bytes')
-                disk_space_metric = Gauge('disk_space',
-                                          'Total amount of data on disk.',
-                                          labelnames=['task', 'directory'],
-                                          namespace='dias_task_{}'
-                                          .format(task_name),
-                                          unit='bytes')
-
                 # create the task object
-                task = Task(task_name, task_config, write_dir, state_dir,
-                            data_written_metric, disk_space_metric)
+                task = Task(task_name, task_config, write_dir, state_dir)
 
                 # Load the analyzer for this task from the task config
                 analyzer_class = \

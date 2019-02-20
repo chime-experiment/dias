@@ -183,7 +183,7 @@ tryrun_parser.add_argument(
 tryrun_parser.add_argument(
         "-p", "--pause",
         action="store_true",
-        help="Pause indefinitely after the tasks's routines"
+        help="Pause indefinitely after the task completes"
         )
 
 parsed_args = parser.parse_args()
