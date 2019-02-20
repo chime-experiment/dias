@@ -3,7 +3,7 @@
 
 import logging
 from caput import config
-from dias.utils import str2timedelta, str2datetime
+from dias.utils import str2timedelta, str2datetime, str2bytes
 from prometheus_client import Gauge
 
 
@@ -30,6 +30,8 @@ class Analyzer(config.Reader):
     start_time = config.Property(proptype=str2datetime)
     log_level = config.Property(proptype=logging.getLevelName)
     period = config.Property(proptype=str2timedelta)
+    data_size_max = config.Property(proptype=str2bytes)
+    state_size_max = config.Property(proptype=str2bytes)
 
     def __init__(self, name, write_dir, state_dir):
         """Constructor of analyzer base class.
@@ -84,5 +86,14 @@ class Analyzer(config.Reader):
     def run(self):
         """Main task stage of analyzer. Will be called by the dias framework
         according to the period set in the task config.
+        """
+        pass
+
+    def delete_callback(self, deleted_files):
+        """
+        Called after run() to inform the analyzer about files that have been
+        deleted from its write_dir due to data size overage.
+        :param deleted_files:   List of pathlib.Path objects. Files that have
+                                been deleted.
         """
         pass

@@ -2,7 +2,6 @@
 # -------------
 import concurrent.futures
 import logging
-import os
 import threading
 import time
 from dias import Job, TaskQueue, DiasConcurrencyError

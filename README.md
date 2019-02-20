@@ -58,6 +58,14 @@ The analyzer may also define:
         # Do stuff that should be done when dias shuts down.
  ```
  
+ - A method that is called after `run()` to inform the analyzer in case files
+  have been deleted from its `write_dir` due to data size overage.
+```python
+    def delete_callback(self, deleted_files):
+        # The 'deleted_files' parameter is a list of 'pathlib.Path' objects for
+        # each file in 'self.write_dir' that has been deleted.
+```
+
  ### Other useful utilities dias provides
  * **name:** A string containing the task's name (i.e. the name of the config file).
  ```python
@@ -206,6 +214,27 @@ With the `tryrun` action, the `dias` script will:
 * finally, exit
 
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
+
+### Testing prometheus metris
+
+When you test an analyzer with `scripts/dias tryrun <task name>`, you will see
+something like
+```
+[2019-02-19 21:00:38,008] dias: Starting prometheus client on port 36261.
+```
+in first few lines of the output. Note the port number at the end of the line
+that was randomly chosen for this *tryrun*. While your task is being run, you
+can see the metrics it exports using
+```
+curl localhost:<port number>
+```
+or by accessing `localhost:<port number>` with your browser.
+Since this will only work until the scripts exits, you can make it pause
+indefinitely after running your task using
+```
+scripts/dias tryrun -p <task name>
+```
+Abort the paused dias script by hitting `CTRL-C`.
 
 ### Using an installed dias
 If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which aren't installed by `setup.py`).  Do this with the `-c` option to `script/dias`:

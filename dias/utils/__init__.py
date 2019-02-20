@@ -1,1 +1,1 @@
-from .time_strings import *
+from .string_converter import *

@@ -51,7 +51,7 @@ def do_tryrun(args):
     scheduler = Scheduler(loaded_conf)
 
     # Run the "next" (i.e. only) task
-    scheduler.next_task().analyzer.run()
+    scheduler.next_task().runner()
 
     # Run task finish
     if not args.no_finish:
@@ -59,6 +59,12 @@ def do_tryrun(args):
 
     # Shutdown the scheduler
     del scheduler
+
+    if args.pause:
+        # pause forever
+        import time
+        while True:
+            time.sleep(60)
 
 
 def do_runner(args):
@@ -173,6 +179,11 @@ tryrun_parser.add_argument(
         "-f", "--no-finish",
         action="store_true",
         help="Skip execution of the tasks's finish routine"
+        )
+tryrun_parser.add_argument(
+        "-p", "--pause",
+        action="store_true",
+        help="Pause indefinitely after the task completes"
         )
 
 parsed_args = parser.parse_args()
