@@ -10,6 +10,11 @@ from caput import config
 from dias.utils import str2timedelta
 import numpy as np
 
+# Constant
+SLOPE_TO_SECONDS = 1./2./np.pi/1E6  # Convert slope to seconds
+CABLE_LOOP_CHANNEL_IDS = [944, 1314, 2034]
+REFERENCE_CHANNEL_IDS = [688, 1058, 2032]
+
 
 class ThermalDataAnalyzer(CHIMEAnalyzer):
     """Analyzer to check the integrity of data related to the thermal modeling
@@ -23,10 +28,9 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     offset = config.Property(proptype=str2timedelta, default='12h')
     trange = config.Property(proptype=str2timedelta, default='1h')
     # TODO: In the future, could figure out the loop ids from the database.
-    loop_ids = config.Property(proptype=list, default=[944, 1314, 2034])
-    ref_ids = config.Property(proptype=list, default=[688, 1058, 2032])
+    loop_ids = config.Property(proptype=list, default=CABLE_LOOP_CHANNEL_IDS)
+    ref_ids = config.Property(proptype=list, default=REFERENCE_CHANNEL_IDS)
 
-    SLOPE_TO_SECONDS = 1./2./np.pi/1E6  # Convert slope to seconds
     nchecks = 1  # Number of time bins to check.
     checkoffset = 20  # Start checking from this time bin.
 
@@ -36,7 +40,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         self.delay = self.add_data_metric(
                             "delay",
                             "delays computed for each cable loop",
-                            unit='nanoseconds',
+                            unit='seconds',
                             labelnames=['chan_id'])
 
     def run(self):
@@ -55,7 +59,6 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         f = self.Finder()
         f.set_time_range(start_time, end_time)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimetiming'))
-        # f.print_results_summary()
 
         results_list = f.get_results()
         # I only use the first acquisition found
@@ -88,7 +91,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             prms = self._get_fits(time_indices, phases[:, cc, :], freq)
             for tt in range(len(prms)):
                 # First parameter is the slope
-                delay_temp = prms[tt][0]*self.SLOPE_TO_SECONDS
+                delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
                 self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
