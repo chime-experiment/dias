@@ -5,6 +5,9 @@ from dias.utils import str2timestamp, str2total_seconds, bytes2str
 from pathlib import Path
 from prometheus_client import Gauge, Counter
 
+# This is a cache of task metrics
+task_metrics = {}
+
 class Task:
     """\
 The Task class is used by the scheduler to hold a task's instantiated
@@ -19,24 +22,32 @@ analyzer along with associated bookkeeping data
 
         self.runcount = 0
 
-        # Create per-task prometheus metrics. Labels are the task name
-        # and the directory type ('write' or 'state').
-        self.data_written_metric = Gauge('data_written',
-                                         'Total amount of data written, '
-                                         'including files deleted due to '
-                                         'disk space overage.',
-                                         labelnames=['task', 'directory'],
-                                         namespace='dias_task',
-                                         unit='bytes')
-        self.disk_space_metric = Gauge('disk_space',
-                                       'Total amount of data on disk.',
-                                       labelnames=['task', 'directory'],
-                                       namespace='dias_task',
-                                       unit='bytes')
+        # The first time we run, create per-task prometheus metrics.
+        # Labels are the task name and the directory type
+        # ('write' or 'state').
 
-        self.metric_runs_total = Counter('runs', 'Total times task ran.',
-                                         labelnames=['task'],
-                                         namespace='dias_task', unit='total')
+        # We're only allowed to define these once, so we cache them
+        if not task_metrics:
+            task_metrics['data_written'] = Gauge('data_written',
+                    'Total amount of data written, '
+                    'including files deleted due to '
+                    'disk space overage.',
+                    labelnames=['task', 'directory'],
+                    namespace='dias',
+                    unit='bytes')
+            task_metrics['disk_space'] = Gauge('disk_space',
+                    'Total amount of data on disk.',
+                    labelnames=['task', 'directory'],
+                    namespace='dias',
+                    unit='bytes')
+            task_metrics['runs'] = Counter(
+                    'runs', 'Total times task ran.',
+                    labelnames=['task'],
+                    namespace='dias', unit='total')
+
+        self.data_written_metric = task_metrics['data_written']
+        self.disk_space_metric = task_metrics['disk_space']
+        self.metric_runs_total = task_metrics['runs']
 
         # Extract important stuff from the task config
         self.period = task_config['period']

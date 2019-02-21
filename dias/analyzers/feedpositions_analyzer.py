@@ -1,7 +1,7 @@
 from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config, time
-from dias.utils.time_strings import datetime2str
+from dias.utils.string_converter import datetime2str
 
 from ch_util import andata, data_index, ephemeris, fluxcat
 import numpy as np
