@@ -3,7 +3,7 @@ import random
 
 from dias.utils import str2timestamp, str2total_seconds, bytes2str
 from pathlib import Path
-from prometheus_client import Gauge
+from prometheus_client import Gauge, Counter
 
 class Task:
     """\
@@ -33,6 +33,10 @@ analyzer along with associated bookkeeping data
                                        labelnames=['task', 'directory'],
                                        namespace='dias_task',
                                        unit='bytes')
+
+        self.metric_runs_total = Counter('runs', 'Total times task ran.',
+                                         labelnames=['task'],
+                                         namespace='dias_task', unit='total')
 
         # Extract important stuff from the task config
         self.period = task_config['period']
@@ -119,6 +123,8 @@ analyzer along with associated bookkeeping data
             .set(state_written)
         self.disk_space_metric.labels(task=self.name, directory='state')\
             .set(self.state_space_used)
+
+        self.metric_runs_total.labels(task=self.name).inc()
 
         # Return the result
         return result
