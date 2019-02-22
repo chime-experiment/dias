@@ -1,6 +1,7 @@
 # Helper functions to convert to and from strings.
 # ----------------------------------------------------------------------------
 
+import os
 import re
 from datetime import timedelta,datetime
 
@@ -64,3 +65,8 @@ def bytes2str(num):
             return "%3.1f %s" % (num, unit)
         num /= 1000.0
     return "%.1f %s" % (num, 'TB')
+
+
+# This performs shell-expansion on a string
+def str2path(s):
+    return os.path.expandvars(os.path.expanduser(s))

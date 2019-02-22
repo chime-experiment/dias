@@ -2,7 +2,7 @@ import importlib
 import logging
 import yaml
 import os
-from dias.utils import str2timedelta
+from dias.utils import str2timedelta, str2path
 from dias import DiasConfigError, DiasUsageError, Task
 import copy
 
@@ -34,11 +34,17 @@ class ConfigLoader:
         # The default task config dir is the subdirectory "task" in
         # the directory containing dais.conf
         self._check_config_variable(
-                'task_config_dir', proptype=str,
+                'task_config_dir', proptype=str2path,
                 default=os.path.join(
                     os.path.dirname(self.config_path), "tasks"))
-        self._check_config_variable('task_write_dir', proptype=str)
-        self._check_config_variable('task_state_dir', proptype=str)
+
+        self._check_config_variable('task_write_dir', proptype=str2path)
+        self._check_config_variable('task_state_dir', proptype=str2path)
+        # now shell-expand these paths
+        self['task_config_dir'] = str2path(self['task_config_dir'])
+        self['task_write_dir'] = str2path(self['task_write_dir'])
+        self['task_state_dir'] = str2path(self['task_state_dir'])
+
         self._check_config_variable('prometheus_client_port', proptype=int)
         self._check_config_variable(
                 'log_level', default=DEFAULT_LOG_LEVEL,
