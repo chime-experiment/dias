@@ -236,6 +236,12 @@ scripts/dias tryrun -p <task name>
 ```
 Abort the paused dias script by hitting `CTRL-C`.
 
+### Location of output data
+
+In tryrun mode, the default [`dias.conf`](conf/dias.conf) will tell your analyzer to write
+date to `~/dias_tmp/<task_name>/data`.  Task state files (if any) will be put
+into `~/dias_tmp/<task_name>/state`.
+
 ### Using an installed dias
 If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which aren't installed by `setup.py`).  Do this with the `-c` option to `script/dias`:
 ```
