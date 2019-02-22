@@ -2,7 +2,7 @@ import importlib
 import logging
 import yaml
 import os
-from dias.utils import str2timedelta, str2path
+from dias.utils import str2timedelta, str2path, str2bytes
 from dias import DiasConfigError, DiasUsageError, Task
 import copy
 
@@ -69,7 +69,7 @@ class ConfigLoader:
             else:
                 raise AttributeError("Task {} not found.".format(limit_task))
 
-    def _check_config_variable(self, key, proptype, default=None):
+    def _check_config_variable(self, key, proptype, default=None, config=None):
         """
         Validates a config variable from the global config.
         :param config: A dictionary in which to look for the given key.
@@ -78,8 +78,11 @@ class ConfigLoader:
         :param default: The default value (default: None).
         Raises an exception on error.
         """
+
+        if config is None:
+            config = self.global_config
         try:
-            value = self.global_config[key]
+            value = config[key]
         except KeyError:
             if default is None:
                 raise DiasConfigError("Could not find variable {} in config."
@@ -129,6 +132,17 @@ class ConfigLoader:
 
                 # override with values from task config if specified
                 task_config.update(yaml.load(task_file))
+
+                # check task config vars
+                # start_time is optional and default is None, so don't touch it.
+                self._check_config_variable('log_level', logging.getLevelName,
+                                            'INFO', task_config)
+                self._check_config_variable('period', str2timedelta,
+                                            None, task_config)
+                self._check_config_variable('data_size_max', str2bytes,
+                                            None, task_config)
+                self._check_config_variable('state_size_max', str2bytes,
+                                            None, task_config)
 
                 # This is where we tell the task to write its output
                 write_dir = os.path.join(self['task_write_dir'], task_name)
@@ -197,6 +211,6 @@ class ConfigLoader:
 
     def __contains__(self, key):
         return self.global_config.__contains__(key)
-    
+
     def __iter__(self):
         return self.global_config.__iter__()
