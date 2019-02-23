@@ -49,6 +49,10 @@ analyzer along with associated bookkeeping data
         self.disk_space_metric = task_metrics['disk_space']
         self.metric_runs_total = task_metrics['runs']
 
+        # Initialize counter with zero. prometheus_client does not export a
+        # value until the counter is incremented.
+        self.metric_runs_total.labels(task=task_name).inc(0)
+
         # Extract important stuff from the task config
         self.period = task_config['period']
         if 'start_time' in task_config:
