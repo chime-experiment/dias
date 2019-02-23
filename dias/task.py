@@ -48,7 +48,6 @@ analyzer along with associated bookkeeping data
         self.data_written_metric = task_metrics['data_written']
         self.disk_space_metric = task_metrics['disk_space']
         self.metric_runs_total = task_metrics['runs']
-        self.metric_runs_total.labels(task=self.name).set(0)
 
         # Extract important stuff from the task config
         self.period = task_config['period']
