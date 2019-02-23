@@ -59,6 +59,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         f = self.Finder()
         f.set_time_range(start_time, end_time)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimetiming'))
+        f.accept_all_global_flags()
 
         results_list = f.get_results()
         # I only use the first acquisition found

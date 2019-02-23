@@ -1,5 +1,5 @@
 """
-Tests of MPI Array functionality.
+Tests of Stringconverter.
 run with
 `pytest ./test_stringconverter.py`
 """
