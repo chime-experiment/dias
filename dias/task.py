@@ -112,13 +112,12 @@ analyzer along with associated bookkeeping data
         # Run the task
         self.runcount += 1
         self.analyzer.logger.info("Start-up.")
-        analyzer_crashed = False
 
         try:
             result = self.analyzer.run()
         except Exception as e:
             self.analyzer.logger.error("Task failed: {}".format(e))
-            analyzer_crashed = True
+            result = "Failed"
         else:
             self.analyzer.logger.info(
                 "Shut-down; result: {0}".format(repr(result)))
@@ -145,7 +144,7 @@ analyzer along with associated bookkeeping data
         self.disk_space_metric.labels(task=self.name, directory='state')\
             .set(self.state_space_used)
 
-        if not analyzer_crashed:
+        if not result == "Failed":
             self.metric_runs_total.labels(task=self.name).inc()
 
         # Return the result
