@@ -63,6 +63,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "how many frequencies out of 10 were good (EV ratio on vs off "
             "source smaller than 2)", labelnames=['source'], unit='total')
 
+        # initialize resid source metric
+        for source in sources:
+            self.resid_metric.labels(source=source).set(0)
+
     def run(self):
 
         end_time = datetime.utcnow()
