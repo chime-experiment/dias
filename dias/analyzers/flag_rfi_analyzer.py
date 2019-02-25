@@ -221,9 +221,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                                                 time_width=self.time_width,
                                                                                 rolling=self.rolling)
 
-                    cyl_mask_before = np.isfinite(cyl_ndev)
-                    cyl_mask_after = cyl_ndev <= self.threshold_mad
-
                     # Construct RFI mask for stacked incoherent beam
                     index, auto, ndev = rfi.number_deviations(data, stack=True,
                                                                     apply_static_mask=self.apply_static_mask,
@@ -231,15 +228,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                                     time_width=self.time_width,
                                                                     rolling=self.rolling)
 
-                    mask_before = np.isfinite(ndev)
-                    mask_after = ndev <= self.threshold_mad
-
                     self.logger.debug("Took %0.1f seconds to generate mask." % (time.time() - t0,))
 
                     # Concatenate and define stack axis
                     auto = np.concatenate((cyl_auto, auto), axis=1)
-                    mask_before = np.concatenate((cyl_mask_before, mask_before), axis=1)
-                    mask_after = np.concatenate((cyl_mask_after, mask_after), axis=1)
+                    ndev = np.concatenate((cyl_ndev, ndev), axis=1)
+
+                    mask_before = np.isfinite(ndev)
+                    mask_after = ndev <= self.threshold_mad
 
                     stack = [POL_MAP[inputmap[ii].pol] + '-' + CYL_MAP[inputmap[ii].cyl] for ii in cyl_index]
                     stack.append('ALL')
@@ -282,13 +278,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         # Write 2D arrays containing snapshots of each jump
                         ax = np.array(['freq', 'stack', 'time'])
 
+                        dset = handler.create_dataset('mask', data=mask_after)
+                        dset.attrs['axis'] = ax
+                        dset.attrs['threshold'] = self.threshold_mad
+
                         dset = handler.create_dataset('auto', data=auto)
                         dset.attrs['axis'] = ax
 
-                        dset = handler.create_dataset('mask_before', data=mask_before)
-                        dset.attrs['axis'] = ax
-
-                        dset = handler.create_dataset('mask', data=mask_after)
+                        dset = handler.create_dataset('ndev', data=ndev)
                         dset.attrs['axis'] = ax
 
 
