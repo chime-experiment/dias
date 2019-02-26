@@ -88,13 +88,15 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             rd_tran_dt = np.asarray(rd_tran_dt)
 
             build_ar_freq_set = []
+            
+            vis = fhlist_chimeN2[0]['vis'][:, :, transit_idx]
 
             #loop through all the stack indexes and check every redundant baseline in each stack
             idx = 0
             for st_idx in u_ssel:
                 redun_prods = np.where(ssel_search == st_idx)[0]
 
-                build_ar_freq = redun_thrshld_flagger_cygA(redun_prods, fhlist_chimeN2[file_idx], transit_idx, time_thrsld, res_mad_thrsld)
+                build_ar_freq = redun_thrshld_flagger_cygA(vis[:,redun_prods], time_thrsld, res_mad_thrsld)
 
                 build_ar_freq[build_ar_freq == None] = NaN
 
@@ -130,34 +132,26 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         return np.asarray(norm)
     
     def mad(data, axis=None):
-        return np.nanmedian(np.abs(data - np.nanmedian(data, axis)), axis)
+        return np.nanmedian(np.abs(data - np.nanmedian(data, axis)), axis)    
     
-    def redun_thrshld_flagger_cygA(redun_prods, fhlist_chimeN2, transit_idx, time_thrsld = 15, res_mad_thrsld = 5): 
-
-        freq_N2_lst = fhlist_chimeN2[0]['index_map/freq'][:]
-        freq_plot = []
+    def redun_thrshld_flagger_cygA(vis, time_thrsld = 15, res_mad_thrsld = 5): #Vis should be [[freqs],[redun_prods],[times]]
         rd_tran_freq = []
-        rd_tran_dt_freq = []
 
-        for f_idx, cur_freq in enumerate(freq_N2_lst):
-            freq_plot.append(cur_freq[0])
-            vis = np.concatenate([fh['vis'][f_idx, redun_prods, :] for fh in fhlist_chimeN2], axis=1)
+        for f_idx in range(vis.shape[0]):
             rd_tran_ar = []
-            rd_tran_dt_ar = []
 
-            for i, vis_prod in enumerate(vis):
-                rd_tran = normalize_complex(np.abs(vis_prod[transit_idx]))
+            for prod_idx in range(vis.shape[1]):
+                rd_tran = normalize_complex(np.abs(vis[f_idx][prod_idx]))
                 rd_tran_ar.append(rd_tran)
             rd_tran_ar = np.asarray(rd_tran_ar)
             rd_tran_freq.append(rd_tran_ar)
-        freq_plot = np.asarray(freq_plot)
         rd_tran_freq = np.asarray(rd_tran_freq)
 
         res_vis_t_freq = []
         mad_vis_freq = []
         vis_med_freq = []
 
-        for f in range(freq_plot.shape[0]):
+        for f in range(vis.shape[0]):
             mad_vis = []
             vis_med = []
             for t in range(rd_tran_freq.shape[2]):
@@ -168,7 +162,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         mad_vis_freq = np.asarray(mad_vis_freq)
         vis_med_freq = np.asarray(vis_med_freq)
 
-        for f in range(freq_plot.shape[0]):
+        for f in range(vis.shape[0]):
             vis_ar = []
             for v in range(rd_tran_freq.shape[1]):
                 vis_time = []
@@ -185,7 +179,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
         build_ar_freq = []
 
-        for f in range(freq_plot.shape[0]):
+        for f in range(vis.shape[0]):
             plt_vis = []
             build_ar = []
             for v in range(rd_tran_freq.shape[1]):
