@@ -215,7 +215,7 @@ With the `tryrun` action, the `dias` script will:
 
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
 
-### Testing prometheus metris
+### Testing prometheus metrics
 
 When you test an analyzer with `scripts/dias tryrun <task name>`, you will see
 something like
