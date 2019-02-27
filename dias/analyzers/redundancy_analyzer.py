@@ -25,6 +25,9 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
     time_thrsld = config.Property(proptype=int, default=15)
     res_mad_thrsld = config.Property(proptype=int, default=5)
  
+    def setup(self):
+        self.some_metric = self.add_data_metric("Array Redundancy Check", labelnames=['date', 'run'])
+        
     def run(self):
         """Main task stage: Check all redundant baselines for non-redundant outliers.
         """
@@ -77,6 +80,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
              
         if found == 0:
             self.logger.warn('Did not find any data in the archive for CygA on ' + str(transit_dt)
+            self.some_metric.labels(date=str(transit_dt), run='false').set(1)
             return 
         elif found == 1:
             self.logger.info('Cyga transit found. Check array redundancy using cyga transit on {}.'
@@ -119,6 +123,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                 f.close()
         
                 self.logger.info('Redundancy flags written for CygA transit on ' + str(transit_dt))
+                self.some_metric.labels(date=str(transit_dt), run='true').set(1)
 
     def normalize_complex(x):
         max_amp = np.nanmax(np.abs(x))
