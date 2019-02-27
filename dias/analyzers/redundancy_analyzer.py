@@ -9,7 +9,6 @@ import h5py
 import glob
 import datetime
 
-
 class RedundancyAnalyzer(CHIMEAnalyzer):
     """This analyzer interates through all the redundant baseline sets that comprise the CHIME array. It checks whether
         the visibility during a transit exceeds the MAD of the visibility within a timestep and flags it if it
@@ -25,12 +24,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
     time_thrsld = config.Property(proptype=int, default=15)
     res_mad_thrsld = config.Property(proptype=int, default=5)
-    
-    def setup(self):
-        """Setup stage: this is called when dias starts up."""
-        self.logger.info('Starting up. My name is {} and I am of type {}.'
-                         .format(self.name, __name__))
-
+ 
     def run(self):
         """Main task stage: Check all redundant baselines for non-redundant outliers.
         """
@@ -59,7 +53,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         transit_dt = (datetime.date.today() - datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
         
         found = 0
-        for t_idx in range(len(fhlist_chimeN2),-1,-1):
+        for t_idx in range(len(fhlist_chimeN2)-1,-1,-1):
             times = fhlist_chimeN2[t_idx]['index_map/time']['ctime']
             t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
             t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
@@ -81,47 +75,51 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             if found == 1:
                 break
              
-        if found == 1:
+        if found == 0:
+            self.logger.warn('Did not find any data in the archive for CygA on ' + str(transit_dt)
+            return 
+        elif found == 1:
             self.logger.info('Cyga transit found. Check array redundancy using cyga transit on {}.'
                  .format(datetime2str(transit_dt)))
-            rd_tran_dt = t_wall_dt[transit_idx]
-            rd_tran_dt = np.asarray(rd_tran_dt)
 
-            build_ar_freq_set = []
+            build_prod_freq_flag = []
             
-            vis = fhlist_chimeN2[0]['vis'][:, :, transit_idx]
+            vis = fhlist_chimeN2[file_idx]['vis'][:, :, transit_idx]
+                             
+            freq_N2_lst = fhlist_chimeN2[file_idx]['index_map/freq'][:]
 
             #loop through all the stack indexes and check every redundant baseline in each stack
-            idx = 0
-            for st_idx in u_ssel:
-                redun_prods = np.where(ssel_search == st_idx)[0]
+            for f_idx in range(vis.shape[0]):
+                build_prod_set = []
+                redun_prods_idx_ar = []
+                for st_idx in u_ssel:
+                    redun_prods = np.where(ssel_search == st_idx)[0]
+                    redun_prods_idx_ar.append(redun_prods)
 
-                build_ar_freq = redun_thrshld_flagger_cygA(vis[:,redun_prods], time_thrsld, res_mad_thrsld)
+                    build_ar = redun_thrshld_flagger_cygA(vis[f_idx,redun_prods])
 
-                build_ar_freq[build_ar_freq == None] = NaN
+                    build_ar[build_ar == None] = NaN
 
-                build_prod_freq_flag = []
-                for freq_idx in range(build_ar_freq.shape[0]):
                     build_prod_flag = []
-                    for prod_idx in range(build_ar_freq.shape[1]):
-                        if np.nansum(build_ar_freq[freq_idx][prod_idx][:]) > 0:
+                    for prod_idx in range(build_ar.shape[0]):
+                        if np.nansum(build_ar[prod_idx][:]) > 0:
                             build_prod_flag.append(1)
                         else:
                             build_prod_flag.append(0)
                     build_prod_flag = np.asarray(build_prod_flag)
-                    build_prod_freq_flag.append(build_prod_flag)
-                build_prod_freq_flag = np.asarray(build_prod_freq_flag)
+                    build_prod_set.append(build_prod_flag)          
+                build_prod_freq_flag.append(build_prod_set) #4 freq, stack IDX, prods for stack idx - flag (1 or 0)
+            redun_prods_idx_ar = np.asarray(redun_prods_idx_ar)
 
-                build_ar_freq_set.append(build_prod_freq_flag)
+            with h5py.File(os.path.join(self.write_dir, 'redundancy_check_' + str(transit_dt) + '.h5'), 'w') as f:
+                f.create_dataset('redund_prod_flags', data=build_prod_freq_flag, dtype=int)
+                f.create_dataset('axis/stack_idx', data=u_ssel, dtype=int)
+                f.create_dataset('axis/redun_prod_idx', data=redun_prods_idx_ar, dtype=int)
+                f.create_dataset('axis/freq', data=freq_N2_lst, dtype=float)
+                f.close()
+        
+                self.logger.info('Redundancy flags written for CygA transit on ' + str(transit_dt))
 
-                if idx % 2 == 0:
-                    np.savez('/scratch-slow/tretyako/non_redun_feeds.npz', *build_ar_freq_set)
-                idx += 1
-        
-    def finish(self):
-        """Final stage: this is called when dias shuts down."""
-        self.logger.info('Shutting down.')
-        
     def normalize_complex(x):
         max_amp = np.nanmax(np.abs(x))
         amp = 1/(max_amp**0.5)
@@ -134,68 +132,51 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
     def mad(data, axis=None):
         return np.nanmedian(np.abs(data - np.nanmedian(data, axis)), axis)    
     
-    def redun_thrshld_flagger_cygA(vis, time_thrsld = 15, res_mad_thrsld = 5): #Vis should be [[freqs],[redun_prods],[times]]
-        rd_tran_freq = []
+    def redun_thrshld_flagger_cygA(vis, time_thrsld = 15, res_mad_thrsld = 5): #Vis should be [[redun_prods],[times]]
+        rd_tran_ar = []
 
-        for f_idx in range(vis.shape[0]):
-            rd_tran_ar = []
+        for prod_idx in range(vis.shape[0]): #prod, time
+            rd_tran = normalize_complex(np.abs(vis[prod_idx]))
+            rd_tran_ar.append(rd_tran)
+        rd_tran_ar = np.asarray(rd_tran_ar)
 
-            for prod_idx in range(vis.shape[1]):
-                rd_tran = normalize_complex(np.abs(vis[f_idx][prod_idx]))
-                rd_tran_ar.append(rd_tran)
-            rd_tran_ar = np.asarray(rd_tran_ar)
-            rd_tran_freq.append(rd_tran_ar)
-        rd_tran_freq = np.asarray(rd_tran_freq)
+        res_vis_t = []
+        mad_vis_set = []
+        vis_med_set = []
 
-        res_vis_t_freq = []
-        mad_vis_freq = []
-        vis_med_freq = []
+        mad_vis = []
+        vis_med = []
+        for t in range(rd_tran_ar.shape[1]):
+            mad_vis.append(mad(np.abs(rd_tran_ar[:,t])))
+            vis_med.append(np.median(np.abs(rd_tran_ar[:,t])))
+        mad_vis = np.asarray(mad_vis)
+        vis_med = np.asarray(vis_med)
 
-        for f in range(vis.shape[0]):
-            mad_vis = []
-            vis_med = []
-            for t in range(rd_tran_freq.shape[2]):
-                mad_vis.append(mad(np.abs(rd_tran_freq[f,:,t])))
-                vis_med.append(np.median(np.abs(rd_tran_freq[f,:,t])))
-            vis_med_freq.append(vis_med)
-            mad_vis_freq.append(mad_vis)
-        mad_vis_freq = np.asarray(mad_vis_freq)
-        vis_med_freq = np.asarray(vis_med_freq)
+        vis_ar = []
+        for v in range(rd_tran_ar.shape[0]):
+            vis_time = []
+            for t in range(rd_tran_ar.shape[1]):
+                if np.abs(np.abs(rd_tran_ar[v,t]) - vis_med[t])/mad_vis[t] > res_mad_thrsld:
+                    vis_time.append(1)
+                else:
+                    vis_time.append(0)
+            vis_time = np.asarray(vis_time)
+            vis_ar.append(vis_time)        
+        vis_ar = np.asarray(vis_ar)
 
-        for f in range(vis.shape[0]):
-            vis_ar = []
-            for v in range(rd_tran_freq.shape[1]):
-                vis_time = []
-                for t in range(rd_tran_freq.shape[2]):
-                    if np.abs(np.abs(rd_tran_freq[f,v,t]) - vis_med_freq[f,t])/mad_vis_freq[f,t] > res_mad_thrsld:
-                        vis_time.append(1)
-                    else:
-                        vis_time.append(0)
-                vis_time = np.asarray(vis_time)
-                vis_ar.append(vis_time)
-            vis_ar = np.asarray(vis_ar)
-            res_vis_t_freq.append(vis_ar)
-        res_vis_t_freq = np.asarray(res_vis_t_freq)
+        plt_vis = []
+        build_ar = []
+        for v in range(rd_tran_ar.shape[0]):
+            row = [None] * rd_tran_ar.shape[1]
+            build_ar.append(row)
+            if np.sum(vis_ar[v]) > time_thrsld:
+                for t in range(rd_tran_ar.shape[1]):
+                    if vis_ar[v,t] == 1:
+                        plt_vis.append((v,t)) #vis,time
+        plt_vis = np.asarray(plt_vis)
+        build_ar = np.asarray(build_ar)
 
-        build_ar_freq = []
+        for i in plt_vis:
+            build_ar[i[0],i[1]] = np.abs(rd_tran_ar[i[0],i[1]])
 
-        for f in range(vis.shape[0]):
-            plt_vis = []
-            build_ar = []
-            for v in range(rd_tran_freq.shape[1]):
-                row = [None] * rd_tran_freq.shape[2]
-                build_ar.append(row)
-                if np.sum(res_vis_t_freq[f,v]) > time_thrsld:
-                    for t in range(rd_tran_freq.shape[2]):
-                        if res_vis_t_freq[f,v,t] == 1:
-                            plt_vis.append((f,v,t)) #freq, vis,time
-            plt_vis = np.asarray(plt_vis)
-            build_ar = np.asarray(build_ar)
-
-            for i in plt_vis:
-                build_ar[i[1],i[2]] = np.abs(rd_tran_freq[i[0],i[1],i[2]])
-
-            build_ar_freq.append(build_ar)
-        build_ar_freq = np.asarray(build_ar_freq)
-
-        return build_ar_freq#, t_wall_dt #(freq, vis, time), cygA_transit_time
+        return build_ar#(vis, time)
