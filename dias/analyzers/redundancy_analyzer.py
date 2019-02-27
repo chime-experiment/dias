@@ -24,11 +24,11 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
     time_thrsld = config.Property(proptype=int, default=15)
     res_mad_thrsld = config.Property(proptype=int, default=5)
-    ssel_search = 0
-    u_ssel = 0
+    ssel_search = config.Property(proptype=int, default=0)
+    u_ssel = config.Property(proptype=int, default=0)
     
     def setup(self):
-        self.cyg_a_found = self.add_data_metric("Array Redundancy Check", labelnames=['check_done'])
+        self.cyg_a_found = self.add_data_metric("Array Redundancy Check")
         
         end_time = datetime.timedelta(day=1)#datetime.datetime.utcnow()
         start_time = datetime.timedelta(day=2)#end_time - datetime.timedelta(minutes=1)
@@ -43,12 +43,12 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         rstack = fhlist[0]['reverse_map/stack'][:]
 
         #all prods to search
-        ssel_search = rstack[:]['stack']
+        self.ssel_search = rstack[:]['stack']
 
         ssel = rstack[:]['stack']
 
         #list of stack indexes for each redundant set of prods
-        u_ssel = np.unique(ssel)
+        self.u_ssel = np.unique(ssel)
               
     def run(self):
         """Main task stage: Check all redundant baselines for non-redundant outliers.
@@ -88,7 +88,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
              
         if found == 0:
             self.logger.warn('Did not find any data in the archive for CygA on ' + str(transit_dt)
-            self.cyg_a_found.labels(check_done='false').set(1)
+            self.cyg_a_found.set(0)
             return 
         elif found == 1:
             self.logger.info('Cyga transit found. Check array redundancy using cyga transit on {}.'
@@ -104,8 +104,8 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             for f_idx in range(vis.shape[0]):
                 build_prod_set = []
                 redun_prods_idx_ar = []
-                for st_idx in u_ssel:
-                    redun_prods = np.where(ssel_search == st_idx)[0]
+                for st_idx in self.u_ssel:
+                    redun_prods = np.where(self.ssel_search == st_idx)[0]
                     redun_prods_idx_ar.append(redun_prods)
 
                     build_ar = redun_thrshld_flagger_cygA(vis[f_idx,redun_prods])
@@ -131,7 +131,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                 f.close()
         
                 self.logger.info('Redundancy flags written for CygA transit on ' + str(transit_dt))
-                self.cyg_a_found.labels(check_done='true').set(1)
+                self.cyg_a_found.set(1)
 
     def normalize_complex(x):
         max_amp = np.nanmax(np.abs(x))
