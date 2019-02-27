@@ -24,23 +24,21 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
     time_thrsld = config.Property(proptype=int, default=15)
     res_mad_thrsld = config.Property(proptype=int, default=5)
- 
+    ssel_search = 0
+    u_ssel = 0
+    
     def setup(self):
-        self.some_metric = self.add_data_metric("Array Redundancy Check", labelnames=['date', 'run'])
+        self.cyg_a_found = self.add_data_metric("Array Redundancy Check", labelnames=['check_done'])
         
-    def run(self):
-        """Main task stage: Check all redundant baselines for non-redundant outliers.
-        """
+        end_time = datetime.timedelta(day=1)#datetime.datetime.utcnow()
+        start_time = datetime.timedelta(day=2)#end_time - datetime.timedelta(minutes=1)
+        finder = self.Finder()
+        finder.filter_acqs((data_index.ArchiveInst.name == 'chimestack'))
+        finder.accept_all_global_flags()
+        finder.set_time_range(start_time, end_time)
+        results_list = finder.get_results()
         
-        file_idx = 0
-        folder_stack = np.sort(glob.glob('/mnt/gong/archive/*_chimestack_corr/'))
-        folder_N2 = np.sort(glob.glob('/mnt/gong/archive/*_chimeN2_corr/'))
-
-        fhlist = [h5py.File(fname, 'r') for fname in
-                  np.sort(glob.glob(folder_stack[-1] + str('*.h5')))[:1]]
-
-        fhlist_chimeN2 = [h5py.File(fname, 'r') for fname in
-              np.sort(glob.glob(folder_N2[-1] + str('*.h5')))]
+        fhlist = h5py.File(results_list[0][0][0], 'r')
 
         rstack = fhlist[0]['reverse_map/stack'][:]
 
@@ -51,36 +49,46 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
         #list of stack indexes for each redundant set of prods
         u_ssel = np.unique(ssel)
+              
+    def run(self):
+        """Main task stage: Check all redundant baselines for non-redundant outliers.
+        """
+        finder = data_index.Finder()
+        finder.filter_acqs((data_index.ArchiveInst.name == 'chimeN2'))
+        finder.accept_all_global_flags()
+        end_time = datetime.datetime.utcnow()
+        start_time = end_time - datetime.timedelta(days=1)
+        finder.set_time_range(start_time, end_time)
+        finder.include_transits(ephemeris.CygA, time_delta=800.)
+        results_list = finder.get_results()
+
+        fhlist_chimeN2 = h5py.File(results_list[0][0][0], 'r')
 
         #check redundancy using yesterday's date 
         transit_dt = (datetime.date.today() - datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
         
         found = 0
-        for t_idx in range(len(fhlist_chimeN2)-1,-1,-1):
-            times = fhlist_chimeN2[t_idx]['index_map/time']['ctime']
-            t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
-            t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
+        times = fhlist_chimeN2[0]['index_map/time']['ctime']
+        t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
+        t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
 
-            if len(t_wall_del_idx) > 0: 
-                t_wall_dt = np.delete(t_wall_dt, t_wall_del_idx, 0)
+        if len(t_wall_del_idx) > 0: 
+            t_wall_dt = np.delete(t_wall_dt, t_wall_del_idx, 0)
 
-            #get the cyga transit for this timestream
-            bnd = 28
-            src_idx, tran_peak_val, full_transit = cygA_transit_keys_grp(t_wall_dt, bnd)
+        #get the cyga transit for this timestream
+        bnd = 28
+        src_idx, tran_peak_val, full_transit = cygA_transit_keys_grp(t_wall_dt, bnd)
 
-            #confirm yesterdays cyga transit is in this file
-            for y in range(len(src_idx)):
-                if tran_peak_val[y].strftime("%Y-%m-%d") == transit_dt and full_transit == True:
-                    transit_idx = src_idx[y]
-                    file_idx = t_idx
-                    found = 1
-            
-            if found == 1:
-                break
+        #confirm yesterdays cyga transit is in this file
+        for y in range(len(src_idx)):
+#             if tran_peak_val[y].strftime("%Y-%m-%d") == transit_dt and full_transit == True:
+            if full_transit == True:
+                transit_idx = src_idx[y]
+                found = 1
              
         if found == 0:
             self.logger.warn('Did not find any data in the archive for CygA on ' + str(transit_dt)
-            self.some_metric.labels(date=str(transit_dt), run='false').set(1)
+            self.cyg_a_found.labels(check_done='false').set(1)
             return 
         elif found == 1:
             self.logger.info('Cyga transit found. Check array redundancy using cyga transit on {}.'
@@ -88,9 +96,9 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
             build_prod_freq_flag = []
             
-            vis = fhlist_chimeN2[file_idx]['vis'][:, :, transit_idx]
+            vis = fhlist_chimeN2[0]['vis'][:, :, transit_idx]
                              
-            freq_N2_lst = fhlist_chimeN2[file_idx]['index_map/freq'][:]
+            freq_N2_lst = fhlist_chimeN2[0]['index_map/freq'][:]
 
             #loop through all the stack indexes and check every redundant baseline in each stack
             for f_idx in range(vis.shape[0]):
@@ -123,7 +131,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                 f.close()
         
                 self.logger.info('Redundancy flags written for CygA transit on ' + str(transit_dt))
-                self.some_metric.labels(date=str(transit_dt), run='true').set(1)
+                self.cyg_a_found.labels(check_done='true').set(1)
 
     def normalize_complex(x):
         max_amp = np.nanmax(np.abs(x))
