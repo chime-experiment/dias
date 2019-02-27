@@ -180,6 +180,8 @@ The first of these are any `caput` config properties that were defined in your a
 * **start_time**: a time indicating when you want the task to first run.  This is mostly used to determine the _phase_ of your task.  If this value is in the future, the
 scheduler won't run your task until that time arrives.  This is optional.  If not given, the scheduler will start the task at an arbitrary time within one `period` of the
 start of the scheduler.
+* **data_size_max**: the amount of data this task can write in it's data directory. *dias* deletes old files if this is exceeded. This should be a string containing of a number followed by a whitespace and the SI-unit (e.g. '1 kB')
+* **state_size_max**: the amount of data this task can write in it's state directory. *dias* deletes old files if this is exceeded. This should be a string containing of a number followed by a whitespace and the SI-unit (e.g. '10 MB')
 
 For this example, we might have a file called `trivial_task.conf` containing:
 ```YAML
@@ -190,6 +192,9 @@ period: "1h"
 this_thing: 33.3
 that_thing: 12
 the_other_thing: "a string"
+start_time: '2018-01-03 17:13:13'
+data_size_max: '1 GB'
+state_size_max: '0 B'
 ```
 ## Testing analyzers
 
