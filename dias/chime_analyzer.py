@@ -5,6 +5,7 @@ from caput import config
 from dias import Analyzer
 from ch_util import data_index
 
+
 class CHIMEAnalyzer(Analyzer):
     """A base dias analyzer class with CHIME-specific extensions.
 

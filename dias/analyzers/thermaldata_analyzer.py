@@ -44,7 +44,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                             labelnames=['chan_id'])
 
     def run(self):
-        """Loads chimetiming data. 
+        """Loads chimetiming data.
         Fits for delay of cable loops and exports delays to prometheus.
         """
 

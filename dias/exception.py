@@ -4,6 +4,7 @@ Dias base exception class
 """
     pass
 
+
 class DiasUsageError(DiasException):
     """\
 Exception raised for errors in the usage of dias.

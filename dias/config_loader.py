@@ -13,6 +13,7 @@ DEFAULT_LOG_LEVEL = 'INFO'
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
+
 class ConfigLoader:
     def __init__(self, config_path, limit_task=None):
         logging.basicConfig(format=LOG_FORMAT)
@@ -56,7 +57,8 @@ class ConfigLoader:
                 < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
                     'dias does not allow values smaller than {} minutes.'\
-                .format(self['trigger_interval'], MIN_TRIGGER_INTERVAL_MINUTES)
+                    .format(self['trigger_interval'],
+                            MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
         # Load all the analyzers
@@ -124,8 +126,9 @@ class ConfigLoader:
                     continue
 
                 # caput config reader class for task config
-                task_file = open(os.path.join(self['task_config_dir'],
-                    config_file),"r")
+                task_file = open(
+                        os.path.join(self['task_config_dir'], config_file),
+                        "r")
 
                 # use any values configured on global level
                 task_config = copy.deepcopy(self.global_config)
@@ -134,7 +137,7 @@ class ConfigLoader:
                 task_config.update(yaml.load(task_file))
 
                 # check task config vars
-                # start_time is optional and default is None, so don't touch it.
+                # start_time is optional and default is None, so don't touch it
                 self._check_config_variable('log_level', logging.getLevelName,
                                             'INFO', task_config)
                 self._check_config_variable('period', str2timedelta,
@@ -165,7 +168,6 @@ class ConfigLoader:
 
                 task_file.close()
 
-
     def _import_analyzer_class(self, name):
         """
         Finds the Analyser class given by name.  If name includes a module,
@@ -183,7 +185,8 @@ class ConfigLoader:
             try:
                 class_ = globals()[classname]
             except KeyError:
-                raise ImportError("Analyzer class {0} not found".format(classname))
+                raise ImportError(
+                        "Analyzer class {0} not found".format(classname))
         else:
             # Try to load the module
             try:
