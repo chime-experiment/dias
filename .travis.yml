@@ -1,0 +1,23 @@
+language: python
+os: linux
+sudo: required
+dist: xenial
+
+python:
+    - 3.5
+notifications:
+    email: false
+addons:
+  ssh_known_hosts:
+    - bitbucket.org
+  apt:
+      packages:
+          - libhdf5-serial-dev
+
+before_install:
+    - pip install pep8
+    - pip install future
+
+script:
+    # Run pep8 on all .py files in all subfolders
+    - find . -name \*.py -exec pep8 {} +
