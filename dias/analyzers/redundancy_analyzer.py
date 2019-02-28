@@ -8,6 +8,7 @@ import time
 import h5py
 import glob
 import datetime
+from ch_util import data_index, ephemeris
 
 class RedundancyAnalyzer(CHIMEAnalyzer):
     """This analyzer interates through all the redundant baseline sets that comprise the CHIME array. It checks whether
@@ -24,23 +25,20 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
     time_thrsld = config.Property(proptype=int, default=15)
     res_mad_thrsld = config.Property(proptype=int, default=5)
-    ssel_search = config.Property(proptype=int, default=0)
-    u_ssel = config.Property(proptype=int, default=0)
     
     def setup(self):
-        self.cyg_a_found = self.add_data_metric("Array Redundancy Check")
+        self.cyg_a_found = self.add_data_metric("cyg_a_found","Array Redundancy Check")
         
-        end_time = datetime.timedelta(day=1)#datetime.datetime.utcnow()
-        start_time = datetime.timedelta(day=2)#end_time - datetime.timedelta(minutes=1)
+        end_time = datetime.datetime.utcnow() - datetime.timedelta(days=1)#datetime.datetime.utcnow()
+        start_time = datetime.datetime.utcnow() - datetime.timedelta(days=2)#end_time - datetime.timedelta(minutes=1)
         finder = self.Finder()
         finder.filter_acqs((data_index.ArchiveInst.name == 'chimestack'))
         finder.accept_all_global_flags()
         finder.set_time_range(start_time, end_time)
         results_list = finder.get_results()
-        
         fhlist = h5py.File(results_list[0][0][0], 'r')
 
-        rstack = fhlist[0]['reverse_map/stack'][:]
+        rstack = fhlist['reverse_map/stack'][:]
 
         #all prods to search
         self.ssel_search = rstack[:]['stack']
@@ -53,52 +51,53 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
     def run(self):
         """Main task stage: Check all redundant baselines for non-redundant outliers.
         """
-        finder = data_index.Finder()
+        finder = self.Finder()
         finder.filter_acqs((data_index.ArchiveInst.name == 'chimeN2'))
         finder.accept_all_global_flags()
         end_time = datetime.datetime.utcnow()
-        start_time = end_time - datetime.timedelta(days=1)
+        start_time = end_time - datetime.timedelta(hours=30)
+        #sunrise = time.unix_to_datetime(eph.solar_rising(start_time, end_time))[-1]
+        #sunset = time.unix_to_datetime(eph.solar_setting(start_time, end_time))[0]
         finder.set_time_range(start_time, end_time)
         finder.include_transits(ephemeris.CygA, time_delta=800.)
         results_list = finder.get_results()
 
-        fhlist_chimeN2 = h5py.File(results_list[0][0][0], 'r')
-
-        #check redundancy using yesterday's date 
-        transit_dt = (datetime.date.today() - datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
-        
+        #check redundancy using yesterday's date
+        transit_dt = (datetime.datetime.utcnow() - datetime.timedelta(hours=30)).strftime("%Y-%m-%d")
         found = 0
-        times = fhlist_chimeN2[0]['index_map/time']['ctime']
-        t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
-        t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
+        if len(results_list) > 0:
+            fhlist_chimeN2 = h5py.File(results_list[0][0][0], 'r')
 
-        if len(t_wall_del_idx) > 0: 
-            t_wall_dt = np.delete(t_wall_dt, t_wall_del_idx, 0)
+            times = fhlist_chimeN2['index_map/time']['ctime']
+            t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
+            t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
 
-        #get the cyga transit for this timestream
-        bnd = 28
-        src_idx, tran_peak_val, full_transit = cygA_transit_keys_grp(t_wall_dt, bnd)
+            if len(t_wall_del_idx) > 0: 
+                t_wall_dt = np.delete(t_wall_dt, t_wall_del_idx, 0)
 
-        #confirm yesterdays cyga transit is in this file
-        for y in range(len(src_idx)):
-#             if tran_peak_val[y].strftime("%Y-%m-%d") == transit_dt and full_transit == True:
-            if full_transit == True:
-                transit_idx = src_idx[y]
-                found = 1
+            #get the cyga transit for this timestream
+            bnd = 28
+            src_idx, tran_peak_val, full_transit = self.cygA_transit_keys_grp(t_wall_dt, bnd)
+
+            #confirm yesterdays cyga transit is in this file
+            for y in range(len(src_idx)):
+#                 if tran_peak_val[y].strftime("%Y-%m-%d") == transit_dt and full_transit == True:
+                if full_transit == True:
+                    transit_idx = src_idx[y]
+                    found = 1
              
         if found == 0:
-            self.logger.warn('Did not find any data in the archive for CygA on ' + str(transit_dt)
+            self.logger.warn('Did not find any data in the archive for CygA on ' + transit_dt)
             self.cyg_a_found.set(0)
             return 
         elif found == 1:
-            self.logger.info('Cyga transit found. Check array redundancy using cyga transit on {}.'
-                 .format(datetime2str(transit_dt)))
+            self.logger.info('Cyga transit found. Check array redundancy using cyga transit on ' + transit_dt)
 
             build_prod_freq_flag = []
             
-            vis = fhlist_chimeN2[0]['vis'][:, :, transit_idx]
+            vis = fhlist_chimeN2['vis'][:, :, transit_idx]
                              
-            freq_N2_lst = fhlist_chimeN2[0]['index_map/freq'][:]
+            freq_N2_lst = fhlist_chimeN2['index_map/freq'][:]
 
             #loop through all the stack indexes and check every redundant baseline in each stack
             for f_idx in range(vis.shape[0]):
@@ -108,7 +107,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                     redun_prods = np.where(self.ssel_search == st_idx)[0]
                     redun_prods_idx_ar.append(redun_prods)
 
-                    build_ar = redun_thrshld_flagger_cygA(vis[f_idx,redun_prods])
+                    build_ar = self.redun_thrshld_flagger_cygA(vis[f_idx,redun_prods])
 
                     build_ar[build_ar == None] = NaN
 
@@ -123,7 +122,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                 build_prod_freq_flag.append(build_prod_set) #4 freq, stack IDX, prods for stack idx - flag (1 or 0)
             redun_prods_idx_ar = np.asarray(redun_prods_idx_ar)
 
-            with h5py.File(os.path.join(self.write_dir, 'redundancy_check_' + str(transit_dt) + '.h5'), 'w') as f:
+            with h5py.File(os.path.join(self.write_dir, 'redundancy_check_' + transit_dt + '.h5'), 'w') as f:
                 f.create_dataset('redund_prod_flags', data=build_prod_freq_flag, dtype=int)
                 f.create_dataset('axis/stack_idx', data=u_ssel, dtype=int)
                 f.create_dataset('axis/redun_prod_idx', data=redun_prods_idx_ar, dtype=int)
@@ -133,7 +132,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
                 self.logger.info('Redundancy flags written for CygA transit on ' + str(transit_dt))
                 self.cyg_a_found.set(1)
 
-    def normalize_complex(x):
+    def normalize_complex(self,x):
         max_amp = np.nanmax(np.abs(x))
         amp = 1/(max_amp**0.5)
         norm = []
@@ -142,25 +141,21 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             
         return np.asarray(norm)
     
-    def mad(data, axis=None):
+    def mad(self,data, axis=None):
         return np.nanmedian(np.abs(data - np.nanmedian(data, axis)), axis)    
     
-    def redun_thrshld_flagger_cygA(vis, time_thrsld = 15, res_mad_thrsld = 5): #Vis should be [[redun_prods],[times]]
+    def redun_thrshld_flagger_cygA(self,vis, time_thrsld = 15, res_mad_thrsld = 5): #Vis should be [[redun_prods],[times]]
         rd_tran_ar = []
 
         for prod_idx in range(vis.shape[0]): #prod, time
-            rd_tran = normalize_complex(np.abs(vis[prod_idx]))
+            rd_tran = self.normalize_complex(np.abs(vis[prod_idx]))
             rd_tran_ar.append(rd_tran)
         rd_tran_ar = np.asarray(rd_tran_ar)
-
-        res_vis_t = []
-        mad_vis_set = []
-        vis_med_set = []
 
         mad_vis = []
         vis_med = []
         for t in range(rd_tran_ar.shape[1]):
-            mad_vis.append(mad(np.abs(rd_tran_ar[:,t])))
+            mad_vis.append(self.mad(np.abs(rd_tran_ar[:,t])))
             vis_med.append(np.median(np.abs(rd_tran_ar[:,t])))
         mad_vis = np.asarray(mad_vis)
         vis_med = np.asarray(vis_med)
@@ -193,3 +188,37 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             build_ar[i[0],i[1]] = np.abs(rd_tran_ar[i[0],i[1]])
 
         return build_ar#(vis, time)
+
+    def cygA_transit_keys_grp(self, dates_ar, ln ):
+        src_tran = []
+        src_ar = []
+        bnd = ln#26 #this*2-2 will give the index width of the transit. eg 40*2-2=78 
+        full = False
+        
+        e = np.array([datetime.datetime.fromtimestamp(a) for a in ephemeris.transit_times(ephemeris.CygA, dates_ar[0], dates_ar[-1])])
+        if len(e) > 0:
+            dt_idx = np.where(dates_ar >= e[0])[0]
+            if len(dt_idx) == 0:
+                dt_idx = np.where(dates_ar < e[0])[0]
+            merged_ar = np.sort(np.concatenate((dates_ar[dt_idx[0]:(dt_idx[0]+bnd)], dates_ar[(dt_idx[0]-1):(dt_idx[0]-bnd):-1]), axis=0))        
+            for y in range(len(merged_ar)):
+                src_tran.append(np.where(dates_ar == merged_ar[y])[0][0])
+            src_tran = np.asarray(src_tran)
+            if len(src_tran) == bnd*2-1:
+                full = True
+            else:
+                full = False
+            src_ar.append(src_tran)
+            src_tran = []
+            for x in range(1, e.shape[0]):
+                dt_idx = np.where(dates_ar >= e[x])[0]
+                if len(dt_idx) == 0:
+                    dt_idx = np.where(dates_ar < e[x])[0]
+                merged_ar = np.sort(np.concatenate((dates_ar[dt_idx[0]:(dt_idx[0]+bnd)], dates_ar[(dt_idx[0]-1):(dt_idx[0]-bnd):-1]), axis=0))
+                for y in range(len(merged_ar)):
+                    src_tran.append(np.where(dates_ar == merged_ar[y])[0][0])
+                src_tran = np.asarray(src_tran)
+                src_ar.append(src_tran)
+                src_tran = []
+            src_ar = np.asarray(src_ar)
+        return src_ar, e, full
