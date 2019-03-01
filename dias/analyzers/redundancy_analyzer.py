@@ -13,7 +13,7 @@ from ch_util import data_index, ephemeris
 class RedundancyAnalyzer(CHIMEAnalyzer):
     """This analyzer iterates through all the redundant baseline sets that comprise the CHIME array. It checks whether
         the visibility during a transit exceeds the MAD of the visibility within a timestep and flags it if
-        continues the exceed the MAD at a certain threshold for a given number of consequtive timesteps.
+        continues to exceed the MAD at a certain threshold for a given number of consecutive timesteps.
    
     Attributes
     ----------
