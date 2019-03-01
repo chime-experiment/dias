@@ -1,12 +1,10 @@
 import threading
 
-
 class TaskQueue:
     """\
 The TaskQueue contains the list of all tasks to be executed by the
 scheduler.  It uses threading.Lock to ensure thread-safety.
 In some ways this works like a list, but be careful."""
-
     def __init__(self, tasks):
         self.tasks = tasks
 
@@ -56,3 +54,4 @@ In some ways this works like a list, but be careful."""
         self.tasks.insert(new, task)
 
         self.lock.release()
+

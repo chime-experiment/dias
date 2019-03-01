@@ -11,7 +11,7 @@ from dias.utils import str2timedelta
 import numpy as np
 
 # Constant
-SLOPE_TO_SECONDS = 1. / 2. / np.pi / 1E6  # Convert slope to seconds
+SLOPE_TO_SECONDS = 1./2./np.pi/1E6  # Convert slope to seconds
 CABLE_LOOP_CHANNEL_IDS = [944, 1314, 2034]
 REFERENCE_CHANNEL_IDS = [688, 1058, 2032]
 
@@ -38,13 +38,13 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         """Setup stage: this is called when dias starts up."""
         # Add a data metric for the computed cable loop delays.
         self.delay = self.add_data_metric(
-            "delay",
-            "delays computed for each cable loop",
-            unit='seconds',
-            labelnames=['chan_id'])
+                            "delay",
+                            "delays computed for each cable loop",
+                            unit='seconds',
+                            labelnames=['chan_id'])
 
     def run(self):
-        """Loads chimetiming data.
+        """Loads chimetiming data. 
         Fits for delay of cable loops and exports delays to prometheus.
         """
 
@@ -76,11 +76,11 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         for ii in range(ncables):
             chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
             pidx = np.where(
-                np.logical_or(
-                    np.logical_and(prods['input_a'] == ref_id,
-                                   prods['input_b'] == chan_id),
-                    np.logical_and(prods['input_a'] == chan_id,
-                                   prods['input_b'] == ref_id)))[0][0]
+                      np.logical_or(
+                         np.logical_and(prods['input_a'] == ref_id,
+                                        prods['input_b'] == chan_id),
+                         np.logical_and(prods['input_a'] == chan_id,
+                                        prods['input_b'] == ref_id)))[0][0]
             prod_sel.append(pidx)
 
         # Load data
@@ -92,7 +92,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             prms = self._get_fits(time_indices, phases[:, cc, :], freq)
             for tt in range(len(prms)):
                 # First parameter is the slope
-                delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
+                delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
                 self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
@@ -135,12 +135,12 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             L = 100  # Initial estimate of loop length in meters.
             thz = 1E6  # Convert MHz to Hz
             c = 3E8  # Poor man's speed of light.
-            phase_fact = 2. * np.pi * L / (speed_factor * c)
-            step = phase_fact * abs(freq[1] - freq[0]) * thz
+            phase_fact = 2.*np.pi*L/(speed_factor*c)
+            step = phase_fact * abs(freq[1]-freq[0])*thz
         for ii in np.arange(1, n):
             bad_step = np.logical_or(
-                abs(phase[ii] - phase[ii - 1]) > step * (1. + tol),
-                abs(phase[ii] - phase[ii - 1]) < step * (1. - tol))
+                                abs(phase[ii]-phase[ii-1]) > step*(1.+tol),
+                                abs(phase[ii]-phase[ii-1]) < step*(1.-tol))
             if not bad_step:
                 current_length += 1
             else:
@@ -189,9 +189,9 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             phase = allphase[:, tm_idx]
             # Find longest uninterrupted stretch
             stt_idx, length = self._find_longest_stretch(
-                phase[fit_stt:fit_stp], freq[fit_stt:fit_stp])
-            stt_idx = stt_idx + fit_stt
-            fitslc = np.s_[stt_idx:stt_idx + length]
+                            phase[fit_stt:fit_stp], freq[fit_stt:fit_stp])
+            stt_idx = stt_idx+fit_stt
+            fitslc = np.s_[stt_idx:stt_idx+length]
             # Fit for delay
             prms = np.polyfit(x=freq[fitslc], y=phase[fitslc], deg=1)
             prms_list.append(prms)

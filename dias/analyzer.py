@@ -48,12 +48,7 @@ class Analyzer(config.Reader):
 
         self.logger.setLevel(self.log_level)
 
-    def add_task_metric(
-            self,
-            metric_name,
-            description,
-            labelnames=[],
-            unit=''):
+    def add_task_metric(self, metric_name, description, labelnames=[], unit=''):
         """Add a gauge metric. It will be exported with the full name
         `dias_task_<task name>_<metric_name>_<unit>`.
         Pass the metric name without the prefix and unit according to

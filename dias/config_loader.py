@@ -13,7 +13,6 @@ DEFAULT_LOG_LEVEL = 'INFO'
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
 
-
 class ConfigLoader:
     def __init__(self, config_path, limit_task=None):
         logging.basicConfig(format=LOG_FORMAT)
@@ -35,9 +34,9 @@ class ConfigLoader:
         # The default task config dir is the subdirectory "task" in
         # the directory containing dais.conf
         self._check_config_variable(
-            'task_config_dir', proptype=str2path,
-            default=os.path.join(
-                os.path.dirname(self.config_path), "tasks"))
+                'task_config_dir', proptype=str2path,
+                default=os.path.join(
+                    os.path.dirname(self.config_path), "tasks"))
 
         self._check_config_variable('task_write_dir', proptype=str2path)
         self._check_config_variable('task_state_dir', proptype=str2path)
@@ -48,15 +47,15 @@ class ConfigLoader:
 
         self._check_config_variable('prometheus_client_port', proptype=int)
         self._check_config_variable(
-            'log_level', default=DEFAULT_LOG_LEVEL,
-            proptype=logging.getLevelName)
+                'log_level', default=DEFAULT_LOG_LEVEL,
+                proptype=logging.getLevelName)
         self._check_config_variable(
-            'trigger_interval', default='1h', proptype=str2timedelta)
+                'trigger_interval', default='1h', proptype=str2timedelta)
 
         if str2timedelta(self['trigger_interval']).seconds * 60 \
                 < MIN_TRIGGER_INTERVAL_MINUTES:
             msg = 'Config value `trigger_interval` is too small ({}). '\
-                'dias does not allow values smaller than {} minutes.'\
+                    'dias does not allow values smaller than {} minutes.'\
                 .format(self['trigger_interval'], MIN_TRIGGER_INTERVAL_MINUTES)
             raise AttributeError(msg)
 
@@ -126,7 +125,7 @@ class ConfigLoader:
 
                 # caput config reader class for task config
                 task_file = open(os.path.join(self['task_config_dir'],
-                                              config_file), "r")
+                    config_file),"r")
 
                 # use any values configured on global level
                 task_config = copy.deepcopy(self.global_config)
@@ -135,8 +134,7 @@ class ConfigLoader:
                 task_config.update(yaml.load(task_file))
 
                 # check task config vars
-                # start_time is optional and default is None, so don't touch
-                # it.
+                # start_time is optional and default is None, so don't touch it.
                 self._check_config_variable('log_level', logging.getLevelName,
                                             'INFO', task_config)
                 self._check_config_variable('period', str2timedelta,
@@ -167,6 +165,7 @@ class ConfigLoader:
 
                 task_file.close()
 
+
     def _import_analyzer_class(self, name):
         """
         Finds the Analyser class given by name.  If name includes a module,
@@ -184,8 +183,7 @@ class ConfigLoader:
             try:
                 class_ = globals()[classname]
             except KeyError:
-                raise ImportError(
-                    "Analyzer class {0} not found".format(classname))
+                raise ImportError("Analyzer class {0} not found".format(classname))
         else:
             # Try to load the module
             try:
@@ -199,8 +197,8 @@ class ConfigLoader:
                 class_ = getattr(ext_module, classname)
             except AttributeError:
                 raise ImportError(
-                    "Analyzer class {0} not found in module {1}".format(
-                        classname, modulename))
+                        "Analyzer class {0} not found in module {1}".format(
+                            classname, modulename))
 
         return class_
 

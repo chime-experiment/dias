@@ -8,13 +8,11 @@ from prometheus_client import Gauge, Counter
 # This is a cache of task metrics
 task_metrics = {}
 
-
 class Task:
     """\
 The Task class is used by the scheduler to hold a task's instantiated
 analyzer along with associated bookkeeping data
 """
-
     def __init__(self, task_name, task_config, write_dir, state_dir):
         self.write_dir = write_dir
         self.state_dir = state_dir
@@ -30,18 +28,22 @@ analyzer along with associated bookkeeping data
 
         # We're only allowed to define these once, so we cache them
         if not task_metrics:
-            task_metrics['data_written'] = Gauge(
-                'data_written', 'Total amount of data written, '
-                'including files deleted due to '
-                'disk space overage.', labelnames=[
-                    'task', 'directory'], namespace='dias', unit='bytes')
-            task_metrics['disk_space'] = Gauge(
-                'disk_space', 'Total amount of data on disk.', labelnames=[
-                    'task', 'directory'], namespace='dias', unit='bytes')
+            task_metrics['data_written'] = Gauge('data_written',
+                    'Total amount of data written, '
+                    'including files deleted due to '
+                    'disk space overage.',
+                    labelnames=['task', 'directory'],
+                    namespace='dias',
+                    unit='bytes')
+            task_metrics['disk_space'] = Gauge('disk_space',
+                    'Total amount of data on disk.',
+                    labelnames=['task', 'directory'],
+                    namespace='dias',
+                    unit='bytes')
             task_metrics['runs'] = Counter(
-                'runs', 'Total times task ran.',
-                labelnames=['task'],
-                namespace='dias', unit='total')
+                    'runs', 'Total times task ran.',
+                    labelnames=['task'],
+                    namespace='dias', unit='total')
 
         self.data_written_metric = task_metrics['data_written']
         self.disk_space_metric = task_metrics['disk_space']
@@ -59,7 +61,7 @@ analyzer along with associated bookkeeping data
             self.start_time = None
 
     def prepare(self, reference_time, log_level_override=None,
-                start_now=False):
+            start_now=False):
         """Prepare a task for execution."""
 
         # initialse the analyzer's logger
@@ -85,11 +87,11 @@ analyzer along with associated bookkeeping data
         # Create the task's output directory if it doesn't exist
         if not os.path.isdir(self.write_dir):
             self.analyzer.logger.debug('Creating new output directory: {0}'
-                                       .format(self.write_dir))
+                .format(self.write_dir))
             os.makedirs(self.write_dir)
         else:
             self.analyzer.logger.debug('Write directory: {0}.'
-                                       .format(self.write_dir))
+                    .format(self.write_dir))
 
         # Create the task's state directory if it doesn't exist
         if not os.path.isdir(self.state_dir):
@@ -98,7 +100,7 @@ analyzer along with associated bookkeeping data
             os.makedirs(self.state_dir)
         else:
             self.analyzer.logger.debug('Set state directory: {}.'
-                                       .format(self.state_dir))
+                    .format(self.state_dir))
 
         # Run the setup
         self.analyzer.setup()
@@ -195,7 +197,7 @@ analyzer along with associated bookkeeping data
                     except Exception as e:
                         self.analyzer.logger.warning(
                             "Unable to delete file '{}': {}"
-                            .format(f.absolute(), e))
+                                .format(f.absolute(), e))
                         deleted_files.pop()
                         disk_usage = total_data_size
             else:
@@ -206,6 +208,7 @@ analyzer along with associated bookkeeping data
             self.analyzer.delete_callback(deleted_files)
 
         return (total_data_size, disk_usage)
+
 
     def increment(self):
         """Increment start_time by period"""

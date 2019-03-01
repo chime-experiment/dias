@@ -25,8 +25,8 @@ if task_dst:
     task_src = os.path.join(os.path.dirname(sys.argv[0]), "conf", "tasks")
     if not os.path.isdir(task_src):
         raise FileExistsError(
-            "Task configruation directory {0} not found".format(task_src)
-        )
+                "Task configruation directory {0} not found".format(task_src)
+                )
 
     # We don't allow installing the task config directory over
     # top of an existing directory, because that would likely
@@ -36,8 +36,8 @@ if task_dst:
     except FileExistsError:
         # Re-raise with an explanation
         raise FileExistsError(
-            "Cannot install task configraution: "
-            "{0} already exists.".format(task_dst)
+        "Cannot install task configraution: " \
+                "{0} already exists.".format(task_dst)
         )
 
     # Now copy all the task configuration files
@@ -49,14 +49,14 @@ if task_dst:
 
 # Now for the regular setuptools-y stuff
 setuptools.setup(
-    name='dias',
-    version=dias.__version__,
-    author="The CHIME Collaboration",
-    author_email="dvw@phas.ubc.ca",
-    description="CHIME data integrity automation system",
-    packages=['dias', 'dias.analyzers', 'dias.utils'],
-    scripts=['scripts/dias'],
-    requires=['caput', 'ch_util'],
-    license="GPL v3.0",
-    url="http://github.com/chime-experiment/dias"
+    name = 'dias',
+    version = dias.__version__,
+    author = "The CHIME Collaboration",
+    author_email = "dvw@phas.ubc.ca",
+    description = "CHIME data integrity automation system",
+    packages = ['dias','dias.analyzers', 'dias.utils'],
+    scripts = ['scripts/dias'],
+    requires = ['caput', 'ch_util'],
+    license = "GPL v3.0",
+    url = "http://github.com/chime-experiment/dias"
 )
