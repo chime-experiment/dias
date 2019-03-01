@@ -28,9 +28,8 @@ class SampleAnalyzer(CHIMEAnalyzer):
 
         # Add a task metric that counts how often this task ran.
         # It will be exported as dias_task_<task_name>_runs_total.
-        self.run_counter = self.add_task_metric("runs",
-                                                "Number of times the task ran.",
-                                                unit="total")
+        self.run_counter = self.add_task_metric(
+            "runs", "Number of times the task ran.", unit="total")
 
     def run(self):
         """Main task stage: analyze data from the last period.
@@ -44,8 +43,8 @@ class SampleAnalyzer(CHIMEAnalyzer):
         self.logger.info('Analyzing data between {} and {}.'
                          .format(datetime2str(start_time),
                                  datetime2str(end_time)))
-        self.logger.info('If I had any data, I would probably throw stuff at '\
-                '{}.'.format(self.write_dir))
+        self.logger.info('If I had any data, I would probably throw stuff at '
+                         '{}.'.format(self.write_dir))
 
         # Increment (+1).
         self.run_counter.inc()

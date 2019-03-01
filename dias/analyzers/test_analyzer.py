@@ -6,6 +6,7 @@ from datetime import datetime
 from time import sleep
 from caput import config
 
+
 class TestAnalyzer(Analyzer):
     """\
 Test dias analyzer.

@@ -12,11 +12,15 @@ import scipy.linalg as la
 import h5py
 
 
-# Choose 10 good frequencies. I chose the same ones that we used when writing full N2 data for 10 frequencies.
-freq_sel = [ 758.203125,  716.40625 ,  697.65625 ,  665.625   ,  633.984375,
-               597.265625,  558.203125,  516.40625 ,  497.265625,  433.59375]
+# Choose 10 good frequencies. I chose the same ones that we used when
+# writing full N2 data for 10 frequencies.
+freq_sel = [758.203125, 716.40625, 697.65625, 665.625, 633.984375,
+            597.265625, 558.203125, 516.40625, 497.265625, 433.59375]
 # Brightest sources. VirA does not have enough S/N.
-sources = {'CAS_A' : ephemeris.CasA, 'CYG_A' : ephemeris.CygA, 'TAU_A' : ephemeris.TauA}
+sources = {
+    'CAS_A': ephemeris.CasA,
+    'CYG_A': ephemeris.CygA,
+    'TAU_A': ephemeris.TauA}
 
 # number of inputs in CHIME
 NINPUT = 2048
@@ -29,6 +33,7 @@ NPOL = 2
 NCYL = 4
 # number of eigenvalues to keep
 N_EVAL = 2
+
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
     """A CHIME analyzer to calculate the East-West feed positions from the fringe rates
@@ -50,10 +55,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     ref_feed_P2 = config.Property(proptype=int, default=258)
     pad_fac_EW = config.Property(proptype=int, default=256)
 
-
     def setup(self):
         self.logger.info('Starting up. My name is ' + self.name +
-                            ' and I am of type ' + __name__ + '.')
+                         ' and I am of type ' + __name__ + '.')
         self.resid_metric = self.add_task_metric(
             "ew_pos_residuals_analyzer_run",
             "feedposition task run counter for specific source",
@@ -70,20 +74,30 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     def run(self):
 
         end_time = datetime.utcnow()
-        start_time = end_time - self.period # period is 24h
+        start_time = end_time - self.period  # period is 24h
         #self.logger.info('Analyzer period: starttime ' + datetime2str(start_time) + ', endtime ' + datetime2str(end_time) + ', period ' + str(self.period))
-        self.end_time_night = time.unix_to_datetime(ephemeris.solar_rising(start_time, end_time))[0]
-        self.start_time_night = time.unix_to_datetime(ephemeris.solar_setting(start_time, end_time))[0]
+        self.end_time_night = time.unix_to_datetime(
+            ephemeris.solar_rising(start_time, end_time))[0]
+        self.start_time_night = time.unix_to_datetime(
+            ephemeris.solar_setting(start_time, end_time))[0]
 
-        self.logger.info('Analyzing night data between UTC times ' + datetime2str(self.start_time_night) +
-                         ' and ' + datetime2str(self.end_time_night) + '.')
+        self.logger.info(
+            'Analyzing night data between UTC times ' +
+            datetime2str(
+                self.start_time_night) +
+            ' and ' +
+            datetime2str(
+                self.end_time_night) +
+            '.')
 
         night_transits = []
 
         # Check which of these sources transit at night
         for src in sources.keys():
-            transit = ephemeris.transit_times(sources[src], self.start_time_night, self.end_time_night)
-            src_ra, src_dec = ephemeris.object_coords(fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
+            transit = ephemeris.transit_times(
+                sources[src], self.start_time_night, self.end_time_night)
+            src_ra, src_dec = ephemeris.object_coords(
+                fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
             if transit:
                 night_transits.append(src)
 
@@ -94,7 +108,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         # for each source in night_transits calculate the East-West positions
         for night_source in night_transits:
-            self.logger.info('Processing source ' + night_source + ' to find feed positions...')
+            self.logger.info(
+                'Processing source ' +
+                night_source +
+                ' to find feed positions...')
             ew_positions, resolution = self.east_west_positions(night_source)
 
             if ew_positions is None:
@@ -103,28 +120,52 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
             # Calculate the median for each cylinder/ polarisation pair.
             ew_offsets = np.ones_like(ew_positions)
-            for i in range(0, NCYL*NPOL, NPOL):
-                ew_offsets[:, i*NCYLPOL:(i+1)*NCYLPOL] *= np.median(ew_positions[:, i*NCYLPOL:(i+1)*NCYLPOL], axis=1)[:, np.newaxis]
-                ew_offsets[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL] *= np.median(ew_positions[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL], axis=1)[:, np.newaxis]
+            for i in range(0, NCYL * NPOL, NPOL):
+                ew_offsets[:, i *
+                           NCYLPOL:(i +
+                                    1) *
+                           NCYLPOL] *= np.median(ew_positions[:, i *
+                                                              NCYLPOL:(i +
+                                                                       1) *
+                                                              NCYLPOL], axis=1)[:, np.newaxis]
+                ew_offsets[:, (i + 1) * NCYLPOL:(i + 2) * NCYLPOL] *= np.median(
+                    ew_positions[:, (i + 1) * NCYLPOL:(i + 2) * NCYLPOL], axis=1)[:, np.newaxis]
 
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
 
             with h5py.File(os.path.join(self.write_dir, time_str + '_' + night_source + '_positions.h5'), 'w') as f:
-                f.create_dataset('east_west_pos', data=ew_positions, dtype=float)
-                f.create_dataset('east_west_resid', data=residuals, dtype=float)
+                f.create_dataset(
+                    'east_west_pos',
+                    data=ew_positions,
+                    dtype=float)
+                f.create_dataset(
+                    'east_west_resid',
+                    data=residuals,
+                    dtype=float)
                 f.create_dataset('axis/freq', data=freq_sel, dtype=float)
-                f.create_dataset('axis/input', data=np.arange(NINPUT), dtype=int)
+                f.create_dataset(
+                    'axis/input',
+                    data=np.arange(NINPUT),
+                    dtype=int)
                 f.close()
 
-                self.logger.info('Fourier transform resolution in [m] from source: ' + night_source + " : " + str(resolution[0][0]))
-                self.logger.info('Writing positions from ' + night_source + ' data to ' +
-                                 self.write_dir)
-                self.logger.debug('Incrementing prometheus metric, indicating '
-                                  'that feedposition analyzer has run on source'
-                                  ' ' + night_source)
+                self.logger.info(
+                    'Fourier transform resolution in [m] from source: ' +
+                    night_source +
+                    " : " +
+                    str(
+                        resolution[0][0]))
+                self.logger.info(
+                    'Writing positions from ' +
+                    night_source +
+                    ' data to ' +
+                    self.write_dir)
+                self.logger.debug(
+                    'Incrementing prometheus metric, indicating '
+                    'that feedposition analyzer has run on source'
+                    ' ' + night_source)
                 self.resid_metric.labels(source=night_source).inc()
-
 
     def east_west_positions(self, src):
         # src : list item of sources transiting in the night
@@ -140,30 +181,32 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         results_list = f.get_results()
 
         if not results_list:
-            self.logger.warn('Did not find any data in the archive for source ' + src)
+            self.logger.warn(
+                'Did not find any data in the archive for source ' + src)
             return
 
         reader = results_list[0].as_reader()
         reader.select_freq_physical(freq_sel)
 
         # Read the data
-        data  = reader.read()
+        data = reader.read()
 
         # Get the timestamps
         time = data.index_map['time']['ctime'][:]
         # Get the frequencies
         freq = data.freq
 
-	# Check here the eigenvalues on versus off source and see if we are not dominated by RFI.
+        # Check here the eigenvalues on versus off source and see if we are not dominated by RFI.
         # Get the source RA and DEC
-        ra, dec = ephemeris.object_coords(fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
+        ra, dec = ephemeris.object_coords(
+            fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
         lat = np.radians(ephemeris.CHIMELATITUDE)
         ra_time = ephemeris.lsa(data.time)
         ha = ra_time - ra
-	# In case we are dealing with CasA...
+        # In case we are dealing with CasA...
         ha = ha - (ha > 180.0) * 360.0 + (ha < -180.0) * 360.0
         ha = np.radians(ha)
-	# This is the index of the transit
+        # This is the index of the transit
         transit_time = np.argmin(np.abs(ha))
 
         # Find ratio of 2 largest eigenvalues on source versus off source
@@ -174,12 +217,17 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             ratio = eval_onsource / eval_offsource
             if np.all(ratio < 2):
                 count += 1
-                self.logger.warn("Eigenvalue ratio on source versus off source smaller than 2. Suspecting RFI contamination for this frequency " + str(freq_sel[i]))
+                self.logger.warn(
+                    "Eigenvalue ratio on source versus off source smaller than 2. Suspecting RFI contamination for this frequency " +
+                    str(
+                        freq_sel[i]))
 
-        # Determine the number of good frequencies out of 10 for this analyzer and send to prometheus
+        # Determine the number of good frequencies out of 10 for this analyzer
+        # and send to prometheus
         num_good_freq = len(freq_sel) - count
         self.freq_metric.labels(source=src).set(num_good_freq)
-        self.logger.info('Exporting number of good frequencies (non RFI contaminated) in this data to Prometheus')
+        self.logger.info(
+            'Exporting number of good frequencies (non RFI contaminated) in this data to Prometheus')
         tshape = data['evec'].shape[-1]
 
         # Make some empty arrays for the orthogonalized eigenvectors
@@ -192,32 +240,49 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 vx_vec[f, :, i] = vx
                 vy_vec[f, :, i] = vy
 
-	# Combine the two polarisations into one vector evec
+        # Combine the two polarisations into one vector evec
         evec = np.zeros((len(freq_sel), NINPUT, len(time)), dtype=complex)
 
-        # Reference eigenvector to the first good feed for the NS(P1) and EW(P2) polarisation
-        for i in range(0, NCYL*NPOL, NPOL):
-            evec[:, i*NCYLPOL:(i+1)*NCYLPOL, :] = vy_vec[:, i*NCYLPOL:(i+1)*NCYLPOL, :] / np.exp(1J* np.angle(vy_vec[:, self.ref_feed_P1, :]))[:, np.newaxis, :]
-            evec[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL, :] = vx_vec[:, (i+1)*NCYLPOL:(i+2)*NCYLPOL, :] / np.exp(1J* np.angle(vx_vec[:, self.ref_feed_P2, :]))[:, np.newaxis, :]
+        # Reference eigenvector to the first good feed for the NS(P1) and
+        # EW(P2) polarisation
+        for i in range(0, NCYL * NPOL, NPOL):
+            evec[:,
+                 i * NCYLPOL:(i + 1) * NCYLPOL,
+                 :] = vy_vec[:,
+                             i * NCYLPOL:(i + 1) * NCYLPOL,
+                             :] / np.exp(1J * np.angle(vy_vec[:,
+                                                              self.ref_feed_P1,
+                                                              :]))[:,
+                                                                   np.newaxis,
+                                                                   :]
+            evec[:,
+                 (i + 1) * NCYLPOL:(i + 2) * NCYLPOL,
+                 :] = vx_vec[:,
+                             (i + 1) * NCYLPOL:(i + 2) * NCYLPOL,
+                             :] / np.exp(1J * np.angle(vx_vec[:,
+                                                              self.ref_feed_P2,
+                                                              :]))[:,
+                                                                   np.newaxis,
+                                                                   :]
 
         # Create empty arrays for East-West positions and residuals
         ew_positions = np.zeros((len(freq_sel), NINPUT), dtype=float)
         resolution = np.zeros((len(freq_sel), NINPUT), dtype=float)
 
         # Get the source RA and DEC
-        ra, dec = ephemeris.object_coords(fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
+        ra, dec = ephemeris.object_coords(
+            fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True)
 
         # Loop over frequencies and then inputs to get the EW-positions
         for f in range(len(freq_sel)):
             for i in range(NINPUT):
-                ew_positions[f, i], resolution[f, i] = self.get_ew_pos_fft(time, evec[f, i, :], freq[f], np.radians(dec), pad_fac=self.pad_fac_EW)
-
+                ew_positions[f, i], resolution[f, i] = self.get_ew_pos_fft(
+                    time, evec[f, i, :], freq[f], np.radians(dec), pad_fac=self.pad_fac_EW)
 
         return ew_positions, resolution
 
-
-
     # Orthogonalization routine
+
     def orthogonalize(self, data, fsel, time_index):
         # If we did not write data for that frequency because of a node crash skip that frequency
         # and return a vector with zeros.
@@ -228,24 +293,37 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             return vx, vy
 
         # Construct masks for the X and Y polarisations
-        Ax = (((np.arange(NINPUT, dtype=np.int) // NCYLPOL) % 2) == 1).astype(np.float64)
-        Ay = (((np.arange(NINPUT, dtype=np.int) // NCYLPOL) % 2) == 0).astype(np.float64)
+        Ax = (
+            ((np.arange(
+                NINPUT,
+                dtype=np.int) //
+                NCYLPOL) %
+                2) == 1).astype(
+            np.float64)
+        Ay = (
+            ((np.arange(
+                NINPUT,
+                dtype=np.int) //
+                NCYLPOL) %
+                2) == 0).astype(
+            np.float64)
 
         U = data['evec'][fsel, :2, :, time_index].T
         Lh = (data['eval'][fsel, :2, time_index])**0.5
 
-        Vtx = Lh[:, np.newaxis] * np.dot(U.T.conj(), Ax[:, np.newaxis] * U) * Lh[np.newaxis, :]
+        Vtx = Lh[:, np.newaxis] * \
+            np.dot(U.T.conj(), Ax[:, np.newaxis] * U) * Lh[np.newaxis, :]
         m, vv = la.eigh(Vtx)
         vx = Ax[:, np.newaxis] * np.dot(U, vv / Lh[:, np.newaxis])
         vx /= np.dot(vx.T.conj(), vx).diagonal()**0.5
 
-        Vty = Lh[:, np.newaxis] * np.dot(U.T.conj(), Ay[:, np.newaxis] * U) * Lh[np.newaxis, :]
+        Vty = Lh[:, np.newaxis] * \
+            np.dot(U.T.conj(), Ay[:, np.newaxis] * U) * Lh[np.newaxis, :]
         m, vv = la.eigh(Vty)
         vy = Ay[:, np.newaxis] * np.dot(U, vv / Lh[:, np.newaxis])
         vy /= np.dot(vy.T.conj(), vy).diagonal()**0.5
 
         return vx[:, -1], vy[:, -1]
-
 
     def get_ew_pos_fft(self, times, evec_stream, f, dec, pad_fac=pad_fac_EW):
         """Routine that gets feed positions from the eigenvector data via an FFT.
@@ -280,17 +358,18 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         apod = np.hanning(n)
         # Time resolution in radians
         dt = np.radians(ephemeris.lsa(times[1])
-                - ephemeris.lsa(times[0]))
+                        - ephemeris.lsa(times[0]))
         # Calculate the fourier transform of the apodized eigenvector data
-        spec = np.fft.fft(apod*evec_stream, n = n*pad_fac)
-        freq = np.fft.fftfreq(n*pad_fac, dt)
+        spec = np.fft.fft(apod * evec_stream, n=n * pad_fac)
+        freq = np.fft.fftfreq(n * pad_fac, dt)
 
         # Find the maximum power in the spectrum
         x_loc = freq[np.argmax(np.abs(spec))]
-        # The conjugate to time is the baseline vector in units of wavelength divided by the cos(declination)
+        # The conjugate to time is the baseline vector in units of wavelength
+        # divided by the cos(declination)
         conv_fac = -2.99792e2 / f / np.cos(dec)
 
         position = x_loc * conv_fac
-        position_resolution =  np.abs(freq[1] - freq[0]) * np.abs(conv_fac)
+        position_resolution = np.abs(freq[1] - freq[0]) * np.abs(conv_fac)
 
         return position, position_resolution
