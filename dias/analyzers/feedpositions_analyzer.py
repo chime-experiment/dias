@@ -154,7 +154,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 f.close()
 
                 self.logger.info(
-                        'Fourier transform resolution in [m] from source: 'r
+                        'Fourier transform resolution in [m] from source: '
                         + night_source + " : " + str(resolution[0][0]))
                 self.logger.info(
                         'Writing positions from ' + night_source + ' data to '

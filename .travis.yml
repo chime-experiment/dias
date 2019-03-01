@@ -27,6 +27,6 @@ script:
     # Run pep8 on all .py files in all subfolders
     - find . -name \*.py -exec pycodestyle {} +
     - pytest test
-    - python3 test/make_test_swarm.py tmp 1
-    - scripts/dias -c tmp/dias.conf configtest
-    - script/dias -c tmp/dias.conf tryrun task0
+    - python test/make_test_swarm.py tmp 1
+    - python scripts/dias -c tmp/dias.conf configtest
+    - python script/dias -c tmp/dias.conf tryrun task0
