@@ -36,7 +36,7 @@ if task_dst:
     except FileExistsError:
         # Re-raise with an explanation
         raise FileExistsError(
-        "Cannot install task configraution: " \
+                "Cannot install task configraution: "
                 "{0} already exists.".format(task_dst)
         )
 
@@ -49,14 +49,14 @@ if task_dst:
 
 # Now for the regular setuptools-y stuff
 setuptools.setup(
-    name = 'dias',
-    version = dias.__version__,
-    author = "The CHIME Collaboration",
-    author_email = "dvw@phas.ubc.ca",
-    description = "CHIME data integrity automation system",
-    packages = ['dias','dias.analyzers', 'dias.utils'],
-    scripts = ['scripts/dias'],
-    requires = ['caput', 'ch_util'],
-    license = "GPL v3.0",
-    url = "http://github.com/chime-experiment/dias"
+    name='dias',
+    version=dias.__version__,
+    author="The CHIME Collaboration",
+    author_email="dvw@phas.ubc.ca",
+    description="CHIME data integrity automation system",
+    packages=['dias', 'dias.analyzers', 'dias.utils'],
+    scripts=['scripts/dias'],
+    requires=['caput', 'ch_util'],
+    license="GPL v3.0",
+    url="http://github.com/chime-experiment/dias"
 )

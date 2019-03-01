@@ -15,9 +15,9 @@ addons:
           - libhdf5-serial-dev
 
 before_install:
-    - pip install pep8
+    - pip install pycodestyle
     - pip install future
 
 script:
     # Run pep8 on all .py files in all subfolders
-    - find . -name \*.py -exec pep8 {} +
+    - find . -name \*.py -exec pycodestyle {} +

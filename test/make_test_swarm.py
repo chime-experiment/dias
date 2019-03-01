@@ -42,5 +42,6 @@ for i in range(num_analyzers):
             random.randint(1, 300)))
         task_conf.write("period: {0}\n".format(
             random.randint(1, 300)))
-        task_conf.write("analyzer: dias.analyzers.test_analyzer.TestAnalyzer\n")
+        task_conf.write("analyzer: dias.analyzers.test_analyzer.TestAnalyzer"
+                        "\n")
 print("\n")
