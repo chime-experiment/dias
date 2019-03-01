@@ -1,10 +1,12 @@
 from dias import DiasException
 
+
 class DiasConcurrencyError(DiasException):
     """\
 Raised when the scheduler tries to start a
 task that is already running.
 """
+
 
 class Job:
     """\

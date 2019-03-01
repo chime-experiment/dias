@@ -5,10 +5,12 @@ import os
 import argparse
 from dias import ConfigLoader, DiasUsageError, Scheduler, stop_scheduler
 
+
 def do_configtest(args):
     # Load and discard the config
     ConfigLoader(args.conf)
     print("configuration ok")
+
 
 def do_start(args):
     # Load config
@@ -24,12 +26,15 @@ def do_start(args):
     # Start the scheduler
     scheduler.start(args.pidfile)
 
+
 def do_stop(args):
     stop_scheduler(args.pidfile)
+
 
 def do_restart(args):
     do_stop(args)
     do_start(args)
+
 
 def do_tryrun(args):
     # Load config
@@ -75,7 +80,8 @@ def do_runner(args):
 # without installing it.  An installed dias should always
 # specify the location of its configuration file, either
 # on the command line or else in the environment
-dias_conf = os.getenv("DIAS_CONF",
+dias_conf = os.getenv(
+        "DIAS_CONF",
         os.path.normpath(os.path.join(sys.path[0], "../conf/dias.conf")))
 
 parser = argparse.ArgumentParser(
@@ -98,10 +104,11 @@ parser.add_argument(
         )
 parser.add_argument(
         "-l", "--log-level",
-        help='set the log level to LEVEL, one of: "critical", "error", ' \
-                '"warning", "info", "debug".  If specified, this will ' \
-                'override a log level specified in the conf files for ' \
-                'all tasks',
+        help=''
+        'set the log level to LEVEL, one of: "critical", "error", '
+        '"warning", "info", "debug".  If specified, this will '
+        'override a log level specified in the conf files for '
+        'all tasks',
         default=None,
         metavar="LEVEL",
         choices=['critical', 'error', 'warning', 'info', 'debug']
@@ -114,8 +121,8 @@ parser.set_defaults(start_now=False)
 subparsers = parser.add_subparsers(
         title="actions",
         metavar="ACTION",
-        help="The action to perform.  " \
-                "For action-specific help, use: `ACTION -h'")
+        help=''
+        "The action to perform.  For action-specific help, use: `ACTION -h'")
 
 configtest_parser = subparsers.add_parser(
         'configtest',
@@ -145,7 +152,8 @@ restart_parser.add_argument(
         )
 restart_parser.set_defaults(func=do_restart)
 
-stop_parser = subparsers.add_parser('stop',
+stop_parser = subparsers.add_parser(
+        'stop',
         help='stop an instance of the scheduler'
         )
 stop_parser.add_argument(
