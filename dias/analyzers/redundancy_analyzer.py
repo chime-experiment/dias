@@ -18,7 +18,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
     Attributes
     ----------
     time_thrsld : integer
-        The number of consequtive timesteps the visibility exceeds a threshold. Default: 15.
+        The number of consecutive timesteps the visibility exceeds a threshold. Default: 15.
     res_mad_thrsld: integer
         The threshold to check when flagging the visibility. Default : 5.
     """
