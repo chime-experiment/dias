@@ -1,5 +1,6 @@
 import threading
 
+
 class TaskQueue:
     """\
 The TaskQueue contains the list of all tasks to be executed by the
@@ -54,4 +55,3 @@ In some ways this works like a list, but be careful."""
         self.tasks.insert(new, task)
 
         self.lock.release()
-
