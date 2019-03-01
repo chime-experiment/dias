@@ -16,12 +16,14 @@ import h5py
 # full N2 data for 10 frequencies.
 freq_sel = [
         758.203125,  716.406250,  697.656250,  665.625000,  633.984375,
-        597.265625,  558.203125,  516.406250,  497.265625,  433.59375]
+        597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
+        ]
 # Brightest sources. VirA does not have enough S/N.
 sources = {
         'CAS_A': ephemeris.CasA,
         'CYG_A': ephemeris.CygA,
-        'TAU_A': ephemeris.TauA}
+        'TAU_A': ephemeris.TauA,
+        }
 
 # number of inputs in CHIME
 NINPUT = 2048
@@ -138,9 +140,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             residuals = ew_positions - ew_offsets
 
             with h5py.File(os.path.join(
-                    self.write_dir,
-                    time_str + '_' + night_source + '_positions.h5'
-                    ), 'w') as f:
+                               self.write_dir,
+                               time_str + '_' + night_source
+                               + '_positions.h5'),
+                           'w') as f:
                 f.create_dataset(
                         'east_west_pos', data=ew_positions, dtype=float)
                 f.create_dataset(

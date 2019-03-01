@@ -63,9 +63,9 @@ analyzer along with associated bookkeeping data
         else:
             self.start_time = None
 
-    def prepare(
-            self, reference_time, log_level_override=None, start_now=False
-            ):
+    def prepare(self, reference_time,
+                log_level_override=None,
+                start_now=False):
         """Prepare a task for execution."""
 
         # initialse the analyzer's logger

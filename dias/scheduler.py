@@ -120,7 +120,7 @@ class Scheduler:
         while True:
             task_next = self.queue.next_task()
             self.logger.debug(
-                    "  Next task scheduled is: {0} at {1} UTC".format(
+                    "Next task scheduled is: {0} at {1} UTC".format(
                         task_next.name, timestamp2str(task_next.start_time)))
 
             # If it's time to execute the next task, do so
