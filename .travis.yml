@@ -18,7 +18,7 @@ before_install:
     - pip install pycodestyle
     - pip install future
     - pip install pytest
-
+    -
 install:
     - pip install -r requirements.txt
     - pip install .
@@ -28,7 +28,7 @@ script:
     - find . -name \*.py -exec pycodestyle {} +
 
     # Run all tests in test folder
-    - pytest test
+    - pytest
 
     # test dias script
     - python test/make_test_swarm.py test_conf 1
