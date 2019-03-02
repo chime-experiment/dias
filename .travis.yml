@@ -31,6 +31,6 @@ script:
     - pytest test
 
     # test dias script
-    - python test/make_test_swarm.py tmp 1
-    - python scripts/dias -c tmp/dias.conf configtest
-    - python script/dias -c tmp/dias.conf tryrun task0
+    - python test/make_test_swarm.py test_conf 1
+    - python scripts/dias -c test_conf/dias.conf configtest
+    - python script/dias -c test_conf/dias.conf tryrun task0
