@@ -24,9 +24,13 @@ install:
     - pip install .
 
 script:
-    # Run pep8 on all .py files in all subfolders
+    # Run pycodestyle on all .py files in all subfolders
     - find . -name \*.py -exec pycodestyle {} +
+
+    # Run all tests in test folder
     - pytest test
+
+    # test dias script
     - python test/make_test_swarm.py tmp 1
     - python scripts/dias -c tmp/dias.conf configtest
     - python script/dias -c tmp/dias.conf tryrun task0
