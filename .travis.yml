@@ -1,0 +1,36 @@
+language: python
+os: linux
+sudo: required
+dist: xenial
+
+python:
+    - 3.5
+notifications:
+    email: false
+addons:
+  ssh_known_hosts:
+    - bitbucket.org
+  apt:
+      packages:
+          - libhdf5-serial-dev
+
+before_install:
+    - pip install pycodestyle
+    - pip install future
+    - pip install pytest
+    -
+install:
+    - pip install -r requirements.txt
+    - pip install .
+
+script:
+    # Run pycodestyle on all .py files in all subfolders
+    - find . -name \*.py -exec pycodestyle {} +
+
+    # Run all tests in test folder
+    - pytest
+
+    # test dias script
+    - python test/make_test_swarm.py test_conf 1
+    - python scripts/dias -c test_conf/dias.conf configtest
+    - python scripts/dias -c test_conf/dias.conf tryrun task0

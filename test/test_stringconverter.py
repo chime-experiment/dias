@@ -12,14 +12,13 @@ class TestStringConverter(unittest.TestCase):
 
     def test_str2bytes(self):
 
-        assert str2bytes("0 TB") == 0
+        assert str2bytes("0 GB") == 0
         assert str2bytes("0 B") == 0
         assert str2bytes("1 B") == 1
         assert str2bytes("1024 B") == 1024
         assert str2bytes("3 kB") == 3000
         assert str2bytes("27 MB") == 27000000
         assert str2bytes("1300 GB") == 1300000000000
-        assert str2bytes("1 TB") == 1000000000000
 
         # Missing whitespace
         with self.assertRaises(ValueError):
