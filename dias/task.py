@@ -1,5 +1,6 @@
 import os
 import random
+import traceback
 
 from dias.utils import str2timestamp, str2total_seconds, bytes2str
 from pathlib import Path
@@ -127,6 +128,7 @@ analyzer along with associated bookkeeping data
         except Exception as e:
             self.analyzer.logger.error("Task failed: {}".format(e))
             result = "Failed"
+            self.analyzer.logger.error(traceback.format_exc())
         else:
             self.analyzer.logger.info(
                 "Shut-down; result: {0}".format(repr(result)))
