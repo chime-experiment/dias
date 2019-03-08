@@ -36,6 +36,8 @@ NPOL = 2
 NCYL = 4
 # number of eigenvalues to keep
 N_EVAL = 2
+# Standard deviation of feed position residuals derived from data analysis of 11 files with 10 frequencies each
+STD = 0.3
 
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
@@ -73,6 +75,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "ew_pos_good_freq",
             "how many frequencies out of 10 were good (EV ratio on vs off "
             "source smaller than 2)", labelnames=['source'], unit='total')
+        self.percent_metric = self.add_data_metric(
+            "bad_feeds_percent",
+             "how many bad feeds in percent", labelnames=['freq'], unit='percent')
 
         # initialize resid source metric
         for source in sources:
@@ -89,6 +94,18 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         self.end_time_night = time.unix_to_datetime(
                 ephemeris.solar_rising(start_time, end_time))[0]
         self.start_time_night = time.unix_to_datetime(
+                ephemeris.solar_setting(start_time, end_time))[0]
+
+        # In case the analyzer runs at night figure out when was sunset and
+        # take one hour off.
+        if self.start_time_night > self.end_time_night:
+            # Instead of now we set the end time to one hour before sunset
+            end_time = self.start_time_night - timedelta(hours=1)
+            start_time = end_time - self.period
+            # Overwrite start time night, end time night
+            self.end_time_night = time.unix_to_datetime(
+                ephemeris.solar_rising(start_time, end_time))[0]
+            self.start_time_night = time.unix_to_datetime(
                 ephemeris.solar_setting(start_time, end_time))[0]
 
         self.logger.info(
@@ -139,6 +156,20 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
 
+            # Calculate percentage of bad feeds, from analysis we know
+            # that when excluding large outliers the standard deviation in the
+            # residuals range around 0.3m. In a single feedposition analysis
+            # normally no more than 2 percent of feeds lie outside of 5 sigma.
+            for i in range(len(freq_sel)):
+                nbad_feeds = np.sum(np.logical_or(residuals[i, :] > 5*STD,
+                                                  residuals[i, :] < - 5*STD))
+                percent_bad_feeds = nbad_feeds / float(NINPUT)
+                self.logger.info('Percentage of bad feeds ' +
+                                 str(percent_bad_feeds))
+                # Export bad feeds percentage to prometheus.
+                self.precent_metric.labels(
+                    freq=np.round(freq_sel[i], 0)).set(percent_bad_feeds)
+
             with h5py.File(os.path.join(
                                self.write_dir,
                                time_str + '_' + night_source
@@ -181,7 +212,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         if not results_list:
             self.logger.warn(
                     'Did not find any data in the archive for source ' + src)
-            return
+            return (None, None)
 
         reader = results_list[0].as_reader()
         reader.select_freq_physical(freq_sel)
@@ -200,7 +231,6 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         ra, dec = ephemeris.object_coords(
                 fluxcat.FluxCatalog[src].skyfield,
                 date=self.start_time_night, deg=True)
-        lat = np.radians(ephemeris.CHIMELATITUDE)
         ra_time = ephemeris.lsa(data.time)
         ha = ra_time - ra
         # In case we are dealing with CasA...
