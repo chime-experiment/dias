@@ -36,7 +36,11 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         finder.accept_all_global_flags()
         finder.set_time_range(start_time, end_time)
         results_list = finder.get_results()
-        fhlist = h5py.File(results_list[0][0][0], 'r')
+        if len(results_list) > 0:
+            fhlist = h5py.File(results_list[0][0][0], 'r')
+        else:
+            self.logger.warn('Could not find an initializing file in setup()')
+            return
 
         rstack = fhlist['reverse_map/stack'][:]
 
@@ -56,8 +60,6 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         finder.accept_all_global_flags()
         end_time = datetime.datetime.utcnow()
         start_time = end_time - datetime.timedelta(hours=30)
-        #sunrise = time.unix_to_datetime(eph.solar_rising(start_time, end_time))[-1]
-        #sunset = time.unix_to_datetime(eph.solar_setting(start_time, end_time))[0]
         finder.set_time_range(start_time, end_time)
         finder.include_transits(ephemeris.CygA, time_delta=800.)
         results_list = finder.get_results()
@@ -71,7 +73,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
             times = fhlist_chimeN2['index_map/time']['ctime']
             t_wall_dt = np.array([datetime.datetime.fromtimestamp(a) for a in times])
             t_wall_del_idx = np.where(t_wall_dt == datetime.datetime(1970,1,1,0,0))[0]
-
+            #Remove bad dates from the file
             if len(t_wall_del_idx) > 0: 
                 t_wall_dt = np.delete(t_wall_dt, t_wall_del_idx, 0)
 
@@ -81,10 +83,10 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
             #confirm yesterdays cyga transit is in this file
             for y in range(len(src_idx)):
-#                 if tran_peak_val[y].strftime("%Y-%m-%d") == transit_dt and full_transit == True:
                 if full_transit == True:
                     transit_idx = src_idx[y]
                     found = 1
+                    break
              
         if found == 0:
             self.logger.warn('Did not find any data in the archive for CygA on ' + transit_dt)
@@ -109,7 +111,7 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
 
                     build_ar = self.redun_thrshld_flagger_cygA(vis[f_idx,redun_prods])
 
-                    build_ar[build_ar == None] = NaN
+                    build_ar[build_ar == None] = np.nan
 
                     build_prod_flag = []
                     for prod_idx in range(build_ar.shape[0]):
@@ -135,11 +137,9 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
     def normalize_complex(self,x):
         max_amp = np.nanmax(np.abs(x))
         amp = 1/(max_amp**0.5)
-        norm = []
-        for i in range(len(x)):
-            norm.append(amp*x[i])
+        norm = amp*x
             
-        return np.asarray(norm)
+        return norm
     
     def mad(self,data, axis=None):
         return np.nanmedian(np.abs(data - np.nanmedian(data, axis)), axis)    
@@ -148,15 +148,15 @@ class RedundancyAnalyzer(CHIMEAnalyzer):
         rd_tran_ar = []
 
         for prod_idx in range(vis.shape[0]): #prod, time
-            rd_tran = self.normalize_complex(np.abs(vis[prod_idx]))
+            rd_tran = np.abs(self.normalize_complex(vis[prod_idx]))
             rd_tran_ar.append(rd_tran)
         rd_tran_ar = np.asarray(rd_tran_ar)
 
         mad_vis = []
         vis_med = []
         for t in range(rd_tran_ar.shape[1]):
-            mad_vis.append(self.mad(np.abs(rd_tran_ar[:,t])))
-            vis_med.append(np.median(np.abs(rd_tran_ar[:,t])))
+            mad_vis.append(self.mad(rd_tran_ar[:,t]))
+            vis_med.append(np.median(rd_tran_ar[:,t]))
         mad_vis = np.asarray(mad_vis)
         vis_med = np.asarray(vis_med)
 
