@@ -11,14 +11,14 @@ import datetime
 from ch_util import data_index, ephemeris
 
 class RedundancyAnalyzer(CHIMEAnalyzer):
-    """This analyzer interates through all the redundant baseline sets that comprise the CHIME array. It checks whether
-        the visibility during a transit exceeds the MAD of the visibility within a timestep and flags it if it
-        continues the exceed the MAD at a certain threshold for a given number of consequtive timesteps.
+    """This analyzer iterates through all the redundant baseline sets that comprise the CHIME array. It checks whether
+        the visibility during a transit exceeds the MAD of the visibility within a timestep and flags it if
+        continues to exceed the MAD at a certain threshold for a given number of consecutive timesteps.
    
     Attributes
     ----------
     time_thrsld : integer
-        The number of consequtive timesteps the visibility exceeds a threshold. Default: 15.
+        The number of consecutive timesteps the visibility exceeds a threshold. Default: 15.
     res_mad_thrsld: integer
         The threshold to check when flagging the visibility. Default : 5.
     """
