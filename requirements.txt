@@ -1,3 +1,4 @@
+future # needed for the installation of caput
 -e git+https://github.com/radiocosmology/caput#egg=caput
 -e git+ssh://git@bitbucket.org/chime/ch_util.git#egg=ch_util
 prometheus_client>=0.5.0
