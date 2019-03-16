@@ -31,6 +31,7 @@ extensions = ['recommonmark',
               'sphinx.ext.autosummary',
               'sphinx_automodapi.automodapi',
               'numpydoc']
+requirements_file = 'rtd-requirements.txt'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
