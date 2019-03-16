@@ -1,9 +1,12 @@
 # Minimal makefile for Sphinx documentation
 #
 
+PYVER ?= 3
+PYTHON = python$(PYVER)
+
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+SPHINXBUILD   = LANG=C $(PYTHON) $(shell which sphinx-build)
 SOURCEDIR     = .
 BUILDDIR      = _build
 

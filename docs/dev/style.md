@@ -1,6 +1,8 @@
 ### Coding style
+#### Magic numbers
 When writing an analyzer, don't use magic numbers. Instead you can implement them as config variables or constants on module level.
-#### BAD:
+
+**BAD**:
 ```python
 class TrivialAnalyzer(CHIMEAnalyzer):
     def run(self):
@@ -9,7 +11,7 @@ class TrivialAnalyzer(CHIMEAnalyzer):
             if f > 2:
 ```
 
-#### GOOD:
+**GOOD**:
 ```python
 CHIME_N2_FREQS = [1, 2, 3]
 

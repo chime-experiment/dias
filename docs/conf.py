@@ -1,26 +1,12 @@
 # -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
-#
-# This file does only contain a selection of the most common options. For a
-# full list see the documentation:
-# http://www.sphinx-doc.org/en/master/config
-
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
 project = 'dias'
-copyright = '2019, Donald Wiebe and Rick Nitsche'
+copyright = '2019, The CHIME Collaboration'
 author = 'Donald Wiebe and Rick Nitsche'
 
 # The short X.Y version
@@ -31,29 +17,39 @@ release = ''
 
 # -- General configuration ---------------------------------------------------
 
-# If your documentation needs a minimal Sphinx version, state it here.
-#
-# needs_sphinx = '1.0'
+autoclass_content = "both"  # include both class docstring and __init__
+autodoc_warningiserror = True
+autosummary_generate = True  # Make _autosummary files and include them
+napoleon_use_rtype = False  # More legible
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['recommonmark']
+extensions = ['recommonmark',
+              'sphinx.ext.autodoc',
+              'sphinx.ext.napoleon',
+              'sphinx.ext.autosummary',
+              'sphinx_automodapi.automodapi',
+              'numpydoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-source_parsers = {'.md': CommonMarkParser}
+numpydoc_class_members_toctree = False
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = {
-    '.rst': 'restructuredtext',
-    '.txt': 'markdown',
-    '.md': 'markdown',
-}
+automodapi_toctreedirnm = 'api'  # default value
+
+# source_parsers = {'.md': CommonMarkParser} #  readthedocs seems to need this...
+
+# Not sure if this is needed. It seems to work without. There is a bug in
+# autodoc that gets it confused about which endings to use if this is not
+# commented out. Although closed here:
+# https://github.com/sphinx-doc/sphinx/issues/4182
+# source_suffix = {
+#     '.rst': 'restructuredtext',
+#     '.md': 'markdown',
+# }
+
 # The master toctree document.
 master_doc = 'index'
 
@@ -133,7 +129,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'dias.tex', 'dias Documentation',
-     'Donald Wiebe and Rick Nitsche', 'manual'),
+     'The CHIME Collaboration', 'manual'),
 ]
 
 
@@ -154,7 +150,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'dias', 'dias Documentation',
-     author, 'dias', 'One line description of project.',
+     author, 'dias', 'data integrity analysis system',
      'Miscellaneous'),
 ]
 
@@ -175,6 +171,3 @@ epub_title = project
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
-
-
-# -- Extension configuration -------------------------------------------------

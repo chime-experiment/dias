@@ -18,19 +18,20 @@ automatically run by the scheduler service as configured tasks.
 
 .. toctree::
    :caption: User's Guide
-   :maxdepth: 1
+   :maxdepth: 2
 
    user/dependencies
    user/config
+   user/analyzers
 
 
 .. toctree::
    :caption: Developer's Guide
-   :maxdepth: 1
+   :maxdepth: 2
 
    dev/analyzer
    dev/style
-
+   dev/reference
 
 Indices and tables
 ==================
