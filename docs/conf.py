@@ -8,10 +8,12 @@ from recommonmark.parser import CommonMarkParser
 import sys
 from unittest.mock import MagicMock
 
+
 class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
         return MagicMock()
+
 
 MOCK_MODULES = ['h5py']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
@@ -52,17 +54,6 @@ templates_path = ['_templates']
 numpydoc_class_members_toctree = False
 
 automodapi_toctreedirnm = 'api'  # default value
-
-# source_parsers = {'.md': CommonMarkParser} #  readthedocs seems to need this...
-
-# Not sure if this is needed. It seems to work without. There is a bug in
-# autodoc that gets it confused about which endings to use if this is not
-# commented out. Although closed here:
-# https://github.com/sphinx-doc/sphinx/issues/4182
-# source_suffix = {
-#     '.rst': 'restructuredtext',
-#     '.md': 'markdown',
-# }
 
 # The master toctree document.
 master_doc = 'index'
