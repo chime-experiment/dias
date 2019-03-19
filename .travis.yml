@@ -27,6 +27,9 @@ script:
     # Run pycodestyle on all .py files in all subfolders
     - find . -name \*.py -exec pycodestyle {} +
 
+    # Run pydocstyle on all .py files
+    - find . -name \*.py -exec pydocstyle --convention=numpy {} +
+
     # Run all tests in test folder
     - pytest
 
