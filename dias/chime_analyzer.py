@@ -16,8 +16,7 @@ class CHIMEAnalyzer(Analyzer):
     archive_data_dir = config.Property(proptype=str)
 
     def __init__(self, name, write_dir, state_dir):
-        """Constructor of CHIME analyzer base class.
-        """
+        """Constructor of CHIME analyzer base class."""
         super().__init__(name, write_dir, state_dir)
 
     def Finder(self, acqs=()):

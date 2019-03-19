@@ -47,7 +47,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     night transit data.
 
     Attributes
-    ----------
+    -----------
     ref_feed_P1 : integer
         The feed we reference the polarisation 1 data to. Default: 2.
     ref_feed_P2: integer
@@ -315,7 +315,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
 
         Parameters
-        ---------
+        ------------
         times : np.ndarray
             Unix time of the data
         evec_stream : np.ndarray
