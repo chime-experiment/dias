@@ -37,3 +37,7 @@ script:
     - python test/make_test_swarm.py test_conf 1
     - python scripts/dias -c test_conf/dias.conf configtest
     - python scripts/dias -c test_conf/dias.conf tryrun task0
+
+    # Build docs
+    - cd docs
+    - make html
