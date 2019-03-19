@@ -18,8 +18,8 @@ class TaskQueue:
         Parameters
         ----------
         tasks : dict
-            A dict of :class:`Task` instances to be taken care of by the scheduler.
-            The keys are the task names (String).
+            A dict of :class:`Task` instances to be taken care of by the
+            scheduler. The keys are the task names (String).
         """
         self.tasks = tasks
 

@@ -1,4 +1,6 @@
 """dias exceptions."""
+
+
 class DiasException(Exception):
     """Dias base exception class."""
 
