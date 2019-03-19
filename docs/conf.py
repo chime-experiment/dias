@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-#
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 from recommonmark.parser import CommonMarkParser
 
 # Mock imports
@@ -10,8 +9,10 @@ from unittest.mock import MagicMock
 
 
 class Mock(MagicMock):
+    """Mock imports to install dias on readthedocs."""
+
     @classmethod
-    def __getattr__(cls, name):
+    def __getattr__(cls, name):  # noqa
         return MagicMock()
 
 

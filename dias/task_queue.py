@@ -1,12 +1,26 @@
+"""dias task queue."""
 import threading
 
 
 class TaskQueue:
-    """\
-The TaskQueue contains the list of all tasks to be executed by the
-scheduler.  It uses threading.Lock to ensure thread-safety.
-In some ways this works like a list, but be careful."""
+    """
+    The dias task queue.
+
+    The TaskQueue contains the list of all tasks to be executed by the
+    scheduler.  It uses threading.Lock to ensure thread-safety.
+    In some ways this works like a list, but be careful.
+    """
+
     def __init__(self, tasks):
+        """
+        Construct the scheduler.
+
+        Parameters
+        ----------
+        tasks : dict
+            A dict of :class:`Task` instances to be taken care of by the scheduler.
+            The keys are the task names (String).
+        """
         self.tasks = tasks
 
         self.lock = threading.Lock()
@@ -15,27 +29,69 @@ In some ways this works like a list, but be careful."""
         self.sort()
 
     def __len__(self):
+        """
+        Get the number of tasks known by the scheduler.
+
+        Returns
+        -------
+        int
+            Number of tasks.
+        """
         return len(self.tasks)
 
     def __getitem__(self, key):
+        """
+        Access the tasks.
+
+        Parameters
+        ----------
+        key : String
+            A task name.
+
+        Returns
+        -------
+        :class:`Task`
+            The task instance.
+        """
         return self.tasks[key]
 
     def next_task(self):
-        """Returns the next task to be scheduled"""
+        """
+        Get the next task to be scheduled.
+
+        Returns
+        -------
+        :class:`Task`
+            The next task in the queue.
+        """
         return self.tasks[0]
 
     def next_time(self):
-        """Returns the start time of the next task to be scheduled"""
+        """
+        Get the start time of the next task to be scheduled.
+
+        Returns
+        -------
+        :class:`datetime.datetime`
+            The start time of the next task in the queue.
+        """
         return self.next_task().start_time
 
     def sort(self):
-        """Sorts the task queue by start time"""
+        """Sort the task queue by start time."""
         self.lock.acquire()
         self.tasks.sort()
         self.lock.release()
 
     def update(self, task):
-        """Updates the task queue for a new start time of task"""
+        """
+        Update the task queue for a new start time of task.
+
+        Parameters
+        ----------
+        task : :class:`Task`
+            The task to update in the queue.
+        """
         self.lock.acquire()
 
         # Delete the old task by linear search

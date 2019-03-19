@@ -1,5 +1,4 @@
-# dias Scheduler
-# -------------
+"""dias Scheduler."""
 import concurrent.futures
 import logging
 import threading
@@ -14,18 +13,27 @@ MIN_TRIGGER_INTERVAL_MINUTES = 10
 
 
 def stop_scheduler(pidfile):
-    """\
-Stop a running scheduler.  The PID of the scheduler is given in the file
-provided.
+    """
+    Stop a running scheduler.
 
-This function will block until the scheduler has terminated.
-"""
+    TODO: Not implemented yet.
+    This function will block until the scheduler has terminated.
+
+    Parameters
+    ----------
+    pidfile : None
+        Pidfile providing the PID of the scheduler.
+
+    Raises
+    ------
+    NotImplementedError
+        Because someone has to implement this.
+    """
     raise NotImplementedError
 
 
 def _prometheus_client(barrier, logger, port):
-    """Boilerplate for the prometheus client thread"""
-
+    """Boilerplate for the prometheus client thread."""
     # Create the WSGI HTTP app
     app = make_wsgi_app()
     httpd = make_server('', port, app)
@@ -40,7 +48,23 @@ def _prometheus_client(barrier, logger, port):
 
 
 class Scheduler:
+    """
+    dias Scheduler.
+
+    Puts tasks in a queue and runs them one by one when told. Also calls finish
+    method of tasks.
+    """
+
     def __init__(self, config):
+        """
+        Construct the dias scheduler.
+
+        Parameters
+        ----------
+        config : dict
+            dias configuration. Expected to contain the `log_level` and
+            `prometheus_client_port`.
+        """
         self.config = config
         self.jobs = list()
 
@@ -62,9 +86,9 @@ class Scheduler:
         barrier.wait()
 
         # Prepare tasks
-        self.init_task_queue()
+        self.__init_task_queue()
 
-    def init_task_queue(self):
+    def __init_task_queue(self):
         # This is the notional start time of the scheduler
         reference_time = time.time()
 
@@ -88,12 +112,21 @@ class Scheduler:
                     i, self.queue[i].name, self.queue[i].start_time))
 
     def next_task(self):
-        """Returns the next scheduled task"""
+        """
+        Get the next scheduled task.
+
+        Returns
+        -------
+        The next task in the queue.
+        """
         return self.queue.next_task()
 
-    def execute_task(self, task):
-        """Submit a task to the executor.  Returns a job object"""
+    def __execute_task(self, task):
+        """
+        Submit a task to the executor.
 
+        Returns a job object.
+        """
         # Create a new job. This will submit the task to the executor
         try:
             # Raises DiasConcurrencyError if the task is currently running
@@ -111,8 +144,16 @@ class Scheduler:
         self.queue.update(task)
 
     def start(self, pidfile=None):
-        """This is the entry point for the scheduler main loop"""
+        """
+        Start the scheduler main loop.
 
+        This is the entry point for the scheduler main loop.
+
+        Parameters
+        ----------
+        pidfile : None
+            TODO: Not implemented.
+        """
         # This is the executor for workers
         self.executor = concurrent.futures.ThreadPoolExecutor()
 
@@ -126,7 +167,7 @@ class Scheduler:
             # If it's time to execute the next task, do so
             if time.time() >= task_next.start_time:
                 # Create a new job for the task and remember it
-                self.execute_task(task_next)
+                self.__execute_task(task_next)
 
                 # short-circuit the loop to look for another task ready to be
                 # scheduled
@@ -145,5 +186,10 @@ class Scheduler:
             time.sleep(10)
 
     def finish_tasks(self):
+        """
+        Finish all tasks.
+
+        Calls the finish method of the analyzers of each task.
+        """
         for task in self.queue:
             task.analyzer.finish()

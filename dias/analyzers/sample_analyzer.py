@@ -1,4 +1,4 @@
-"""Example dias analyzer.
+"""One-line description of the module.
 
 This is a basic example for how to write an analyzer for dias.
 """
@@ -12,21 +12,43 @@ from dias.utils import str2timedelta, datetime2str
 
 class SampleAnalyzer(CHIMEAnalyzer):
     """
-    Sample Analyzer for dias.
+    One-line description.
 
-    Example subclass of dias.analyzer.Analyzer. Shows how a dias analyzer can
-    be implemented.
+    Long description.
+
+    Metrics
+    -------
+    my_metric
+    .........
+    Description.
+
+    Output Data
+    -----------
+    None
+
+    State Data
+    ----------
+    None
+
+    Config
+    ------
+
+    Attributes
+    ----------
+    my_value : type
+        Description.
     """
 
     # Config parameter for this anlyzer can be specified by assigning class
     # attributes a caput.config.Property
-    offset = config.Property(proptype=str2timedelta, default='10s')
+    my_value = config.Property(proptype=str2timedelta, default='10s')
 
     def setup(self):
         """
-        Set up the analyzer.
+        Describe the method in one line.
 
-        Setup stage. This is called by the framework when dias starts up.
+        A longer description.
+        Don't overwrite this method if your analyzer doesn't need it!
         """
         self.logger.info('Starting up. My name is {} and I am of type {}.'
                          .format(self.name, __name__))
@@ -35,20 +57,20 @@ class SampleAnalyzer(CHIMEAnalyzer):
 
         # Add a task metric that counts how often this task ran.
         # It will be exported as dias_task_<task_name>_runs_total.
-        self.run_counter = self.add_task_metric(
+        self.my_metric = self.add_task_metric(
                 "runs",
                 "Number of times the task ran.",
                 unit="total")
 
     def run(self):
         """
-        Analyze data from the last period.
+        Describe the method in one line.
 
-        Main task stage, called by the dias framework.
+        A longer description.
         """
         # Calculate the start and end of the passed period, which in this
         # example is the time we want to analyze data of.
-        end_time = datetime.now() - self.offset
+        end_time = datetime.now() - self.my_value
         start_time = end_time - self.period
 
         self.logger.info('Analyzing data between {} and {}.'
@@ -63,9 +85,10 @@ class SampleAnalyzer(CHIMEAnalyzer):
 
     def finish(self):
         """
-        Shut down the analyzer.
+        Describe the method in one line.
 
-        Final stage: this is called by the framework when dias shuts down.
+        A longer description.
+        Don't overwrite this method if your analyzer doesn't need it!
         """
         self.logger.info('Shutting down.')
         self.logger.debug('I could save some stuff I would like to keep until '
@@ -73,9 +96,10 @@ class SampleAnalyzer(CHIMEAnalyzer):
 
     def delete_callback(self, deleted_files):
         """
-        Notify the analyzer about files that have been deleted after a run.
+        Describe the method in one line.
 
-        Gets called by the dias framework.
+        A longer description.
+        Don't overwrite this method if your analyzer doesn't need it!
         """
         self.logger.debug('Oh no, I still needed all of those: {}'
                           .format(deleted_files))
