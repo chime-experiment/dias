@@ -6,3 +6,4 @@ numpydoc
 pyyaml
 scipy
 recommonmark
+pydocstyle
