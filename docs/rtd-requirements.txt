@@ -7,3 +7,4 @@ pyyaml
 scipy
 recommonmark
 pydocstyle
+sphinx_rtd_theme
