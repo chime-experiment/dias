@@ -11,8 +11,11 @@ from dias.utils import str2timedelta, datetime2str
 
 
 class SampleAnalyzer(CHIMEAnalyzer):
-    """Sample Analyzer for dias.
-    This subclass of dias.analyzer.Analyzer describes the new analyzer.
+    """
+    Sample Analyzer for dias.
+
+    Example subclass of dias.analyzer.Analyzer. Shows how a dias analyzer can
+    be implemented.
     """
 
     # Config parameter for this anlyzer can be specified by assigning class
@@ -20,7 +23,11 @@ class SampleAnalyzer(CHIMEAnalyzer):
     offset = config.Property(proptype=str2timedelta, default='10s')
 
     def setup(self):
-        """Setup stage: this is called when dias starts up."""
+        """
+        Set up the analyzer.
+
+        Setup stage. This is called by the framework when dias starts up.
+        """
         self.logger.info('Starting up. My name is {} and I am of type {}.'
                          .format(self.name, __name__))
         self.logger.debug('I could load everything I saved the last time I '
@@ -34,9 +41,11 @@ class SampleAnalyzer(CHIMEAnalyzer):
                 unit="total")
 
     def run(self):
-        """Main task stage: analyze data from the last period.
         """
+        Analyze data from the last period.
 
+        Main task stage, called by the dias framework.
+        """
         # Calculate the start and end of the passed period, which in this
         # example is the time we want to analyze data of.
         end_time = datetime.now() - self.offset
@@ -53,12 +62,20 @@ class SampleAnalyzer(CHIMEAnalyzer):
         self.run_counter.inc()
 
     def finish(self):
-        """Final stage: this is called when dias shuts down."""
+        """
+        Shut down the analyzer.
+
+        Final stage: this is called by the framework when dias shuts down.
+        """
         self.logger.info('Shutting down.')
         self.logger.debug('I could save some stuff I would like to keep until '
                           'next setup in {}.'.format(self.state_dir))
 
     def delete_callback(self, deleted_files):
-        """This gets called after run, if files have been deleted."""
+        """
+        Notify the analyzer about files that have been deleted after a run.
+
+        Gets called by the dias framework.
+        """
         self.logger.debug('Oh no, I still needed all of those: {}'
                           .format(deleted_files))

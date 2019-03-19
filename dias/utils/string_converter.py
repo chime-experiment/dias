@@ -14,6 +14,20 @@ DATA_UNITS_SORTED = ["B", "kB", "MB", "GB"]
 
 
 def str2timedelta(time_str):
+    """
+    Convert a string to a timedelta.
+
+    Parameters
+    ----------
+    time_str : String
+        A string representing a timedelta in the form `<int>h`, `<int>m`,
+        `<int>s` or a combination of the three.
+
+    Returns
+    -------
+    An instance of datetime.timedelta.
+
+    """
     # Check for simple numeric seconds
     try:
         seconds = int(time_str)
