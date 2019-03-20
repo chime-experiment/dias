@@ -78,14 +78,14 @@ class Task:
         ----------
         reference_time : int
             POSIX timestamp indicating when task should be executed, depending
-            on :param:`start_now`.
+            on `start_now`.
         log_level_override : str or None
             If this is not None, the analyzers log level will set to this
             instead of the global log level of dias.
         start_now : bool
-            If `True`, the task will be executed at :param:`start_time`,
+            If `True`, the task will be executed at `start_time`,
             otherwise a random time up to the task's period will be added to
-            :param:`start_time`.
+            `start_time`.
         """
         # initialse the analyzer's logger
         self.analyzer.init_logger(log_level_override)
