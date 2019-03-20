@@ -134,7 +134,76 @@ It works exactly the same as calling `ch_util.data_index.Finder(...)`, except th
 
 A configuration using a CHIMEAnalyzer should include `archive_data_dir` with the `node_spoof` parameter passed to `Finder`.
  
-## Testing analyzers
+### Documenting analyzers
+
+Follow the
+[numpy docstring guide](https://numpydoc.readthedocs.io/en/latest/format.html)
+when documenting your analyzer. To document the class that implements your
+analyzer, you need to add the sections `Metrics`, `Output Data`, `State Data`
+and an empty `Config Variables` section followed by the section `Attributes`
+(this is just so the config variables get displayed nicely
+[here](/user/analyzers). Any of the sections that don't apply to your analyzer,
+should contain a simple `None`. Otherwise fill them out following this example:
+
+```python
+"""
+One-line description.
+
+Long description about what this analyzer does.
+
+Metrics
+-------
+dias_task_<task_name>_my_metric_seconds
+.......................................
+Description of my task metric.
+Labels
+    label name : Description of the label.
+
+
+dias_data_<task_name>_my_other_metric_total
+...........................................
+Description of my data metric.
+Labels
+    label name : Description of the label.
+
+Output Data
+-----------
+
+File naming
+...........
+`<YYYYMMDD>_<VAR>_my_file.h5`
+    Descrition of the file name. In this example, YYYYMMDD is the date when
+    data was analyzed and VAR probably stands for something, too.
+
+Indexes
+.......
+foo
+    Description of this index map.
+bar
+    Description of that index map.
+
+Datasets
+.........
+my_dataset
+    Description of this dataset.
+
+State Data
+----------
+Free descrition of the state data that gets written to disc by this analyzer.
+
+Config Variables
+----------------
+
+Attributes
+----------
+my_config_var : int
+    Descrition of my config variable.
+my_other_conf_var: str
+    Description. Default : 'foo'.
+"""
+```
+
+### Testing analyzers
 
 After defining your task by creating the `trivial_task.conf` file, it's time to test it.
 
@@ -158,7 +227,7 @@ With the `tryrun` action, the `dias` script will:
 
 Output that your task sends to the `logger` will be written to standard output (i.e. your terminal).  It will also instantiate a prometheus client running on a random port which you can inspect to view the test task's prometheus output.  When running in this mode, prometheus metrics aren't sent to the prometheus database (so they won't be available in grafana).
 
-### Testing prometheus metrics
+#### Testing prometheus metrics
 
 When you test an analyzer with `scripts/dias tryrun <task name>`, you will see
 something like
@@ -180,13 +249,13 @@ scripts/dias tryrun -p <task name>
 ```
 Abort the paused dias script by hitting `CTRL-C`.
 
-### Location of output data
+#### Location of output data
 
 In tryrun mode, the default [`dias.conf`](https://github.com/chime-experiment/dias/blob/master/conf/dias.conf) will tell your analyzer to write
 date to `~/dias_tmp/<task_name>/data`.  Task state files (if any) will be put
 into `~/dias_tmp/<task_name>/state`.
 
-### Using an installed dias
+#### Using an installed dias
 If you _do_ decide to install dias using `setup.py`, you'll have to tell the `script/dias` program where to find the config files (which aren't installed by `setup.py`).  Do this with the `-c` option to `script/dias`:
 ```
 scripts/dias -c /path/to/dias/conf/dias.conf tryrun trivial_task

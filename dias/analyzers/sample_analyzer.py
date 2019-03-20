@@ -18,8 +18,8 @@ class SampleAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    my_metric
-    .........
+    dias_task_<task name>_my_metric_total
+    .....................................
     Description.
 
     Output Data

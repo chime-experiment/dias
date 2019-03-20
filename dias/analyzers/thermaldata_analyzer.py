@@ -26,7 +26,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_thermaldata_delay_seconds
+    dias_task_<task name>_delay_seconds
     ...................................
     Delays computed for each cable loop.
 
