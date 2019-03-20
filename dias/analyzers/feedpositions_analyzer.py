@@ -1,3 +1,4 @@
+"""A CHIME analyzer to calculate the East-West feed positions."""
 from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config, time
@@ -39,15 +40,67 @@ N_EVAL = 2
 
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
-    """A CHIME analyzer to calculate the East-West feed positions from the
-    fringe rates in eigenvectors. The eigenvectors of the visibility matrix are
-    found in the archive, then orhtogonalized.  To get the feed-positions in
-    the UV plane we fourier transform the eigenvectors over the time axis.
+    """
+    A CHIME analyzer to calculate the East-West feed positions.
+
+    East-West positions are calculated from the fringe rates in eigenvectors.
+    The eigenvectors of the visibility matrix are found in the archive, then
+    orhtogonalized.  To get the feed-positions in the UV plane we fourier
+    transform the eigenvectors over the time axis.
     At the moment this Analyzer is supposed to run during the day to check for
     night transit data.
 
-    Attributes
+    Metrics
+    -------
+    dias_task_<task name>_ew_pos_residuals_analyzer_run_total
+    ...........................................................
+    Counter for total number of task runs with each specific source.
+
+    Labels
+        source : Source transit name.
+
+
+    dias_task_<task name>_ew_pos_good_freq_total
+    ............................................
+    How many frequencies out of 10 were good (EV ratio on vs off source smaller
+    than 2)?
+
+    Labels
+        source : Source transit name.
+
+    Output Data
     -----------
+
+    File naming
+    ...........
+    `<YYYYMMDD>_<SOURCE>_positions.h5`
+        YYYYMMDD is the date of the beginning of the night, data was analyzed
+        from and SOURCE is the name of the source transit (TAU_A, CYG_A or
+        CAS_A).
+
+    Indexes
+    .......
+    freq
+        Frequency Indexes.
+    input
+        Telescope input indexes.
+
+    Datasets
+    .........
+    east_west_pos
+        Relative east-west feed positions in meters.
+    east_west_resid
+        Position residuals in meters.
+
+    State Data
+    ----------
+    None
+
+    Config Variables
+    ----------------
+
+    Attributes
+    ----------
     ref_feed_P1 : integer
         The feed we reference the polarisation 1 data to. Default: 2.
     ref_feed_P2: integer
@@ -55,6 +108,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     pad_fac_EW : integer
         By which factor we pad the data before performing the fourier
         transform.  Default : 256.
+
     """
 
     ref_feed_P1 = config.Property(proptype=int, default=2)
@@ -62,6 +116,11 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     pad_fac_EW = config.Property(proptype=int, default=256)
 
     def setup(self):
+        """
+        Set up the task.
+
+        Creates metrics.
+        """
         self.logger.info(
                 'Starting up. My name is ' + self.name +
                 ' and I am of type ' + __name__ + '.')
@@ -79,7 +138,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             self.resid_metric.labels(source=source).set(0)
 
     def run(self):
-
+        """Run task."""
         end_time = datetime.utcnow()
         start_time = end_time - self.period  # period is 24h
         # self.logger.info(
@@ -118,7 +177,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             self.logger.info(
                     'Processing source ' + night_source
                     + ' to find feed positions...')
-            ew_positions, resolution = self.east_west_positions(night_source)
+            ew_positions, resolution = self.__east_west_positions(night_source)
 
             if ew_positions is None:
                 self.logger.info('Moving on.')
@@ -165,7 +224,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                         ' ' + night_source)
                 self.resid_metric.labels(source=night_source).inc()
 
-    def east_west_positions(self, src):
+    def __east_west_positions(self, src):
         # src : list item of sources transiting in the night
 
         # Set a Finder object
@@ -237,7 +296,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         for f in range(len(freq_sel)):
             for i in range(tshape):
-                vx, vy = self.orthogonalize(data, f, i)
+                vx, vy = self.__orthogonalize(data, f, i)
                 vx_vec[f, :, i] = vx
                 vy_vec[f, :, i] = vy
 
@@ -268,14 +327,13 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         # Loop over frequencies and then inputs to get the EW-positions
         for f in range(len(freq_sel)):
             for i in range(NINPUT):
-                ew_positions[f, i], resolution[f, i] = self.get_ew_pos_fft(
+                ew_positions[f, i], resolution[f, i] = self.__get_ew_pos_fft(
                         time, evec[f, i, :], freq[f], np.radians(dec),
                         pad_fac=self.pad_fac_EW)
 
         return ew_positions, resolution
 
-    # Orthogonalization routine
-    def orthogonalize(self, data, fsel, time_index):
+    def __orthogonalize(self, data, fsel, time_index):
         # If we did not write data for that frequency because of a node crash
         # skip that frequency
         # and return a vector with zeros.
@@ -308,14 +366,16 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         return vx[:, -1], vy[:, -1]
 
-    def get_ew_pos_fft(self, times, evec_stream, f, dec, pad_fac=pad_fac_EW):
-        """Routine that gets feed positions from the eigenvector data via an
-        FFT.  The eigenvector is first apodized with ahannings window function
+    def __get_ew_pos_fft(self, times, evec_stream, f, dec, pad_fac=pad_fac_EW):
+        """
+        Routine that gets feed positions from the eigenvector data via an FFT.
+
+        The eigenvector is first apodized with ahannings window function
         and then fourier transformed along the time axis.
 
 
         Parameters
-        ------------
+        ----------
         times : np.ndarray
             Unix time of the data
         evec_stream : np.ndarray
@@ -336,6 +396,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         position_resolution: float
             Position resolution, determined by number of time samples times
             padding factor.
+
         """
         n = len(times)
 

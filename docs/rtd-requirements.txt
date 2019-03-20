@@ -5,3 +5,6 @@ sphinx_automodapi
 numpydoc
 pyyaml
 scipy
+recommonmark
+pydocstyle
+sphinx_rtd_theme
