@@ -127,13 +127,15 @@ def timestamp2str(ts):
 
     Parameters
     ----------
-    ts : :class:`datetime.timestamp`
-        A timestamp object.
+    int
+        POSIX timestamp.
 
     Returns
     -------
-    float
-        POSIX timestamp.
+    str
+        A string representing the timestamp in the format `%Y-%m-%d %H:%M:%S`,
+        where `%Y` is the year, `%m` is the month, `%d` is the day, `%H` is the
+        hour, `%M` is the minute and `%S` is the second.
     """
     return datetime.utcfromtimestamp(ts).strftime(DATETIME_FORMAT)
 

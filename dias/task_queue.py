@@ -7,13 +7,25 @@ class TaskQueue:
     The dias task queue.
 
     The TaskQueue contains the list of all tasks to be executed by the
-    scheduler.  It uses threading.Lock to ensure thread-safety.
-    In some ways this works like a list, but be careful.
+    scheduler. It uses threading.Lock to ensure thread-safety.
+
+    Hint
+    ----
+    Tasks in the task queue can be accessed as if they were in a list:
+
+    ``queue[key]`` or ``queue[slice]``
+
+    The first task in the queue, (`queue[0]`), is the next to be
+    scheduled.  Use `len` to find the number of tasks in the queue:
+
+    ``len(queue)``
+
+    Adding or removing elements from the queue is not supported.
     """
 
     def __init__(self, tasks):
         """
-        Construct the scheduler.
+        Construct the task queue.
 
         Parameters
         ----------
@@ -30,7 +42,11 @@ class TaskQueue:
 
     def __len__(self):
         """
-        Get the number of tasks known by the scheduler.
+        Get the number of tasks in the queue.
+
+        Note
+        ----
+        This implements `len(queue)`.
 
         Returns
         -------
@@ -41,11 +57,16 @@ class TaskQueue:
 
     def __getitem__(self, key):
         """
-        Access the tasks.
+        Return self[key].
+
+        Note
+        ----
+        For those interested in the implementation: since key can be a slice,
+        this function can return multiple tasks or none at all.
 
         Parameters
         ----------
-        key : String
+        key : str
             A task name.
 
         Returns
@@ -58,6 +79,10 @@ class TaskQueue:
     def next_task(self):
         """
         Get the next task to be scheduled.
+
+        Note
+        ----
+        ``self.next_task()`` is equivalent to ``self[0]``.
 
         Returns
         -------
@@ -78,7 +103,13 @@ class TaskQueue:
         return self.next_task().start_time
 
     def sort(self):
-        """Sort the task queue by start time."""
+        """
+        Sort the task queue.
+
+        After sorting, the next task to schedule will be first. Really, once
+        sorted, the queue stays sorted, so this function needs only be called
+        by the constructor when the queue is first made.
+        """
         self.lock.acquire()
         self.tasks.sort()
         self.lock.release()
@@ -86,6 +117,9 @@ class TaskQueue:
     def update(self, task):
         """
         Update the task queue for a new start time of task.
+
+        Increment the start time of `task` by its period and then relocate
+        it in the queue to keep the task queue sorted.
 
         Parameters
         ----------

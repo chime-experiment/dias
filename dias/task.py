@@ -17,6 +17,12 @@ class Task:
 
     The Task class is used by the scheduler to hold a task's instantiated
     analyzer along with associated bookkeeping data
+
+    Hint
+    ----
+    Tasks support rich comparison and ordering.  When comparing tasks, the task
+    with the earlier `start_time` is sorted first.  If two tasks have the same
+    `start_time`, they are sorted lexicographically by name.
     """
 
     def __init__(self, task_name, task_config, write_dir, state_dir):
@@ -80,12 +86,16 @@ class Task:
             POSIX timestamp indicating when task should be executed, depending
             on `start_now`.
         log_level_override : str or None
-            If this is not None, the analyzers log level will set to this
-            instead of the global log level of dias.
+            This is the log level specified on the dias command line when the
+            scheduler was started, or None if it wasn't specified.  It will
+            override any log level specified in either the global task config
+            or per-task config files.
         start_now : bool
-            If `True`, the task will be executed at `start_time`,
-            otherwise a random time up to the task's period will be added to
-            `start_time`.
+            If the task defines `start_time`, this is ignored.  Otherwise, if
+            this is `True`, the task will be first scheduled for execution as
+            soon as the Scheduler starts up.  If this is `False`, the task will
+            be first scheduled after a random amount of time up to the task's
+            period.
         """
         # initialse the analyzer's logger
         self.analyzer.init_logger(log_level_override)
@@ -265,33 +275,57 @@ class Task:
 
     # Rich comparison
     def __eq__(self, other):
-        """Tell if the name of this task equals the name of another task."""
+        """
+        Compare tasks.
+
+        Implements `self == other`.
+        """
         return self.name == other.name
 
     def __ne__(self, other):
-        """Tell if the name of this task is unequal the name of another one."""
+        """
+        Compare tasks.
+
+        Implements `self != other`.
+        """
         return self.name != other.name
 
     def __ge__(self, other):
-        """Compare the name of this task alphabetically with another one."""
+        """
+        Compare tasks.
+
+        Implements `self >= other`.
+        """
         if self.start_time == other.start_time:
             return self.name >= other.name
         return self.start_time >= other.start_time
 
     def __gt__(self, other):
-        """Compare the name of this task alphabetically with another one."""
+        """
+        Compare tasks.
+
+        Implements `self > other`.
+        """
         if self.start_time == other.start_time:
             return self.name > other.name
         return self.start_time > other.start_time
 
     def __le__(self, other):
-        """Compare the name of this task alphabetically with another one."""
+        """
+        Compare tasks.
+
+        Implements `self <= other`.
+        """
         if self.start_time == other.start_time:
             return self.name <= other.name
         return self.start_time <= other.start_time
 
     def __lt__(self, other):
-        """Compare the name of this task alphabetically with another one."""
+        """
+        Compare tasks.
+
+        Implements `self < other`.
+        """
         if self.start_time == other.start_time:
             return self.name < other.name
         return self.start_time < other.start_time

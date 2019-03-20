@@ -33,7 +33,12 @@ def stop_scheduler(pidfile):
 
 
 def _prometheus_client(barrier, logger, port):
-    """Boilerplate for the prometheus client thread."""
+    """
+    Boilerplate for the prometheus client thread.
+
+    This function is the entrypoint for the prometheus client thread.
+    It is responsible for starting the WSGI app that implements the client.
+    """
     # Create the WSGI HTTP app
     app = make_wsgi_app()
     httpd = make_server('', port, app)
@@ -117,7 +122,8 @@ class Scheduler:
 
         Returns
         -------
-        The next task in the queue.
+        :class:`Task`
+            The next task in the queue.
         """
         return self.queue.next_task()
 
@@ -125,7 +131,10 @@ class Scheduler:
         """
         Submit a task to the executor.
 
-        Returns a job object.
+        Parameters
+        ----------
+        :class:`Task` object
+            the task to be executed.
         """
         # Create a new job. This will submit the task to the executor
         try:

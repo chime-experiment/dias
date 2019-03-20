@@ -16,7 +16,21 @@ MIN_TRIGGER_INTERVAL_MINUTES = 10
 
 
 class ConfigLoader:
-    """Config loader class."""
+    """
+    dias Config loader class.
+
+    Imports analyzer modules, loads dias and task config and can check config
+    parameters.
+
+    Hint
+    ----
+    Config values can be accessed by name, as if this were a `dict`:
+    ``config[name]``
+
+    Assignment is supported: ``config[name] = value``
+
+    as is iteration: ``iterator = iter(config)``.
+    """
 
     def __init__(self, config_path, limit_task=None):
         """
@@ -130,7 +144,18 @@ class ConfigLoader:
                                       .format(value, key, proptype))
 
     def _load_analyzers(self, limit_task):
-        """Locate and load all task config files."""
+        """
+        Locate and load all task config files.
+
+        Instantiate all :class:Task objects by locating and loading all task
+        config files. The tasks are stored in a list as `self.tasks`.
+
+        Parameters
+        ----------
+        limit_task : string or None
+            If not None, only the task named `limit_task` will be loaded: all
+            other tasks are ignored.
+        """
         self.tasks = list()
 
         for config_file in os.listdir(self['task_config_dir']):
@@ -243,54 +268,23 @@ class ConfigLoader:
     # Data model
     def __getitem__(self, key):
         """
-        Read a variable from the dias config.
+        Return `self[key]`.
 
-        Parameters
-        ----------
-        key : str
-            Name of the config variable
-
-        Returns
-        -------
-        The value of the config variable.
+        Note
+        ----
+        For those interested in the implementation: since key can be a slice,
+        this function can return multiple tasks or none at all.
         """
         return self.global_config[key]
 
     def __setitem__(self, key, value):
-        """
-        Set or create a variable in the global dias config.
-
-        Parameters
-        ----------
-        key : str
-            The name of the config variable.
-        value
-            The value to set.
-        """
+        """Set `self[key] = value`."""
         self.global_config[key] = value
 
     def __contains__(self, key):
-        """
-        Check if the global dias config contains a variable.
-
-        Parameters
-        ----------
-        key : str
-            The name of the variable.
-
-        Returns
-        -------
-        bool
-            `True` if the config contains the variable, otherwise `False`.
-        """
+        """Test `key in self` and `key not in self`."""
         return self.global_config.__contains__(key)
 
     def __iter__(self):
-        """
-        Get an iterator of the global dias config.
-
-        Returns
-        -------
-        An iterator for the config dictionary.
-        """
+        """Return `iter(self)`."""
         return self.global_config.__iter__()
