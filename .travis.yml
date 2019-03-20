@@ -13,6 +13,8 @@ addons:
   apt:
       packages:
           - libhdf5-serial-dev
+          - graphviz  # needed for the sphinx build
+
 
 before_install:
     - pip install pycodestyle
