@@ -1,10 +1,9 @@
 # CHIME-specifc Analyzer Base Class
 # --------------------------------
 
-from dias.analyzer import Analyzer
+from caput import config
+from dias import Analyzer
 from ch_util import data_index
-
-DEFAULT_ARCHIVE_DIR = ''
 
 
 class CHIMEAnalyzer(Analyzer):
@@ -14,12 +13,11 @@ class CHIMEAnalyzer(Analyzer):
     CHIME-specific convenience methods.
     """
 
-    def __init__(self, name, config, write_dir, state_dir):
-        """Constructor of CHIME analyzer base class.
-        """
-        self.archive_data_dir = config.read_config_variable(
-            'archive_data_dir', proptype=str, default=DEFAULT_ARCHIVE_DIR)
-        Analyzer.__init__(self, name, config, write_dir, state_dir)
+    archive_data_dir = config.Property(proptype=str)
+
+    def __init__(self, name, write_dir, state_dir):
+        """Constructor of CHIME analyzer base class."""
+        super().__init__(name, write_dir, state_dir)
 
     def Finder(self, acqs=()):
         """Returns a ch_util Finder object for use by Analyzer tasks

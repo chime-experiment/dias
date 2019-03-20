@@ -4,13 +4,13 @@ This is a basic example for how to write an analyzer for dias.
 """
 
 
-from dias import chime_analyzer
+from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config
-from dias.utils.time_strings import str2timedelta, datetime2str
+from dias.utils import str2timedelta, datetime2str
 
 
-class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
+class SampleAnalyzer(CHIMEAnalyzer):
     """Sample Analyzer for dias.
     This subclass of dias.analyzer.Analyzer describes the new analyzer.
     """
@@ -28,9 +28,10 @@ class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Add a task metric that counts how often this task ran.
         # It will be exported as dias_task_<task_name>_runs_total.
-        self.run_counter = self.add_task_metric("runs",
-                                                "Number of times the task ran.",
-                                                unit="total")
+        self.run_counter = self.add_task_metric(
+                "runs",
+                "Number of times the task ran.",
+                unit="total")
 
     def run(self):
         """Main task stage: analyze data from the last period.
@@ -44,7 +45,8 @@ class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Analyzing data between {} and {}.'
                          .format(datetime2str(start_time),
                                  datetime2str(end_time)))
-        self.logger.info('If I had any data, I would probably throw stuff at '\
+        self.logger.info(
+                'If I had any data, I would probably throw stuff at '
                 '{}.'.format(self.write_dir))
 
         # Increment (+1).
@@ -55,3 +57,8 @@ class SampleAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Shutting down.')
         self.logger.debug('I could save some stuff I would like to keep until '
                           'next setup in {}.'.format(self.state_dir))
+
+    def delete_callback(self, deleted_files):
+        """This gets called after run, if files have been deleted."""
+        self.logger.debug('Oh no, I still needed all of those: {}'
+                          .format(deleted_files))

@@ -3,7 +3,7 @@
 
 import logging
 from caput import config
-from dias.utils.time_strings import str2timedelta, str2datetime
+from dias.utils import str2timedelta, str2datetime, str2bytes
 from prometheus_client import Gauge
 
 
@@ -16,8 +16,29 @@ class Analyzer(config.Reader):
     task config file when it is initialized.  The class attributes
     will be overridden with instance attributes with the same name but with the
     values specified in the config file.
+
     Attributes
     ----------
+    period : String
+        A time period (e.g. '1h'), indicating the schedule for this task
+    start_time : String
+        A time (e.g. '2018-01-03 17:13:13') indicating when you want the task
+        to first run. This is mostly used to determine the phase of your task.
+        If this value is in the future, the scheduler won't run your task until
+        that time arrives. This is optional. If not given, the scheduler will
+        start the task at an arbitrary time within one period of the start of
+        the scheduler.
+    data_size_max : String
+        The amount of data this task can write in it's data directory. dias
+        deletes old files if this is exceeded. This should be a string
+        containing of a number followed by a whitespace and the SI-unit (e.g.
+        '1 kB')
+    state_size_max : String
+        the amount of data this task can write in it's state directory. dias
+        deletes old files if this is exceeded. This should be a string
+        containing of a number followed by a whitespace and the SI-unit
+        (e.g. '10 MB')
+
     Methods
     -------
     __init__
@@ -28,27 +49,28 @@ class Analyzer(config.Reader):
 
     # Config values
     start_time = config.Property(proptype=str2datetime)
+    log_level = config.Property(proptype=logging.getLevelName)
     period = config.Property(proptype=str2timedelta)
-    log_level = config.Property(default=None,
-                                proptype=logging.getLevelName)
+    data_size_max = config.Property(proptype=str2bytes)
+    state_size_max = config.Property(proptype=str2bytes)
 
-    def __init__(self, name, config, write_dir, state_dir):
+    def __init__(self, name, write_dir, state_dir):
         """Constructor of analyzer base class.
         """
         self.name = name
         self.write_dir = write_dir
         self.state_dir = state_dir
-        self._default_log_level = config.log_level
 
-    def init_logger(self):
+    def init_logger(self, log_level_override=None):
         """Set up the logger. Call this after reading the config."""
-        self.logger = logging.getLogger(self.name)
-        if self.log_level is None:
-            self.log_level = self._default_log_level
+        self.logger = logging.getLogger('dias[{0}]'.format(self.name))
+        if log_level_override:
+            self.log_level = log_level_override
 
         self.logger.setLevel(self.log_level)
 
-    def add_task_metric(self, metric_name, description, labelnames=[], unit=''):
+    def add_task_metric(
+            self, metric_name, description, labelnames=[], unit=''):
         """Add a gauge metric. It will be exported with the full name
         `dias_task_<task name>_<metric_name>_<unit>`.
         Pass the metric name without the prefix and unit according to
@@ -86,5 +108,14 @@ class Analyzer(config.Reader):
     def run(self):
         """Main task stage of analyzer. Will be called by the dias framework
         according to the period set in the task config.
+        """
+        pass
+
+    def delete_callback(self, deleted_files):
+        """
+        Called after run() to inform the analyzer about files that have been
+        deleted from its write_dir due to data size overage.
+        :param deleted_files:   List of pathlib.Path objects. Files that have
+        been deleted.
         """
         pass
