@@ -1,6 +1,6 @@
 """
 =====================================================
-Generate RFI mask from the stacked autocorrelations.
+Generates RFI mask from the stacked autocorrelations.
 (:mod:`~dias.analyzers.flag_rfi_analyzer`)
 =====================================================
 
@@ -32,6 +32,7 @@ from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
 import os
 import time
 import datetime
+import subprocess
 import sqlite3
 import gc
 
@@ -43,8 +44,7 @@ from ch_util import tools, ephemeris, andata, data_index, rfi
 from caput import config
 
 from dias import chime_analyzer
-from datetime import datetime
-from dias.utils.time_strings import str2timedelta, datetime2str
+from dias.utils.string_converter import str2timedelta, datetime2str
 
 DB_FILE = "data_index.db"
 CREATE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(start TIMESTAMP, stop TIMESTAMP,
@@ -63,23 +63,55 @@ def _chunks(l, n):
         yield l[i:i + n]
 
 def _fraction_flagged(mask, axis=None, logical_not=False):
-    
+
     if axis is None:
         axis = np.arange(mask.ndim)
-    
-    frac = np.sum(mask, axis=tuple(axis), dtype=np.float32) / float(np.prod(mask.shape[list(axis)]))
+    else:
+        axis = np.atleast_1d(axis)
+
+    frac = (np.sum(mask, axis=tuple(axis), dtype=np.float32) /
+            float(np.prod([mask.shape[ax] for ax in axis])))
 
     if logical_not:
         frac = 1.0 - frac
-        
-    return frac 
+
+    return frac
 
 ###################################################
 # main analyzer task
 ###################################################
 
 class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
-    """Finds jumps or steps in the autocorrelations.
+    """Identifies data contaminated by RFI.
+
+    Attributes
+    -----------
+    offset : str
+        Process data this timedelta before current time.
+    period : str
+        Cadence at which this analyzer is run.
+    instrument : str
+        Search archive for corr acquisitions from this instrument.
+    max_num_file : int
+        Maximum number of files to load into memory at once.
+    output_suffix :  str
+        Name for the output acquisition type.
+    freq_low : float
+        Generate RFI flags for all frequencies above this threshold.
+    freq_high : float
+        Generate RFI flags for all frequencies below this threshold.
+    apply_static_mask : bool
+        Apply static mask obtained from `ch_util.rfi.frequency_mask`
+        before computing statistics.
+    freq_width : float
+        Frequency interval in *MHz* for computing local statistics.
+    time_width : float
+        Time interval in *seconds* for computing local statistics.
+    rolling : bool
+        Use a rolling window instead of distinct blocks.
+    threshold_mad : float
+        Flag data as RFI if greater than this number of
+        median absolute deviations.
     """
 
     # Config parameters related to scheduling
@@ -88,14 +120,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     # Config parameters defining data file selection
     instrument = config.Property(proptype=str, default='chimestack')
-    max_num_file = config.Property(proptype=int, default=20)
+    max_num_file = config.Property(proptype=int, default=1)
 
     # Config parameters defining output data product
     output_suffix = config.Property(proptype=str, default='rfimask')
 
     # Config parameters defining frequency selection
-    freq_low = config.Property(proptype=float, default=399.0)
-    freq_high = config.Property(proptype=float, default=801.0)
+    freq_low = config.Property(proptype=float, default=400.0)
+    freq_high = config.Property(proptype=float, default=800.0)
 
     # Config parameters for the rfi masking algorithm
     apply_static_mask = config.Property(proptype=bool, default=True)
@@ -105,7 +137,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     threshold_mad = config.Property(proptype=float, default=6.0)
 
     def setup(self):
-        """Create connection to data index database and initialize Prometheus metrics.
+        """Creates connection to data index database and initializes Prometheus metrics.
         """
         self.logger.info('Starting up. My name is %s and I am of type %s.' % (self.name, __name__))
 
@@ -127,23 +159,26 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         self.file_timer = self.add_task_metric("file_time", "Time to process single file.", unit="seconds")
 
-        self.fraction_masked_before = self.add_task_metric("fraction_masked_before", 
+        self.fraction_masked_before = self.add_task_metric("fraction_masked_before",
                                             "Fraction of data considered bad before applying MAD threshold.",
                                             labelnames=['stack'])
 
-        self.fraction_masked_after = self.add_task_metric("fraction_masked_after", 
+        self.fraction_masked_after = self.add_task_metric("fraction_masked_after",
                                             "Fraction of data considered bad after applying MAD threshold.",
                                             labelnames=['stack'])
 
 
     def run(self):
-        """Load stacked autocorrelations from the last period, generate rfi mask,
-        and write it to disk.
+        """Loads stacked autocorrelations from the last period,
+        generates rfi mask, writes it to disk, and updates the
+        data index database.
         """
 
-        # Calculate the start and end of the passed period.
-        end_time = datetime.now() - self.offset
-        start_time = end_time - self.period
+        end_time = datetime.datetime.utcnow() - self.offset
+
+        cursor = self.data_index.cursor()
+        results = list(cursor.execute('SELECT stop FROM files ORDER BY stop DESC LIMIT 1'))
+        start_time = results[0][0] if results else end_time - self.period
 
         self.logger.info('Analyzing data between {} and {}.'.format(datetime2str(start_time),
                                                                     datetime2str(end_time)))
@@ -190,28 +225,25 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     self.file_start_time = time.time()
 
                     # Deteremine selections along the various axes
-                    rdr = andata.CorrReader(data_files)
+                    rdr = andata.CorrData.from_acq_h5(data_files, datasets=())
 
-                    rdr.select_time_range(tstart, tend)
-                    rdr.dataset_sel = ['vis', 'flags/vis_weight']
+                    start = int(np.argmin(np.abs(rdr.time - tstart)))
+                    stop = int(np.argmin(np.abs(rdr.time - tend)))
 
-                    auto_sel = np.array([ii for ii, pp in enumerate(rdr.prod) if pp[0] == pp[1]])
-                    auto_sel = andata._convert_to_slice(auto_sel)
-                    rdr.prod_sel = auto_sel
+                    within_range = np.flatnonzero((rdr.freq >= self.freq_low) & (rdr.freq <= self.freq_high))
+                    freq_sel = slice(within_range[0], within_range[-1]+1)
 
-                    rdr.select_freq_range(freq_low=self.freq_low, freq_high=self.freq_high)
-
-                    rdr.apply_gain = False
-                    rdr.renormalize = False
-
-                    start, stop = rdr.time_sel
+                    stack_sel = [ii for ii, pp in enumerate(rdr.prod[rdr.stack['prod']]) if pp[0] == pp[1]]
 
                     # Load autocorrelations
                     t0 = time.time()
 
-                    data = rdr.read()
+                    data = andata.CorrData.from_acq_h5(data_files, start=start, stop=stop,
+                                                                   datasets=['vis', 'flags/vis_weight'],
+                                                                   freq_sel=freq_sel, stack_sel=stack_sel,
+                                                                   apply_gain=False, renormalize=False)
 
-                    self.logger.debug("Took %0.1f seconds to load autocorrelations." % (time.time() - t0,))
+                    self.logger.info("Took %0.1f seconds to load autocorrelations." % (time.time() - t0,))
                     t0 = time.time()
 
                     # Construct RFI mask for each cylinder/polarisation
@@ -228,7 +260,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                                     time_width=self.time_width,
                                                                     rolling=self.rolling)
 
-                    self.logger.debug("Took %0.1f seconds to generate mask." % (time.time() - t0,))
+                    self.logger.info("Took %0.1f seconds to generate mask." % (time.time() - t0,))
 
                     # Concatenate and define stack axis
                     auto = np.concatenate((cyl_auto, auto), axis=1)
@@ -254,7 +286,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     acq_start = ephemeris.datetime_to_unix(ephemeris.timestr_to_datetime(output_acq.split('_')[0]))
 
-                    seconds_elapsed = this_time[0] - acq_start
+                    seconds_elapsed = data.time[0] - acq_start
                     output_file = os.path.join(output_dir, "%08d.h5" % seconds_elapsed)
 
                     self.logger.info("Writing RFI mask to: %s" % output_file)
@@ -272,11 +304,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         # Create an index map
                         index_map = handler.create_group('index_map')
                         index_map.create_dataset('freq', data=data.index_map['freq'])
-                        index_map.create_dataset('stack', data=np.array(stack))
+                        index_map.create_dataset('stack', data=np.string_(stack))
                         index_map.create_dataset('time', data=data.time)
 
                         # Write 2D arrays containing snapshots of each jump
-                        ax = np.array(['freq', 'stack', 'time'])
+                        ax = np.string_(['freq', 'stack', 'time'])
 
                         dset = handler.create_dataset('mask', data=mask_after)
                         dset.attrs['axis'] = ax
@@ -316,7 +348,19 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
 
     def update_data_index(self, start, stop, filename=None):
+        """Update the data index database with a row that
+        contains the name of the file and the span of time
+        the file contains.
 
+        Parameters
+        ----------
+        start : unix time
+            Earliest time contained in the file.
+        stop : unix time
+            Latest time contanied in the file.
+        filename : str
+            Name of the file.
+        """
         # Parse arguments
         dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
         dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
@@ -338,7 +382,8 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
 
     def finish(self):
-        """Close connection to data index database."""
+        """Closes connection to data index database.
+        """
         self.logger.info('Shutting down.')
 
         # Close connection to database
