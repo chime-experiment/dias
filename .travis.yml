@@ -33,7 +33,7 @@ script:
     - find . -name \*.py -exec pydocstyle --convention=numpy {} +
 
     # Run all tests in test folder
-    - pytest
+    - pytest --ignore dias/analyzers/test_analyzer.py
 
     # test dias script
     - python test/make_test_swarm.py test_conf 1
