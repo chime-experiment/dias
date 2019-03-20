@@ -23,10 +23,44 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     Check data integrity related to the thermal modeling of CHIME complex gain.
 
     For now it only checks for cable loop data.
+
+    Metrics
+    -------
+    dias_task_thermaldata_delay_seconds
+    ...................................
+    Delays computed for each cable loop.
+
+    Labels
+        chan_id : CHIME channel ID of the cable loop.
+
+    Output Data
+    -----------
+    None
+
+    State Data
+    ----------
+    None
+
+    Config Variables
+    ----------------
+
+    Data to analyze is selected from `<now>` - `<offset>` until `<now>` -
+    `<offset>` + `<trange>`.
+
+    Attributes
+    ----------
+    offset : str
+        A string describing a timedelta. Don't analyze data older than this
+        much before task execution time.
+    trange: str
+        A string describing a timedelta. Time range data is accepted from.
+    loop_ids : list(inst)
+        Channel IDs of the cable loops.  Default : [944, 1314, 2034].
+    ref_ids : list(int)
+        Channel IDs to use as reference. Default: [688, 1058, 2032].
     """
 
-    # Config parameter for this anlyzer can be specified by assigning class
-    # attributes a caput.config.Property
+    # Config parameters
     offset = config.Property(proptype=str2timedelta, default='12h')
     trange = config.Property(proptype=str2timedelta, default='1h')
     # TODO: In the future, could figure out the loop ids from the database.

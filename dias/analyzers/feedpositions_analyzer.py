@@ -52,16 +52,16 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_ew_pos_residuals_analyzer_run_total
-    .............................................
+    dias_task_feedpositions_ew_pos_residuals_analyzer_run_total
+    ...........................................................
     Counter for total number of task runs with each specific source.
 
     Labels
         source : Source transit name.
 
 
-    dias_task_ew_pos_good_freq_total
-    ................................
+    dias_task_feedpositions_ew_pos_good_freq_total
+    ..............................................
     How many frequencies out of 10 were good (EV ratio on vs off source smaller
     than 2)?
 
