@@ -38,3 +38,11 @@ class DiasConfigError(DiasException):
 
     def __init__(self, message):
         self.message = message
+
+
+class DiasConcurrencyError(DiasException):
+    """
+    dias concurrency exception.
+
+    Raised when the scheduler tries to start a task that is already running.
+    """
