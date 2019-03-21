@@ -3,3 +3,5 @@
 prometheus_client>=0.5.0
 h5py
 pywt
+pyyaml
+scipy

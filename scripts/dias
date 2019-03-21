@@ -3,49 +3,60 @@
 import sys
 import os
 import argparse
-from dias.config_loader import ConfigLoader, DiasUsageError
-from dias.scheduler import Scheduler
+from dias import ConfigLoader, DiasUsageError, Scheduler, stop_scheduler
+
 
 def do_configtest(args):
     # Load and discard the config
     ConfigLoader(args.conf)
     print("configuration ok")
 
+
 def do_start(args):
-    raise NotImplementedError;
+    # Load config
+    loaded_conf = ConfigLoader(args.conf)
+
+    # Add command line config
+    loaded_conf['start_now'] = args.start_now
+    loaded_conf['log_level_override'] = args.log_level
+
+    # Create the scheduler
+    scheduler = Scheduler(loaded_conf)
+
+    # Start the scheduler
+    scheduler.start(args.pidfile)
+
 
 def do_stop(args):
-    raise NotImplementedError;
+    stop_scheduler(args.pidfile)
+
 
 def do_restart(args):
     do_stop(args)
     do_start(args)
 
+
 def do_tryrun(args):
     # Load config
     try:
-        loaded_conf = ConfigLoader(args.conf, limit_task = args.task)
+        loaded_conf = ConfigLoader(args.conf, limit_task=args.task)
     except DiasUsageError as err:
         parser.print_help()
         print("\ndias: error: Failed loading config: {}".format(err))
         exit(1)
 
+    # Add command line config
+    loaded_conf['log_level_override'] = args.log_level
+    loaded_conf['start_now'] = True
+
     # Create a "fake" prometheus client (This will assign a random free port).
-    loaded_conf.prometheus_client_port = 0
+    loaded_conf['prometheus_client_port'] = 0
 
     # Create the scheduler
-    scheduler = Scheduler(
-            loaded_conf,
-            # Log to stdout
-            log_stdout = True,
-            )
-
-    # Run task set-up
-    if not args.no_setup:
-        scheduler.setup_tasks()
+    scheduler = Scheduler(loaded_conf)
 
     # Run the "next" (i.e. only) task
-    scheduler.next_task().run()
+    scheduler.next_task().runner()
 
     # Run task finish
     if not args.no_finish:
@@ -54,18 +65,23 @@ def do_tryrun(args):
     # Shutdown the scheduler
     del scheduler
 
-    exit(0)
+    if args.pause:
+        # pause forever
+        import time
+        while True:
+            time.sleep(60)
 
 
 def do_runner(args):
-    raise NotImplementedError;
+    raise NotImplementedError
 
 # The default dias.conf path.
 # The default here should be suitable for running dias
 # without installing it.  An installed dias should always
 # specify the location of its configuration file, either
 # on the command line or else in the environment
-dias_conf=os.getenv("DIAS_CONF",
+dias_conf = os.getenv(
+        "DIAS_CONF",
         os.path.normpath(os.path.join(sys.path[0], "../conf/dias.conf")))
 
 parser = argparse.ArgumentParser(
@@ -86,17 +102,31 @@ parser.add_argument(
         help="read dias.conf file specified by PATH",
         default=dias_conf
         )
+parser.add_argument(
+        "-l", "--log-level",
+        help=''
+        'set the log level to LEVEL, one of: "critical", "error", '
+        '"warning", "info", "debug".  If specified, this will '
+        'override a log level specified in the conf files for '
+        'all tasks',
+        default=None,
+        metavar="LEVEL",
+        choices=['critical', 'error', 'warning', 'info', 'debug']
+        )
+
+# Default values
+parser.set_defaults(start_now=False)
 
 # Command parsers
 subparsers = parser.add_subparsers(
         title="actions",
         metavar="ACTION",
-        help="The action to perform.  " \
-                "For action-specific help, use: `ACTION -h'")
+        help=''
+        "The action to perform.  For action-specific help, use: `ACTION -h'")
 
 configtest_parser = subparsers.add_parser(
         'configtest',
-        help='check the configureation and exit')
+        help='check the configuration and exit')
 configtest_parser.set_defaults(func=do_configtest)
 
 start_parser = subparsers.add_parser(
@@ -105,6 +135,7 @@ start_parser = subparsers.add_parser(
 start_parser.add_argument(
         '-p', '--pidfile',
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="write process PID to PIDFILE"
         )
 start_parser.set_defaults(func=do_start)
@@ -116,15 +147,19 @@ restart_parser = subparsers.add_parser(
 restart_parser.add_argument(
         '-p', '--pidfile',
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="read/write process PID from/to PIDFILE"
         )
 restart_parser.set_defaults(func=do_restart)
 
-stop_parser = subparsers.add_parser('stop',
+stop_parser = subparsers.add_parser(
+        'stop',
         help='stop an instance of the scheduler'
         )
-stop_parser.add_argument('-p',
+stop_parser.add_argument(
+        '-p', "--pidfile",
         metavar="PIDFILE",
+        default="/var/run/dais.pid",
         help="read process PID from PIDFILE"
         )
 stop_parser.set_defaults(func=do_stop)
@@ -149,22 +184,24 @@ tryrun_parser.add_argument(
         help="The name of the task to run"
         )
 tryrun_parser.add_argument(
-        "-s", "--no-setup",
-        action="store_true",
-        help="Skip execution of the tasks's setup routine"
-        )
-tryrun_parser.add_argument(
         "-f", "--no-finish",
         action="store_true",
         help="Skip execution of the tasks's finish routine"
+        )
+tryrun_parser.add_argument(
+        "-p", "--pause",
+        action="store_true",
+        help="Pause indefinitely after the task completes"
         )
 
 parsed_args = parser.parse_args()
 
 # Run the selected action, if specified
 if hasattr(parsed_args, "func"):
-    parsed_args.func(parsed_args);
+    parsed_args.func(parsed_args)
 else:
     parser.print_help()
     print("\ndias: error: an action must be specified")
     exit(1)
+
+exit(0)

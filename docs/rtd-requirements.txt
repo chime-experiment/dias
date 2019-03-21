@@ -1,0 +1,10 @@
+-e git+https://github.com/radiocosmology/caput#egg=caput
+-e git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
+prometheus_client>=0.5.0
+sphinx_automodapi
+numpydoc
+pyyaml
+scipy
+recommonmark
+pydocstyle
+sphinx_rtd_theme
