@@ -45,6 +45,8 @@ from caput import config
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
 
+__version__ = '0.1.0'
+
 DB_FILE = "data_index.db"
 CREATE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(start TIMESTAMP, stop TIMESTAMP,
                                                       filename TEXT UNIQUE ON CONFLICT REPLACE)'''
@@ -173,7 +175,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                             "Fraction of data considered bad after applying MAD threshold.  " +
                                                             "Includes missing data, static frequency mask, and MAD threshold mask.",
                                                             labelnames=['stack'])
-
 
     def run(self):
         """Loads stacked autocorrelations from the last period,
@@ -313,6 +314,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                                                     "describe", "--always"]).strip()
                         handler.attrs['collection_server'] = subprocess.check_output(["hostname"]).strip()
                         handler.attrs['system_user'] = subprocess.check_output(["id", "-u", "-n"]).strip()
+                        handler.attrs['instrument_name'] = self.instrument
+                        handler.attrs['acquisition_name'] = os.path.basename(os.path.dirname(output_file))
+                        handler.attrs['version'] = __version__
 
                         # Create an index map
                         index_map = handler.create_group('index_map')
@@ -363,7 +367,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.run_counter.inc()
         self.run_timer.set(int(time.time() - self.run_start_time))
 
-
     def update_data_index(self, start, stop, filename=None):
         """Update the data index database with a row that
         contains the name of the file and the span of time
@@ -397,7 +400,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         else:
             self.data_index.commit()
 
-
     def refresh_data_index(self):
         """Remove any rows of the data index database
         that correspond to files that have been cleaned
@@ -423,7 +425,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 else:
                     self.data_index.commit()
                     self.log.info("Removed %s from data index database." % filename)
-
 
     def finish(self):
         """Closes connection to data index database.
