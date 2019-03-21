@@ -1,13 +1,5 @@
 """dias Job."""
-from dias import DiasException
-
-
-class DiasConcurrencyError(DiasException):
-    """
-    dias concurrency exception.
-
-    Raised when the scheduler tries to start a task that is already running.
-    """
+from dias import DiasConcurrencyError
 
 
 class Job:
