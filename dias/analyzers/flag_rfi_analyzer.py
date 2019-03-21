@@ -40,7 +40,6 @@ import numpy as np
 import h5py
 
 from ch_util import tools, ephemeris, andata, data_index, rfi
-
 from caput import config
 
 from dias import chime_analyzer
@@ -142,7 +141,8 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Starting up. My name is %s and I am of type %s.' % (self.name, __name__))
 
         # Open connection to data index database and create table if it does not exist
-        self.data_index = sqlite3.connect(os.path.join(self.write_dir, DB_FILE))
+        self.data_index = sqlite3.connect(os.path.join(self.write_dir, DB_FILE),
+                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
@@ -159,13 +159,20 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         self.file_timer = self.add_task_metric("file_time", "Time to process single file.", unit="seconds")
 
+        self.fraction_masked_missing = self.add_task_metric("fraction_masked_missing",
+                                                            "Fraction of data that is missing " +
+                                                            "(e.g., dropped packets or down GPU nodes).",
+                                                            labelnames=['stack'])
+
         self.fraction_masked_before = self.add_task_metric("fraction_masked_before",
-                                            "Fraction of data considered bad before applying MAD threshold.",
-                                            labelnames=['stack'])
+                                                            "Fraction of data considered bad before applying MAD threshold.  " +
+                                                            "Includes missing data and static frequency mask.",
+                                                            labelnames=['stack'])
 
         self.fraction_masked_after = self.add_task_metric("fraction_masked_after",
-                                            "Fraction of data considered bad after applying MAD threshold.",
-                                            labelnames=['stack'])
+                                                            "Fraction of data considered bad after applying MAD threshold.  " +
+                                                            "Includes missing data, static frequency mask, and MAD threshold mask.",
+                                                            labelnames=['stack'])
 
 
     def run(self):
@@ -174,6 +181,12 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         data index database.
         """
 
+        self.run_start_time = time.time()
+
+        # Refresh the database
+        self.refresh_data_index()
+
+        # Determine the range of time to process
         end_time = datetime.datetime.utcnow() - self.offset
 
         cursor = self.data_index.cursor()
@@ -183,14 +196,17 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Analyzing data between {} and {}.'.format(datetime2str(start_time),
                                                                     datetime2str(end_time)))
 
-        self.run_start_time = time.time()
-
         # Use Finder to get the files to analyze
-        finder = self.Finder()
-        finder.accept_all_global_flags()
-        finder.only_corr()
-        finder.filter_acqs(data_index.ArchiveInst.name == self.instrument)
-        finder.set_time_range(start_time, end_time)
+        try:
+            finder = self.Finder()
+            finder.accept_all_global_flags()
+            finder.only_corr()
+            finder.filter_acqs(data_index.ArchiveInst.name == self.instrument)
+            finder.set_time_range(start_time, end_time)
+
+        except Exception as exc:
+            self.logger.info('No data found: %s' % exc)
+            return
 
         # Loop over acquisitions
         for aa, acq in enumerate(finder.acqs):
@@ -227,9 +243,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # Deteremine selections along the various axes
                     rdr = andata.CorrData.from_acq_h5(data_files, datasets=())
 
-                    start = int(np.argmin(np.abs(rdr.time - tstart)))
-                    stop = int(np.argmin(np.abs(rdr.time - tend)))
-
                     within_range = np.flatnonzero((rdr.freq >= self.freq_low) & (rdr.freq <= self.freq_high))
                     freq_sel = slice(within_range[0], within_range[-1]+1)
 
@@ -238,8 +251,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # Load autocorrelations
                     t0 = time.time()
 
-                    data = andata.CorrData.from_acq_h5(data_files, start=start, stop=stop,
-                                                                   datasets=['vis', 'flags/vis_weight'],
+                    data = andata.CorrData.from_acq_h5(data_files, datasets=['vis', 'flags/vis_weight'],
                                                                    freq_sel=freq_sel, stack_sel=stack_sel,
                                                                    apply_gain=False, renormalize=False)
 
@@ -266,6 +278,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     auto = np.concatenate((cyl_auto, auto), axis=1)
                     ndev = np.concatenate((cyl_ndev, ndev), axis=1)
 
+                    mask_missing = auto > 0.0
                     mask_before = np.isfinite(ndev)
                     mask_after = ndev <= self.threshold_mad
 
@@ -330,6 +343,10 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     self.file_timer.set(int((time.time() - self.file_start_time) / float(ndf)))
 
                     for ss, lbl in enumerate(stack):
+                        self.fraction_masked_missing.labels(stack=lbl).set(
+                                        _fraction_flagged(mask_missing[:, ss, :], logical_not=True)
+                                        )
+
                         self.fraction_masked_before.labels(stack=lbl).set(
                                         _fraction_flagged(mask_before[:, ss, :], logical_not=True)
                                         )
@@ -381,11 +398,36 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             self.data_index.commit()
 
 
+    def refresh_data_index(self):
+        """Remove any rows of the data index database
+        that correspond to files that have been cleaned
+        (removed) by dias manager.
+        """
+
+        cursor = self.data_index.cursor()
+        all_files = list(cursor.execute('SELECT filename FROM files ORDER BY start'))
+
+        for result in all_files:
+
+            filename = result[0]
+
+            if not os.path.isfile(os.path.join(self.write_dir, filename)):
+
+                try:
+                    cursor = self.data_index.cursor()
+                    cursor.execute('DELETE FROM files WHERE filename = ?', (filename,))
+
+                except Exception as ex:
+                    self.log.error("Could not perform database deletion: %s" % ex)
+
+                else:
+                    self.data_index.commit()
+                    self.log.info("Removed %s from data index database." % filename)
+
+
     def finish(self):
         """Closes connection to data index database.
         """
         self.logger.info('Shutting down.')
-
-        # Close connection to database
         self.data_index.close()
 
