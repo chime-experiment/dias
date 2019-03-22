@@ -110,32 +110,35 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     dias_data_flag_rfi_fraction_masked_missing
     ..........................................
     Fraction of data that is missing (e.g., dropped packets or down GPU nodes.)
+
     Labels
-        stack : string of format `<POL>-<CYL>` that indicates the
-                polarisation POL and cylinder CYL of the feeds used to
-                construct the stacked autocorrelation.  The special value
-                `ALL` indicates all feeds.
+        stack : string of format `<POL>-<CYL>`
+            The polarisation and cylinder of the feeds
+            used to construct the stacked autocorrelation.
+            The special value `ALL` indicates all feeds.
 
     dias_data_flag_rfi_fraction_masked_before
     .........................................
     Fraction of data considered bad before applying MAD threshold.  Includes
     missing data and static frequency mask from `ch_util.rfi.frequency_mask`.
-    Labels:
-        stack : string of format `<POL>-<CYL>` that indicates the
-                polarisation POL and cylinder CYL of the feeds used to
-                construct the stacked autocorrelation.  The special value
-                `ALL` indicates all feeds.
+
+    Labels
+        stack : string of format `<POL>-<CYL>`
+            The polarisation and cylinder of the feeds
+            used to construct the stacked autocorrelation.
+            The special value `ALL` indicates all feeds.
 
     dias_data_flag_rfi_fraction_masked_after
     ........................................
     Fraction of data considered bad after applying MAD threshold.  Includes
     missing data, static frequency mask from `ch_util.rfi.frequency_mask`,
     and MAD threshold mask.
-    Labels:
-        stack : string of format `<POL>-<CYL>` that indicates the
-                polarisation POL and cylinder CYL of the feeds used to
-                construct the stacked autocorrelation.  The special value
-                `ALL` indicates all feeds.
+
+    Labels
+        stack : string of format `<POL>-<CYL>`
+            The polarisation and cylinder of the feeds
+            used to construct the stacked autocorrelation.
+            The special value `ALL` indicates all feeds.
 
     Output Data
     -----------
@@ -143,7 +146,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     File naming
     ...........
     `<YYYYMMDD>T<HHMMSS>Z_chimestack_rfimask/<SSSSSSSS>.h5`
-        YYYYMMDD is the date and HHMMSS is the start time (in UTC) of
+        YYYYMMDD and HHMMSS are the date and time (in UTC) of the start of
         the underlying chimestack data acquisition from which the RFI
         mask was derived.  SSSSSSSS is the number of seconds elapsed
         between the start of the file and the start of the acquisition.
@@ -151,14 +154,15 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     Indexes
     .......
     freq
-        Structured array containing the `centre` and `width` of the
+        1D structured array containing the `centre` and `width` of the
         frequency channels in MHz.
     stack
-        Array containing strings of format `<POL>-<CYL>` that indicate the
-        polarisation POL and cylinder CYL of the feeds used to construct the
+        1D array containing strings of format `<POL>-<CYL>` that indicate the
+        polarisation and cylinder of the feeds used to construct the
         stacked autocorrelation.  The special value `ALL` indicates all feeds.
     time
-        Array contaning the unix timestamp of the centre of the integration.
+        1D array contaning the unix timestamps of the centre of the
+        integrations.
 
     Datasets
     .........
