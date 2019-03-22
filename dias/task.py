@@ -1,3 +1,4 @@
+"""dias Task."""
 import os
 import random
 import traceback
@@ -11,10 +12,19 @@ task_metrics = {}
 
 
 class Task:
-    """\
-The Task class is used by the scheduler to hold a task's instantiated
-analyzer along with associated bookkeeping data
-"""
+    """
+    dias Task.
+
+    The Task class is used by the scheduler to hold a task's instantiated
+    analyzer along with associated bookkeeping data
+
+    Hint
+    ----
+    Tasks support rich comparison and ordering.  When comparing tasks, the task
+    with the earlier `start_time` is sorted first.  If two tasks have the same
+    `start_time`, they are sorted lexicographically by name.
+    """
+
     def __init__(self, task_name, task_config, write_dir, state_dir):
         self.write_dir = write_dir
         self.state_dir = state_dir
@@ -67,8 +77,26 @@ analyzer along with associated bookkeeping data
     def prepare(self, reference_time,
                 log_level_override=None,
                 start_now=False):
-        """Prepare a task for execution."""
+        """
+        Prepare a task for execution.
 
+        Parameters
+        ----------
+        reference_time : int
+            POSIX timestamp indicating when task should be executed, depending
+            on `start_now`.
+        log_level_override : str or None
+            This is the log level specified on the dias command line when the
+            scheduler was started, or None if it wasn't specified.  It will
+            override any log level specified in either the global task config
+            or per-task config files.
+        start_now : bool
+            If the task defines `start_time`, this is ignored.  Otherwise, if
+            this is `True`, the task will be first scheduled for execution as
+            soon as the Scheduler starts up.  If this is `False`, the task will
+            be first scheduled after a random amount of time up to the task's
+            period.
+        """
         # initialse the analyzer's logger
         self.analyzer.init_logger(log_level_override)
 
@@ -113,12 +141,27 @@ analyzer along with associated bookkeeping data
         self.analyzer.setup()
 
     def running(self):
+        """
+        Tell if the task is running.
+
+        Returns
+        -------
+        bool
+            `True` if the task is running, `False` otherwise.
+        """
         return self.runcount > 0
 
     def runner(self):
-        """This serves as the entry point for a running task.  It executes in
-        a worker thread."""
+        """
+        Execute run method of the task.
 
+        This serves as the entry point for a running task.  It executes in
+        a worker thread.
+
+        Returns
+        -------
+        The result of the task.
+        """
         # Run the task
         self.runcount += 1
         self.analyzer.logger.info("Start-up.")
@@ -163,12 +206,21 @@ analyzer along with associated bookkeeping data
 
     def cleanup(self, dir, max_size, check=False):
         """
-        Delete old files in case of disk space overage and inform
-        analyzer.
-        :param dir: Directory to clean up.
-        :param max_size: Maximum disk space allowed in directory.
-        :param check: If true, no files are deleted.
-        :return: Tuple. Total data size before and after cleanup in bytes.
+        Delete old files in case of disk space overage and inform analyzer.
+
+        Parameters
+        ----------
+        dir : str
+            Directory to clean up.
+        max_size : float
+            Maximum disk space allowed in directory.
+        check : bool
+            If `True`, no files are deleted. Default: `False`.
+
+        Returns
+        -------
+        tuple(int, int)
+            Total data size before and after cleanup in bytes.
         """
         self.analyzer.logger.debug("Cleaning up {}: data size maximum: {}"
                                    .format(dir, bytes2str(max_size)))
@@ -218,32 +270,62 @@ analyzer along with associated bookkeeping data
         return (total_data_size, disk_usage)
 
     def increment(self):
-        """Increment start_time by period"""
+        """Increment start_time by period."""
         self.start_time += self.period
 
     # Rich comparison
     def __eq__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self == other`.
+        """
         return self.name == other.name
 
     def __ne__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self != other`.
+        """
         return self.name != other.name
 
     def __ge__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self >= other`.
+        """
         if self.start_time == other.start_time:
             return self.name >= other.name
         return self.start_time >= other.start_time
 
     def __gt__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self > other`.
+        """
         if self.start_time == other.start_time:
             return self.name > other.name
         return self.start_time > other.start_time
 
     def __le__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self <= other`.
+        """
         if self.start_time == other.start_time:
             return self.name <= other.name
         return self.start_time <= other.start_time
 
     def __lt__(self, other):
+        """
+        Compare tasks.
+
+        Implements `self < other`.
+        """
         if self.start_time == other.start_time:
             return self.name < other.name
         return self.start_time < other.start_time

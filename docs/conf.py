@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-#
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 from recommonmark.parser import CommonMarkParser
 
 # Mock imports
@@ -10,8 +9,10 @@ from unittest.mock import MagicMock
 
 
 class Mock(MagicMock):
+    """Mock imports to install dias on readthedocs."""
+
     @classmethod
-    def __getattr__(cls, name):
+    def __getattr__(cls, name):  # noqa
         return MagicMock()
 
 
@@ -45,7 +46,9 @@ extensions = ['recommonmark',
               'sphinx.ext.napoleon',
               'sphinx.ext.autosummary',
               'sphinx_automodapi.automodapi',
-              'numpydoc']
+              'numpydoc',
+              'sphinx.ext.graphviz',
+              ]
 requirements_file = 'rtd-requirements.txt'
 
 # Add any paths that contain templates here, relative to this directory.
@@ -90,7 +93,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

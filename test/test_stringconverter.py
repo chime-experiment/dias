@@ -1,7 +1,6 @@
-"""
-Tests of Stringconverter.
-run with
-`pytest ./test_stringconverter.py`
+"""Tests for Stringconverter.
+
+Run with `pytest ./test_stringconverter.py`.
 """
 
 import unittest
@@ -9,9 +8,10 @@ from dias.utils import str2bytes, bytes2str
 
 
 class TestStringConverter(unittest.TestCase):
+    """Tests for Stringconverter."""
 
     def test_str2bytes(self):
-
+        """Test str2bytes method."""
         assert str2bytes("0 GB") == 0
         assert str2bytes("0 B") == 0
         assert str2bytes("1 B") == 1
@@ -34,6 +34,7 @@ class TestStringConverter(unittest.TestCase):
             str2bytes(1)
 
     def test_bytes2str(self):
+        """Test bytes2str method."""
         assert bytes2str(0) == '0.0 B'
         assert bytes2str(1) == '1.0 B'
         assert bytes2str(1100) == '1.1 kB'
