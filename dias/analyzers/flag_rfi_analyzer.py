@@ -107,7 +107,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     .......................................
     Time to process single file.
 
-    dias_task_flag_rfi_fraction_masked_missing
+    dias_data_flag_rfi_fraction_masked_missing
     ..........................................
     Fraction of data that is missing (e.g., dropped packets or down GPU nodes.)
     Labels
@@ -116,7 +116,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 construct the stacked autocorrelation.  The special value
                 `ALL` indicates all feeds.
 
-    dias_task_flag_rfi_fraction_masked_before
+    dias_data_flag_rfi_fraction_masked_before
     .........................................
     Fraction of data considered bad before applying MAD threshold.  Includes
     missing data and static frequency mask from `ch_util.rfi.frequency_mask`.
@@ -126,7 +126,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 construct the stacked autocorrelation.  The special value
                 `ALL` indicates all feeds.
 
-    dias_task_flag_rfi_fraction_masked_after
+    dias_data_flag_rfi_fraction_masked_after
     ........................................
     Fraction of data considered bad after applying MAD threshold.  Includes
     missing data, static frequency mask from `ch_util.rfi.frequency_mask`,
@@ -249,8 +249,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         cursor.execute(CREATE_DB_TABLE)
         self.data_index.commit()
 
-        # Add a task metric that counts how often this task ran
-        # and how long it took to complete.
+        # Add task metrics
         self.run_counter = self.add_task_metric("runs",
                                                 "Number of times task ran.",
                                                 unit="total")
@@ -259,7 +258,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                               "Time to process single run.",
                                               unit="seconds")
 
-        # Add additional metrics
         self.file_counter = self.add_task_metric("files",
                                                  "Number of files processed.",
                                                  unit="total")
@@ -268,14 +266,15 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                "Time to process single file.",
                                                unit="seconds")
 
-        self.fraction_masked_missing = self.add_task_metric(
+        # Add data metrics
+        self.fraction_masked_missing = self.add_data_metric(
                                                 "fraction_masked_missing",
                                                 "Fraction of data that is " +
                                                 "missing (e.g., dropped " +
                                                 "packets or down GPU nodes).",
                                                 labelnames=['stack'])
 
-        self.fraction_masked_before = self.add_task_metric(
+        self.fraction_masked_before = self.add_data_metric(
                                                 "fraction_masked_before",
                                                 "Fraction of data considered" +
                                                 "considered bad before " +
@@ -284,7 +283,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                 "static frequency mask.",
                                                 labelnames=['stack'])
 
-        self.fraction_masked_after = self.add_task_metric(
+        self.fraction_masked_after = self.add_data_metric(
                                                 "fraction_masked_after",
                                                 "Fraction of data considered" +
                                                 "considered bad after " +
