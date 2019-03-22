@@ -1,8 +1,4 @@
-"""
-=====================================================
-Generates RFI mask from the stacked autocorrelations.
-(:mod:`~dias.analyzers.flag_rfi_analyzer`)
-=====================================================
+"""Generates RFI mask from the stacked autocorrelations.
 
 .. currentmodule:: dias.analyzers.flag_rfi_analyzer
 
@@ -89,8 +85,105 @@ def _fraction_flagged(mask, axis=None, logical_not=False):
 class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """Identifies data contaminated by RFI.
 
-    Attributes
+    Wrapper for `ch_util.rfi.number_deviations`.  Flags data as RFI if the
+    stacked autocorrelations are greater than some number of local
+    median absolute deviations (MAD) from the local median.
+
+    Metrics
+    -------
+    dias_task_flag_rfi_runs_total
+    .............................
+    Number of times task ran.
+
+    dias_task_flag_rfi_run_time_seconds
+    ...................................
+    Time to process single run.
+
+    dias_task_flag_rfi_files_total
+    ..............................
+    Number of files processed.
+
+    dias_task_flag_rfi_file_time_seconds
+    .......................................
+    Time to process single file.
+
+    dias_task_flag_rfi_fraction_masked_missing
+    ..........................................
+    Fraction of data that is missing (e.g., dropped packets or down GPU nodes.)
+    Labels
+        stack : string of format `<POL>-<CYL>` that indicates the
+                polarisation POL and cylinder CYL of the feeds used to
+                construct the stacked autocorrelation.  The special value
+                `ALL` indicates all feeds.
+
+    dias_task_flag_rfi_fraction_masked_before
+    .........................................
+    Fraction of data considered bad before applying MAD threshold.  Includes
+    missing data and static frequency mask from `ch_util.rfi.frequency_mask`.
+    Labels:
+        stack : string of format `<POL>-<CYL>` that indicates the
+                polarisation POL and cylinder CYL of the feeds used to
+                construct the stacked autocorrelation.  The special value
+                `ALL` indicates all feeds.
+
+    dias_task_flag_rfi_fraction_masked_after
+    ........................................
+    Fraction of data considered bad after applying MAD threshold.  Includes
+    missing data, static frequency mask from `ch_util.rfi.frequency_mask`,
+    and MAD threshold mask.
+    Labels:
+        stack : string of format `<POL>-<CYL>` that indicates the
+                polarisation POL and cylinder CYL of the feeds used to
+                construct the stacked autocorrelation.  The special value
+                `ALL` indicates all feeds.
+
+    Output Data
     -----------
+
+    File naming
+    ...........
+    `<YYYYMMDD>T<HHMMSS>Z_chimestack_rfimask/<SSSSSSSS>.h5`
+        YYYYMMDD is the date and HHMMSS is the start time (in UTC) of
+        the underlying chimestack data acquisition from which the RFI
+        mask was derived.  SSSSSSSS is the number of seconds elapsed
+        between the start of the file and the start of the acquisition.
+
+    Indexes
+    .......
+    freq
+        Structured array containing the `centre` and `width` of the
+        frequency channels in MHz.
+    stack
+        Array containing strings of format `<POL>-<CYL>` that indicate the
+        polarisation POL and cylinder CYL of the feeds used to construct the
+        stacked autocorrelation.  The special value `ALL` indicates all feeds.
+    time
+        Array contaning the unix timestamp of the centre of the integration.
+
+    Datasets
+    .........
+    auto
+        3D array of type `float` with axes [`freq`, `stack`, `time`] that
+        contains the calibrated autocorrelations stacked over inputs.
+        Units are Jansky.
+    ndev
+        3D array of type `float` with axes [`freq`, `stack`, `time`] that
+        contains the number of local median absolute deviations of the
+        autocorrelations from the local median.
+    mask
+        3D array of type `bool` with axes [`freq`, `stack`, `time`] that
+        indicates data that is likely contamined by RFI.
+
+
+    State Data
+    ----------
+    None
+
+    Config Variables
+    ----------------
+
+    Attributes
+    ----------
     offset : str
         Process data this timedelta before current time.
     period : str
@@ -142,9 +235,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     threshold_mad = config.Property(proptype=float, default=6.0)
 
     def setup(self):
-        """Creates connection to data index database
-        and initializes Prometheus metrics.
-        """
+        """Initialize data index database and Prometheus metrics."""
         self.logger.info('Starting up. My name is %s and I am of type %s.' %
                          (self.name, __name__))
 
@@ -204,11 +295,12 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                 labelnames=['stack'])
 
     def run(self):
-        """Loads stacked autocorrelations from the last period,
-        generates rfi mask, writes it to disk, and updates the
+        """Run the task.
+
+        Load stacked autocorrelations from the last period,
+        generate rfi mask, write to disk, and update the
         data index database.
         """
-
         self.run_start_time = time.time()
 
         # Refresh the database
@@ -429,7 +521,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.run_timer.set(int(time.time() - self.run_start_time))
 
     def update_data_index(self, start, stop, filename=None):
-        """Update the data index database with a row that
+        """Add row to data index database.
+
+        Update the data index database with a row that
         contains the name of the file and the span of time
         the file contains.
 
@@ -463,11 +557,12 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             self.data_index.commit()
 
     def refresh_data_index(self):
-        """Remove any rows of the data index database
+        """Remove expired rows from the data index database.
+
+        Remove any rows of the data index database
         that correspond to files that have been cleaned
         (removed) by dias manager.
         """
-
         cursor = self.data_index.cursor()
         query = 'SELECT filename FROM files ORDER BY start'
         all_files = list(cursor.execute(query))
@@ -493,7 +588,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                   filename)
 
     def finish(self):
-        """Closes connection to data index database.
-        """
+        """Close connection to data index database."""
         self.logger.info('Shutting down.')
         self.data_index.close()
