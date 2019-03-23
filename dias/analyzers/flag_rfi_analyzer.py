@@ -18,13 +18,6 @@ Functions
     :toctree: generated/
 
 """
-# === Start Python 2/3 compatibility
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from future.builtins import *  # noqa  pylint: disable=W0401, W0614
-from future.builtins.disabled import *  # noqa  pylint: disable=W0401, W0614
-# === End Python 2/3 compatibility
-
 import os
 import time
 import datetime
@@ -91,23 +84,19 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_flag_rfi_runs_total
-    .............................
-    Number of times task ran.
-
-    dias_task_flag_rfi_run_time_seconds
+    dias_task_<task_name>_run_time_seconds
     ...................................
     Time to process single run.
 
-    dias_task_flag_rfi_files_total
+    dias_task_<task_name>_files_total
     ..............................
     Number of files processed.
 
-    dias_task_flag_rfi_file_time_seconds
+    dias_task_<task_name>_file_time_seconds
     .......................................
     Time to process single file.
 
-    dias_data_flag_rfi_fraction_masked_missing
+    dias_data_<task_name>_masked_missing_ratio
     ..........................................
     Fraction of data that is missing (e.g., dropped packets or down GPU nodes.)
 
@@ -117,7 +106,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             used to construct the stacked autocorrelation.
             The special value `ALL` indicates all feeds.
 
-    dias_data_flag_rfi_fraction_masked_before
+    dias_data_<task_name>_masked_before_ratio
     .........................................
     Fraction of data considered bad before applying MAD threshold.  Includes
     missing data and static frequency mask from `ch_util.rfi.frequency_mask`.
@@ -128,7 +117,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             used to construct the stacked autocorrelation.
             The special value `ALL` indicates all feeds.
 
-    dias_data_flag_rfi_fraction_masked_after
+    dias_data_<task_name>_masked_after_ratio
     ........................................
     Fraction of data considered bad after applying MAD threshold.  Includes
     missing data, static frequency mask from `ch_util.rfi.frequency_mask`,
@@ -148,7 +137,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     `<YYYYMMDD>T<HHMMSS>Z_chimestack_rfimask/<SSSSSSSS>.h5`
         YYYYMMDD and HHMMSS are the date and time (in UTC) of the start of
         the underlying chimestack data acquisition from which the RFI
-        mask was derived.  SSSSSSSS is the number of seconds elapsed
+        mask was derived. SSSSSSSS is the number of seconds elapsed
         between the start of the file and the start of the acquisition.
 
     Indexes
@@ -157,9 +146,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         1D structured array containing the `centre` and `width` of the
         frequency channels in MHz.
     stack
-        1D array containing strings of format `<POL>-<CYL>` that indicate the
-        polarisation and cylinder of the feeds used to construct the
-        stacked autocorrelation.  The special value `ALL` indicates all feeds.
+        1D array containing strings of format `<POL>-<CYL>` that indicate
+        the polarisation and cylinder of the feeds used to construct the
+        stacked autocorrelation. The special value `ALL` indicates all feeds.
     time
         1D array contaning the unix timestamps of the centre of the
         integrations.
@@ -190,8 +179,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     ----------
     offset : str
         Process data this timedelta before current time.
-    period : str
-        Cadence at which this analyzer is run.
     instrument : str
         Search archive for corr acquisitions from this instrument.
     max_num_file : int
@@ -202,6 +189,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         Generate RFI flags for all frequencies above this threshold.
     freq_high : float
         Generate RFI flags for all frequencies below this threshold.
+    separate_cyl_pol : bool
+        Construct a mask for each cylinder and polarisation in addition
+        to the mask for the entire array.
     apply_static_mask : bool
         Apply static mask obtained from `ch_util.rfi.frequency_mask`
         before computing statistics.
@@ -217,8 +207,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """
 
     # Config parameters related to scheduling
-    offset = config.Property(proptype=str2timedelta, default='10h')
-    period = config.Property(proptype=str2timedelta, default='6h')
+    offset = config.Property(proptype=str2timedelta, default='2h')
 
     # Config parameters defining data file selection
     instrument = config.Property(proptype=str, default='chimestack')
@@ -232,6 +221,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     freq_high = config.Property(proptype=float, default=800.0)
 
     # Config parameters for the rfi masking algorithm
+    separate_cyl_pol = config.Property(proptype=bool, default=False)
     apply_static_mask = config.Property(proptype=bool, default=True)
     freq_width = config.Property(proptype=float, default=10.0)
     time_width = config.Property(proptype=float, default=420.0)
@@ -243,6 +233,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Starting up. My name is %s and I am of type %s.' %
                          (self.name, __name__))
 
+        self.logger.info('Using ch_util at %s' % rfi.__file__)
         # Open connection to data index database
         # and create table if it does not exist
         db_file = os.path.join(self.write_dir, DB_FILE)
@@ -254,10 +245,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.data_index.commit()
 
         # Add task metrics
-        self.run_counter = self.add_task_metric("runs",
-                                                "Number of times task ran.",
-                                                unit="total")
-
         self.run_timer = self.add_task_metric("run_time",
                                               "Time to process single run.",
                                               unit="seconds")
@@ -271,31 +258,48 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                unit="seconds")
 
         # Add data metrics
-        self.fraction_masked_missing = self.add_data_metric(
-                                                "fraction_masked_missing",
+        self.masked_missing = self.add_data_metric(
+                                                "masked_missing",
                                                 "Fraction of data that is " +
                                                 "missing (e.g., dropped " +
                                                 "packets or down GPU nodes).",
-                                                labelnames=['stack'])
+                                                labelnames=['stack'],
+                                                unit="ratio")
 
-        self.fraction_masked_before = self.add_data_metric(
-                                                "fraction_masked_before",
-                                                "Fraction of data considered" +
+        self.masked_before = self.add_data_metric(
+                                                "masked_before",
+                                                "Fraction of data " +
                                                 "considered bad before " +
                                                 "applying MAD threshold.  " +
                                                 "Includes missing data and " +
                                                 "static frequency mask.",
-                                                labelnames=['stack'])
+                                                labelnames=['stack'],
+                                                unit="ratio")
 
-        self.fraction_masked_after = self.add_data_metric(
-                                                "fraction_masked_after",
-                                                "Fraction of data considered" +
+        self.masked_after = self.add_data_metric(
+                                                "masked_after",
+                                                "Fraction of data " +
                                                 "considered bad after " +
                                                 "applying MAD threshold.  " +
                                                 "Includes missing data, " +
-                                                "static frequency mask and " +
-                                                "MAD threshold mask.",
-                                                labelnames=['stack'])
+                                                "static frequency mask, " +
+                                                "and MAD threshold mask.",
+                                                labelnames=['stack'],
+                                                unit="ratio")
+
+        # Determine default achive attributes
+        tag = subprocess.check_output(["git", "-C", os.path.dirname(__file__),
+                                       "describe", "--always"]).strip()
+        host = subprocess.check_output(["hostname"]).strip()
+        user = subprocess.check_output(["id", "-u", "-n"]).strip()
+
+        self.output_attrs = {}
+        self.output_attrs['type'] = str(type(self))
+        self.output_attrs['git_version_tag'] = tag
+        self.output_attrs['collection_server'] = host
+        self.output_attrs['system_user'] = user
+        self.output_attrs['instrument_name'] = self.instrument
+        self.output_attrs['version'] = __version__
 
     def run(self):
         """Run the task.
@@ -321,16 +325,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                          datetime2str(start_time),  datetime2str(end_time)))
 
         # Use Finder to get the files to analyze
-        try:
-            finder = self.Finder()
-            finder.accept_all_global_flags()
-            finder.only_corr()
-            finder.filter_acqs(data_index.ArchiveInst.name == self.instrument)
-            finder.set_time_range(start_time, end_time)
-
-        except Exception as exc:
-            self.logger.info('No data found: %s' % exc)
-            return
+        finder = self.Finder()
+        finder.accept_all_global_flags()
+        finder.only_corr()
+        finder.filter_acqs(data_index.ArchiveInst.name == self.instrument)
+        finder.set_time_range(start_time, end_time)
 
         # Loop over acquisitions
         for aa, acq in enumerate(finder.acqs):
@@ -349,6 +348,22 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 self.logger.info("Now processing acquisition %s (%d files)" %
                                  (acq.name, nfiles))
 
+                # Determine the output acquisition name and make directory
+                epos = acq.name.find(self.instrument)+len(self.instrument)
+                output_acq = '_'.join([acq.name[:epos], self.output_suffix])
+                output_dir = os.path.join(self.write_dir, output_acq)
+
+                try:
+                    os.makedirs(output_dir)
+                except OSError:
+                    if not os.path.isdir(output_dir):
+                        raise
+
+                acq_start = ephemeris.datetime_to_unix(
+                                ephemeris.timestr_to_datetime(
+                                    output_acq.split('_')[0]))
+
+                # Get the correlator inputs active during this acquisition
                 inputmap = tools.get_correlator_inputs(
                                 ephemeris.unix_to_datetime(tstart),
                                 correlator='chime')
@@ -392,15 +407,6 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                      "to load autocorrelations.")
                     t0 = time.time()
 
-                    # Construct RFI mask for each cylinder/polarisation
-                    cyl_index, cyl_auto, cyl_ndev = rfi.number_deviations(
-                                    data,
-                                    stack=False,
-                                    apply_static_mask=self.apply_static_mask,
-                                    freq_width=self.freq_width,
-                                    time_width=self.time_width,
-                                    rolling=self.rolling)
-
                     # Construct RFI mask for stacked incoherent beam
                     index, auto, ndev = rfi.number_deviations(
                                     data,
@@ -410,49 +416,39 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                     time_width=self.time_width,
                                     rolling=self.rolling)
 
+                    stack = ['ALL']
+
+                    # Construct RFI mask for each cylinder/polarisation
+                    if self.separate_cyl_pol:
+
+                        cyl_index, cyl_auto, cyl_ndev = rfi.number_deviations(
+                                    data,
+                                    stack=False,
+                                    apply_static_mask=self.apply_static_mask,
+                                    freq_width=self.freq_width,
+                                    time_width=self.time_width,
+                                    rolling=self.rolling)
+
+                        stack += [POL_MAP[inputmap[ii].pol] + '-' +
+                                  CYL_MAP[inputmap[ii].cyl]
+                                  for ii in cyl_index]
+
+                        auto = np.concatenate((auto, cyl_auto), axis=1)
+                        ndev = np.concatenate((ndev, cyl_ndev), axis=1)
+
                     tspan = (time.time() - t0,)
                     self.logger.info("Took %0.1f seconds " % tspan +
                                      "to generate mask.")
 
-                    # Concatenate and define stack axis
-                    auto = np.concatenate((cyl_auto, auto), axis=1)
-                    ndev = np.concatenate((cyl_ndev, ndev), axis=1)
-
+                    # Construct various masks
                     mask_missing = auto > 0.0
                     mask_before = np.isfinite(ndev)
                     mask_after = ndev <= self.threshold_mad
 
-                    stack = [POL_MAP[inputmap[ii].pol] + '-' +
-                             CYL_MAP[inputmap[ii].cyl] for ii in cyl_index]
-                    stack.append('ALL')
-
-                    # Determine name of ouput file
-                    epos = acq.name.find(self.instrument)+len(self.instrument)
-                    output_acq = '_'.join([acq.name[:epos],
-                                           self.output_suffix])
-                    output_dir = os.path.join(self.write_dir, output_acq)
-
-                    try:
-                        os.makedirs(output_dir)
-                    except OSError:
-                        if not os.path.isdir(output_dir):
-                            raise
-
-                    acq_start = ephemeris.datetime_to_unix(
-                                    ephemeris.timestr_to_datetime(
-                                        output_acq.split('_')[0]))
-
+                    # Determine the output file name
                     seconds_elapsed = data.time[0] - acq_start
                     output_file = os.path.join(output_dir,
                                                "%08d.h5" % seconds_elapsed)
-
-                    # Determine default achive attributes
-                    tag = subprocess.check_output(
-                                            ["git", "-C",
-                                             os.path.dirname(__file__),
-                                             "describe", "--always"]).strip()
-                    host = subprocess.check_output(["hostname"]).strip()
-                    user = subprocess.check_output(["id", "-u", "-n"]).strip()
 
                     self.logger.info("Writing RFI mask to: %s" % output_file)
 
@@ -460,13 +456,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     with h5py.File(output_file, 'w') as handler:
 
                         # Set the default archive attributes
-                        handler.attrs['type'] = str(type(self))
-                        handler.attrs['git_version_tag'] = tag
-                        handler.attrs['collection_server'] = host
-                        handler.attrs['system_user'] = user
-                        handler.attrs['instrument_name'] = self.instrument
                         handler.attrs['acquisition_name'] = output_acq
-                        handler.attrs['version'] = __version__
+                        for key, val in self.output_attrs.items():
+                            handler.attrs[key] = val
 
                         # Create an index map
                         index_map = handler.create_group('index_map')
@@ -503,15 +495,15 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     self.file_timer.set(time_per_file)
 
                     for ss, lbl in enumerate(stack):
-                        self.fraction_masked_missing.labels(stack=lbl).set(
+                        self.masked_missing.labels(stack=lbl).set(
                                     _fraction_flagged(mask_missing[:, ss, :],
                                                       logical_not=True))
 
-                        self.fraction_masked_before.labels(stack=lbl).set(
+                        self.masked_before.labels(stack=lbl).set(
                                     _fraction_flagged(mask_before[:, ss, :],
                                                       logical_not=True))
 
-                        self.fraction_masked_after.labels(stack=lbl).set(
+                        self.masked_after.labels(stack=lbl).set(
                                     _fraction_flagged(mask_after[:, ss, :],
                                                       logical_not=True))
 
@@ -519,8 +511,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     del data
                     gc.collect()
 
-        # Increment run counter.
-        self.run_counter.inc()
+        # Set run timer
         self.run_timer.set(int(time.time() - self.run_start_time))
 
     def update_data_index(self, start, stop, filename=None):
@@ -548,16 +539,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             relpath = os.path.relpath(filename, self.write_dir)
 
         # Insert row for this file
-        try:
-            cursor = self.data_index.cursor()
-            cursor.execute("INSERT INTO files VALUES (?, ?, ?)",
-                           (dt_start, dt_stop, relpath))
+        cursor = self.data_index.cursor()
+        cursor.execute("INSERT INTO files VALUES (?, ?, ?)",
+                       (dt_start, dt_stop, relpath))
 
-        except Exception as ex:
-            self.log.error("Could not perform database insert: %s" % ex)
-
-        else:
-            self.data_index.commit()
+        self.data_index.commit()
 
     def refresh_data_index(self):
         """Remove expired rows from the data index database.
@@ -576,19 +562,12 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
-                try:
-                    cursor = self.data_index.cursor()
-                    query = 'DELETE FROM files WHERE filename = ?', (filename,)
-                    cursor.execute(query)
-
-                except Exception as ex:
-                    self.log.error("Could not perform database deletion: %s" %
-                                   ex)
-
-                else:
-                    self.data_index.commit()
-                    self.log.info("Removed %s from data index database." %
-                                  filename)
+                cursor = self.data_index.cursor()
+                query = 'DELETE FROM files WHERE filename = ?', (filename,)
+                cursor.execute(query)
+                self.data_index.commit()
+                self.log.info("Removed %s from data index database." %
+                              filename)
 
     def finish(self):
         """Close connection to data index database."""
