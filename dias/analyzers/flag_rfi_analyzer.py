@@ -85,11 +85,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     Metrics
     -------
     dias_task_<task_name>_run_time_seconds
-    ...................................
+    ......................................
     Time to process single run.
 
     dias_task_<task_name>_files_total
-    ..............................
+    .................................
     Number of files processed.
 
     dias_task_<task_name>_file_time_seconds
@@ -154,7 +154,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         integrations.
 
     Datasets
-    .........
+    ........
     auto
         3D array of type `float` with axes [`freq`, `stack`, `time`] that
         contains the calibrated autocorrelations stacked over inputs.
@@ -445,8 +445,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     mask_before = np.isfinite(ndev)
                     mask_after = ndev <= self.threshold_mad
 
-                    # Determine the output file name
-                    seconds_elapsed = data.time[0] - acq_start
+                    # Determine the output file name. Note that we use the
+                    # start of the first integration in the file to determine
+                    # the filename, rather than the center of the first
+                    # integration, so that the file names are consistent
+                    # between the rfimask and corr data.
+                    seconds_elapsed = (data.index_map['time']['ctime'][0] -
+                                       acq_start)
+
                     output_file = os.path.join(output_dir,
                                                "%08d.h5" % seconds_elapsed)
 
@@ -526,7 +532,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         start : unix time
             Earliest time contained in the file.
         stop : unix time
-            Latest time contanied in the file.
+            Latest time contained in the file.
         filename : str
             Name of the file.
         """
