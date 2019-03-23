@@ -569,8 +569,8 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                query = 'DELETE FROM files WHERE filename = ?', (filename,)
-                cursor.execute(query)
+                cursor.execute('DELETE FROM files WHERE filename = ?',
+                               (filename,))
                 self.data_index.commit()
                 self.log.info("Removed %s from data index database." %
                               filename)
