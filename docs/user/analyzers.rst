@@ -29,6 +29,14 @@ listed here.
 
    ThermalDataAnalyzer
 
+.. currentmodule:: dias.analyzers.find_jump_analyzer
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   FindJumpAnalyzer
+
 .. currentmodule:: dias.analyzers.test_analyzer
 
 .. autosummary::

@@ -1,6 +1,6 @@
 """Find jumps or steps in autocorrelations.
 
-.. currentmodule:: dias.analyzers.findjump_analyzer
+.. currentmodule:: dias.analyzers.find_jump_analyzer
 
 Classes
 =======
