@@ -104,17 +104,14 @@ def mod_max_finder(scale, coeff, search_span=0.5, threshold=None):
     scale : np.ndarray
         1D array of type `float` that contains the scale parameter of
         the wavelet in units of number of time samples.
-
     coeff : np.ndarray
         2D array of type `float` with axes `[scale, time]` that contains
         the wavelet transform of a 1D time series.
-
     search_span : float
         A time sample is considered a local maxima if the modulus of the
         wavelet transform is greater than all neighboring time samples
         within `search_span * scale` (note the search is done separately at
         each scale).
-
     threshold : float
         The modulus of the wavelet transform must be greater than this
         threshold in order to be considered a local maxima.
@@ -124,7 +121,6 @@ def mod_max_finder(scale, coeff, search_span=0.5, threshold=None):
     flag : np.ndarray
         2D array of type `bool` with axes `[scale, time]` that indicates
         the location of local maxima of the modulus of the wavelet transform.
-
     mod_max :
         2D array of type `float` with axes `[scale, time]` that contains
         the value of the modulus of the wavelet transform at the location
@@ -172,20 +168,16 @@ def finger_finder(scale, flag, mod_max, istart=3, do_fill=False):
     scale : np.ndarray
         1D array of type `float` that contains the scale parameter of
         the wavelet in units of number of time samples.
-
     flag : np.ndarray
         2D array of type `bool` with axes `[scale, time]` that indicates
         the location of local maxima of the modulus of the wavelet transform.
-
     mod_max :
         2D array of type `float` with axes `[scale, time]` that contains
         the value of the modulus of the wavelet transform at the location
         of local maxima and zero elsewhere.
-
     istart : int
         Do not use scales with index less than this value when
         finding fingers.
-
     do_fill : bool
         After finding the fingers, fill in their values at scales
         with index less than `istart`.
@@ -197,25 +189,20 @@ def finger_finder(scale, flag, mod_max, istart=3, do_fill=False):
         the index into the time axis where each candidate finger occurs
         at each scale.  The value -1 used to indicate that the finger does
         not exist at a particular scale.
-
     cmm : np.ndarray
         2D array of type `float` with axes `[scale, candidate]` containing
         the modulus maximum of the wavelet transform for each candidate
         finger at each scale.
-
     pdrift : np.ndarray
         1D array of type `float` with axis `[candidate]` containing the
         RMS over scales of the location of the local maximum relative too
         the location at the `istart` scale.  Units of number of time samples.
-
     start : np.ndarray
         1D array of type `int` with axis `[candidate]` containing the index
         of the minimum scale for each candidate finger.
-
     stop : np.ndarray
         1D array of type `int` with axis `[candidate]` containing the index
         of the maximum scale for each candidate finger.
-
     lbl : np.ndarray
         2D array of type `int` with axes `[scale, time]` that labels the
         candidate fingers with a unique integer that is the index into
