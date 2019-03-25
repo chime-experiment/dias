@@ -23,6 +23,42 @@ class Task:
     Tasks support rich comparison and ordering.  When comparing tasks, the task
     with the earlier `start_time` is sorted first.  If two tasks have the same
     `start_time`, they are sorted lexicographically by name.
+
+    Metrics
+    -------
+    dias_data_written_bytes
+    .......................
+    Total amount of data written by task. On the first run after start-up, it
+    counts data already present in the write directory. If files got deleted
+    due to disk space overage after task execution, they are counted anyways.
+
+    Labels
+        task : Task name.
+        directory : Either `state` or `write`.
+
+    dias_disk_space_bytes
+    .......................
+    Total amount of data on disk.
+
+    Labels
+        task : Task name.
+        directory : Either `state` or `write`.
+
+    dias_runs_total
+    ...............
+    Total amount of times a task ran. If the task crashed this is not
+    incremented.
+
+    Labels
+        task : Task name.
+
+    dias_failed_total
+    .................
+    Total amount of times a task failed. If a task crashes (throws an
+    exception), this is incremented.
+
+    Labels
+        task : Task name.
     """
 
     def __init__(self, task_name, task_config, write_dir, state_dir):
@@ -58,14 +94,19 @@ class Task:
                     'runs', 'Total times task ran.',
                     labelnames=['task'],
                     namespace='dias', unit='total')
+            task_metrics['failed'] = Counter(
+                'failed', 'Counts how often each task failed.',
+                labelnames=['task'], namespace='dias', unit='total')
 
         self.data_written_metric = task_metrics['data_written']
         self.disk_space_metric = task_metrics['disk_space']
         self.metric_runs_total = task_metrics['runs']
+        self.metric_failed_total = task_metrics['failed']
 
         # Initialize counter with zero. prometheus_client does not export a
         # value until the counter is incremented.
         self.metric_runs_total.labels(task=task_name).inc(0)
+        self.metric_failed_total.labels(task=task_name).inc(0)
 
         # Extract important stuff from the task config
         self.period = task_config['period']
@@ -172,6 +213,7 @@ class Task:
             self.analyzer.logger.error("Task failed: {}".format(e))
             result = "Failed"
             self.analyzer.logger.error(traceback.format_exc())
+            self.metric_failed_total.labels(task=self.name).inc()
         else:
             self.analyzer.logger.info(
                 "Shut-down; result: {0}".format(repr(result)))
