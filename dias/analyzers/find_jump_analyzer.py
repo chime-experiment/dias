@@ -480,11 +480,11 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """
 
     # Config parameters related to scheduling
-    offset = config.Property(proptype=str2timedelta, default='10h')
+    offset = config.Property(proptype=str2timedelta, default='2h')
 
     # Config parameters defining data file selection
     instrument = config.Property(proptype=str, default='chimecal')
-    max_num_file = config.Property(proptype=int, default=20)
+    max_num_file = config.Property(proptype=int, default=50)
 
     # Config parameters defining output data product
     output_suffix = config.Property(proptype=str, default='jumps')
@@ -510,7 +510,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     # Config parameters for the jump finding algorithm
     wavelet_name = config.Property(proptype=str, default='gaus5')
-    threshold = config.Property(proptype=float, default=0.50)
+    threshold = config.Property(proptype=float, default=0.25)
     search_span = config.Property(proptype=float, default=0.5)
     psigma_max = config.Property(proptype=float, default=20.0)
     min_rise = config.Property(proptype=int, default=31)
