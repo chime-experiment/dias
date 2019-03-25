@@ -297,10 +297,12 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """Finds jumps or steps in the autocorrelations.
 
     Searches the autocorrelation of each input at some (user specified)
-    subset of frequencies for jumps or step-like features.  The jump finding
-    algorithm applys a continuous wavelet transform to the autocorrelations
-    using an asymmetric wavelet and then finds times that are local maxima
-    of the modulus of the wavelet transform across scales (wavelet widths).
+    subset of frequencies for jumps or step-like features.  Calculates
+    the continuous wavelet transform of the autocorrelations using an
+    asymmetric wavelet and then finds times that are local maxima of
+    the modulus of the wavelet transform over a range of time scales.
+    See "Singularity Detection and Processing with Wavelets" by
+    Stephane Mallat and Wen Liang Hwang for more information.
 
     Metrics
     -------
