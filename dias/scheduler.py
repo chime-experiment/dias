@@ -5,7 +5,7 @@ import threading
 import time
 from dias import Job, TaskQueue, DiasConcurrencyError
 from dias.utils import timestamp2str
-from prometheus_client import make_wsgi_app
+from prometheus_client import make_wsgi_app, Counter
 from wsgiref.simple_server import make_server
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
@@ -58,6 +58,16 @@ class Scheduler:
 
     Puts tasks in a queue and runs them one by one when told. Also calls finish
     method of tasks.
+
+    Metrics
+    -------
+    dias_timeouts_total
+    ...................
+    Counter for task timeouts. When a task is still running when rescheduled,
+    this is incremented.
+
+    Labels
+        task : Task name.
     """
 
     def __init__(self, config):
@@ -70,6 +80,11 @@ class Scheduler:
             dias configuration. Expected to contain the `log_level` and
             `prometheus_client_port`.
         """
+        self.metric_timeout = Counter(
+            'timeouts', 'Counter for task timeouts. Incremented if a task is '
+                        'still running when rescheduled.', labelnames=['task'],
+            namespace='dias', unit='total')
+
         self.config = config
         self.jobs = list()
 
@@ -103,6 +118,9 @@ class Scheduler:
                     reference_time,
                     log_level_override=self.config['log_level_override'],
                     start_now=self.config['start_now'])
+
+            # Increment counter metric with 0 for it to start existing.
+            self.metric_timeout.labels(task=task.name).inc(0)
 
         # Create the tasks queue
         self.queue = TaskQueue(self.config.tasks)
@@ -147,6 +165,7 @@ class Scheduler:
             self.logger.warning(
                     "Job running long.  "
                     "Skipping execution of task {0}".format(task.name))
+            self.metric_timeout.labels(task=task.name).inc()
 
         # Re-schedule the task for next time
         task.increment()
