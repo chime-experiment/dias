@@ -78,7 +78,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "source smaller than 2)", labelnames=['source'], unit='total')
         self.percent_metric = self.add_data_metric(
             "bad_feeds",
-             "how many feeds in percent are bad (position residuals are greater than 5 sigma / 1.5m) ", labelnames=['freq'], unit='percent')
+             "how many feeds in percent are bad (position residuals are greater than {} sigma / {} m) ".format(
+             N_SIGMA, N_SIGMA * STD), labelnames=['freq'], unit='percent')
 
         # initialize resid source metric
         for source in sources:
@@ -162,8 +163,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             # residuals range around 0.3m. In a single feedposition analysis
             # normally no more than 2 percent of feeds lie outside of 5 sigma.
             for i in range(len(freq_sel)):
-                nbad_feeds = np.sum(np.logical_or(residuals[i, :] > 5*STD,
-                                                  residuals[i, :] < - 5*STD))
+                nbad_feeds = np.sum(np.logical_or(residuals[i, :] > N_SIGMA*STD,
+                                                  residuals[i, :] < - N_SIGMA*STD))
                 percent_bad_feeds = nbad_feeds / float(NINPUT)
                 self.logger.info('{} percent ({}) of the feeds are outside of {}'
                                  + 'sigma ({} * {}) around the expected feedpositions.'.format(
