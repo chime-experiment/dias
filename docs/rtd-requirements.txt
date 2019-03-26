@@ -1,10 +1,17 @@
--e git+https://github.com/radiocosmology/caput#egg=caput
+# Stub ch_util for readthedocs & travisCI
 -e git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
+
+# From requirements.txt
+-e git+https://github.com/radiocosmology/caput#egg=caput
 prometheus_client>=0.5.0
-sphinx_automodapi
-numpydoc
 pyyaml
 scipy
+numpy
+h5py
+
+# Documentation
 recommonmark
 pydocstyle
 sphinx_rtd_theme
+sphinx_automodapi
+numpydoc
