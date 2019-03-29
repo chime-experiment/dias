@@ -5,3 +5,5 @@ h5py
 pywavelets
 pyyaml
 scipy
+numpy
+h5py
