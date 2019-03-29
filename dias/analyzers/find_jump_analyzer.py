@@ -440,7 +440,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     ignore_sun : bool
         Ignore times near solar transit.
     ignore_point_sources : bool
-        Ignore times near the transit of the four brightest point sources.
+        Ignore times near the transit of the two brightest point sources.
     transit_window : float
         Window in seconds around solar and point source transits to ignore
         if the `ignore_sun` or `ignore_point_sources` config variables are set.
@@ -512,7 +512,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     # Config parameters for the jump finding algorithm
     wavelet_name = config.Property(proptype=str, default='gaus5')
-    threshold = config.Property(proptype=float, default=0.25)
+    threshold = config.Property(proptype=float, default=0.15)
     search_span = config.Property(proptype=float, default=0.5)
     psigma_max = config.Property(proptype=float, default=20.0)
     min_rise = config.Property(proptype=int, default=31)
@@ -602,6 +602,13 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.output_attrs['system_user'] = user
         self.output_attrs['instrument_name'] = self.instrument
         self.output_attrs['version'] = __version__
+
+        # Save important algorithm parameters to output file attributes
+        params = ['wavelet_name', 'threshold', 'search_span', 'psigma_max',
+                  'min_rise', 'log_scale', 'min_scale', 'max_scale',
+                  'num_scale']
+        for par in params:
+            self.output_attrs[par] = getattr(self, par)
 
         # Specify datasets to load
         self.datasets = ['vis']
@@ -880,7 +887,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                              window=self.transit_window)
 
                 if self.ignore_point_sources:
-                    for ss in ["CYG_A", "CAS_A", "TAU_A", "VIR_A"]:
+                    for ss in ["CYG_A", "CAS_A"]:
                         tquiet &= ~_flag_transit(ss, this_time,
                                                  window=self.transit_window)
 
