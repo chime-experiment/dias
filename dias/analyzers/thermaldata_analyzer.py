@@ -5,11 +5,11 @@ Analyzer to check the integrity of data related to the thermal modeling of
 CHIME complex gain.
 """
 
-
 from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config
 from dias.utils import str2timedelta
+from dias import exception
 import numpy as np
 
 # Constant
@@ -104,38 +104,45 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         f.accept_all_global_flags()
 
         results_list = f.get_results()
-        # I only use the first acquisition found
-        result = results_list[0]
-        read = result.as_reader()
-        prods = read.prod
-        freq = read.freq['centre']
-        ntimes = len(read.time)
-        time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
-                                   endpoint=False, dtype=int)
+        if len(results_list) > 0:
+            # I only use the first acquisition found
+            result = results_list[0]
+            read = result.as_reader()
+            prods = read.prod
+            freq = read.freq['centre']
+            ntimes = len(read.time)
+            time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
+                                       endpoint=False, dtype=int)
 
-        # Determine prod_sel
-        prod_sel = []
-        for ii in range(ncables):
-            chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
-            pidx = np.where(
-                      np.logical_or(
-                         np.logical_and(prods['input_a'] == ref_id,
-                                        prods['input_b'] == chan_id),
-                         np.logical_and(prods['input_a'] == chan_id,
-                                        prods['input_b'] == ref_id)))[0][0]
-            prod_sel.append(pidx)
+            # Determine prod_sel
+            prod_sel = []
+            for ii in range(ncables):
+                chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
+                pidx = np.where(
+                          np.logical_or(
+                             np.logical_and(prods['input_a'] == ref_id,
+                                            prods['input_b'] == chan_id),
+                             np.logical_and(prods['input_a'] == chan_id,
+                                            prods['input_b'] == ref_id)))[0][0]
+                prod_sel.append(pidx)
 
-        # Load data
-        data = result.as_loaded_data(prod_sel=np.array(prod_sel))
-        phases = np.angle(data.vis)
+            # Load data
+            data = result.as_loaded_data(prod_sel=np.array(prod_sel))
+            phases = np.angle(data.vis)
 
-        # Perform the fits
-        for cc in range(ncables):
-            prms = self._get_fits(time_indices, phases[:, cc, :], freq)
-            for tt in range(len(prms)):
-                # First parameter is the slope
-                delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
-                self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+            # Perform the fits
+            for cc in range(ncables):
+                prms = self._get_fits(time_indices, phases[:, cc, :], freq)
+                for tt in range(len(prms)):
+                    # First parameter is the slope
+                    delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
+                    self.delay.labels(
+                        chan_id=self.loop_ids[cc]).set(delay_temp)
+        else:
+            msg = "Could not find any 'chimetiming' data between {0} and {1}"
+            msg = msg.format(start_time.strftime("%m/%d/%Y-%H:%M:%S"),
+                             end_time.strftime("%m/%d/%Y-%H:%M:%S"))
+            raise exception.DiasDataError(msg)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
         """Find the longest stretch of frequencies without phase wrapping.
