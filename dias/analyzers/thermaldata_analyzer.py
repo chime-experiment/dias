@@ -136,7 +136,8 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 for tt in range(len(prms)):
                     # First parameter is the slope
                     delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
-                    self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+                    self.delay.labels(
+                        chan_id=self.loop_ids[cc]).set(delay_temp)
         else:
             msg = "Could not find any 'chimetiming' data between {0} and {1}"
             msg = msg.format(start_time.strftime("%m/%d/%Y-%H:%M:%S"),
