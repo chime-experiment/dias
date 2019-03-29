@@ -46,3 +46,20 @@ class DiasConcurrencyError(DiasException):
 
     Raised when the scheduler tries to start a task that is already running.
     """
+
+
+class DiasDataError(DiasException):
+    """
+    Exception raised for data errors.
+
+    This is thrown when there is an error in loading or pre-processing
+    data for the analyser.
+
+    Parameters
+    ----------
+    message : String
+        Explanation of the error.
+    """
+
+    def __init__(self, message):
+        self.message = message
