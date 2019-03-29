@@ -663,9 +663,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                    ORDER BY start'''
         results = list(cursor.execute(query, (0, start_time, end_time)))
 
-        for res in results:
-            self.logger.info(str(res))
-
         acquisitions = sorted(list(set([os.path.dirname(res[0])
                                         for res in results])))
 
@@ -1203,10 +1200,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 cursor.execute('DELETE FROM files WHERE (filename = ?)',
                                (relpath,))
                 self.archive_index.commit()
-
-                msg = ("Removed %s from archive database (status %d)." %
-                       (relpath, result[1]))
-                self.logger.info(msg)
 
         # Add all remaining files to the database with status not processed
         for filename in all_files:
