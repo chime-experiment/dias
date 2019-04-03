@@ -22,6 +22,7 @@ from collections import defaultdict
 from ch_util import andata
 from ch_util import tools
 from ch_util import ephemeris
+from dias import exception
 
 
 class SensitivityAnalyzer(CHIMEAnalyzer):
@@ -43,10 +44,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     cyl_start_char  = config.Property(proptype=int,  default=65)
     cyl_start_num   = config.Property(proptype=int,  default=2)
 
-    def setup(self):
-        """Setup stage: this is called when dias starts up."""
-        self.logger.info('Started computation of telescope sensitvity...')
-
     def run(self):
         """Main task stage: analyze data from the last period.
         """
@@ -63,8 +60,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         all_files = file_list[0][0]
         
         if not all_files:
-            self.logger.error("No files match your search criteria. Exiting...")
-            return
+            err_msg = 'No {} files found from last {}.'.format(self.acq_suffix, self.period)
+            self.logger.error(err_msg)
+            raise exception.DiasDataError(msg)
+
+        self.logger.info('Calculating sensitivity from %s to %s' % (str(start_time), str(stop_time)))
 
         #Get Unix time for the start time for timestamp
         time_tuple      = start_time.timetuple()
