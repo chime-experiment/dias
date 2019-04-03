@@ -144,12 +144,13 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         time_tuple      = start_time.timetuple()
         start_time_unix = calendar.timegm(time_tuple)
         timestamp0      = start_time_unix
+        
+        # Look up inputmap
+        inputmap   = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
+                                                   correlator=self.correlator)
             
         for files in all_files:
         
-            # Look up inputmap
-            inputmap   = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
-                                                   correlator=self.correlator)
             # Load index map and reverse map
             data       = andata.CorrData.from_acq_h5(files, 
                                                datasets=['reverse_map', 'flags/inputs'],
@@ -317,9 +318,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             conj[key] = np.nonzero(np.ravel(conj[key]))[0] 
             cyl[key] = np.array(cyl[key])
             scale[key] = np.array(scale[key])
-            
-            print("Pol %s:  %d (of %d) prod do not have unit scale factor." % 
-                        (key, np.sum(scale[key] != 1.0), scale[key].size))
             
         tools.change_chime_location(default=True)
                 
