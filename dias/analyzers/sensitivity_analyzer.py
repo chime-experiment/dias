@@ -78,6 +78,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Config Variables
     -----------------------
+
+    Attributes
+    -----------
     correlator : str
         Source of the input data       
     output_suffix : str 
@@ -86,6 +89,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         Type of dataset to be read
     nfreq_per_block : int
         number of frequency channels to be run in one block
+        loading all frequency channels at the same time leads to memory error
     include_auto : bool 
         option to include autocorrelation
     include_intracyl : bool
@@ -98,12 +102,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         Starting character for the cylinders (ASCII)
     cyl_start_num :  int
         Offset for CHIME cylinders (due to inital numbers allotted to pathfinder) 
-
-    Attributes
-    -----------
-    get_cyl : char
-        Get cylinder ID.
-
+    lag : timedelta
+        Number of hours before time of script execution for searching the files
     """
     correlator      = config.Property(proptype=str,   default='chime')
     output_suffix   = config.Property(proptype=str,   default='sensitivity')
@@ -116,11 +116,12 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     sep_cyl         = config.Property(proptype=bool,  default=False)
     cyl_start_char  = config.Property(proptype=int,  default=65)
     cyl_start_num   = config.Property(proptype=int,  default=2)
+    lag             = config.Property(proptype=str2timedelta, default="4h")
 
     def run(self):
         """Main task stage: analyze data from the last period.
         """
-        stop_time  = datetime.utcnow()  
+        stop_time  = datetime.utcnow() - self.lag 
         start_time = stop_time - self.period #Query files from now to period hours back 
 
         # Find all calibration files
