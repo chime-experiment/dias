@@ -28,7 +28,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     """SensitivityAnalyzer.
     This subclass of dias.analyzer.Analyzer describes the analyzer.
     """
-    acq_dir         = config.Property(proptype=str,   default='/mnt/gong/archive')
     period          = config.Property(proptype=str,  default="24h")
     start_time      = config.Property(proptype=str,   default='2018-01-03 17:13:13')
 
@@ -51,8 +50,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     def run(self):
         """Main task stage: analyze data from the last period.
         """
-        # Setup logging
-
         stop_time  = datetime.utcnow()  
         start_time = stop_time - str2timedelta(self.period) #Query files from now to period hours back 
 
