@@ -30,7 +30,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     This subclass of dias.analyzer.Analyzer describes the analyzer.
     """
     period          = config.Property(proptype=str,  default="24h")
-    start_time      = config.Property(proptype=str,   default='2018-01-03 17:13:13')
 
     correlator      = config.Property(proptype=str,   default='chime')
     output_suffix   = config.Property(proptype=str,   default='sensitivity')
@@ -168,6 +167,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 handler.attrs['git_version_tag'] = subprocess.check_output(["git", "-C", 
                                                                             os.path.dirname(__file__), 
                                                                             "describe", "--always"]).strip()
+            self.logger.info('File successfully written out.')
 
     def get_baselines(self, indexmap, inputmap):
         
@@ -252,7 +252,3 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     def get_cyl(self, cyl_num):
         return chr(cyl_num - self.cyl_start_num + self.cyl_start_char)
-
-    def finish(self):
-        """Final stage: this is called when dias shuts down."""
-        self.logger.info('Shutting down.')
