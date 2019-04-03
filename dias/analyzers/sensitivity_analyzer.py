@@ -27,10 +27,84 @@ from dias import exception
 
 class SensitivityAnalyzer(CHIMEAnalyzer):
     """SensitivityAnalyzer.
-    This subclass of dias.analyzer.Analyzer describes the analyzer.
-    """
-    period          = config.Property(proptype=str,  default="24h")
 
+    Analyzer for telescope sensitivity.
+
+    Metrics
+    ----------
+    None
+
+    Output Data
+    -----------------
+    h5 file, containing noise rms (Jy), averaged over all feeds for each polarization, as a function of frequency and time.
+    The input file is the chime stacked dataset.
+
+    File naming
+    ..........................
+    <TIME>_<output_suffix>.h5
+    `TIME` is a unix timestamp of the beginning of the time window data is analyzed from in this task run and 
+    `output_suffix` is the value of the config variable with the same name.
+
+    Indexes
+    .............
+    freq
+        Frequency indexes.
+    pol
+        Two polarizations for the feeds, index 0 is E-W polarization and index 1 is N-S polarization.
+    time
+        Unix time at which data is recorded.
+
+    Datasets
+    ...................
+    rms
+        Noise rms, computed from the fast cadence data, as a function of frequency and time.
+    count
+        Normalization to the summed and weighted noise variance.
+
+    Attributes
+    ..................
+    instrument_name
+        Correlator for the acquired (chime).
+    collection_server
+        Machine at which the script is run.
+    system_user
+        User account running the script.
+    git_version_tag
+        Version of code used.
+
+    State Data
+    -----------
+    None
+
+    Config Variables
+    -----------------------
+    correlator : str
+        Source of the input data       
+    output_suffix : str 
+        Suffix for the output file
+    acq_suffix  : str
+        Type of dataset to be read
+    nfreq_per_block : int
+        number of frequency channels to be run in one block
+    include_auto : bool 
+        option to include autocorrelation
+    include_intracyl : bool
+        option in include intracylinder baselines
+    include_crosspol : bool
+        option to include crosspol data
+    sep_cyl : bool
+        option to preserve cylinder pairs
+    cyl_start_char : int
+        Starting character for the cylinders (ASCII)
+    cyl_start_num :  int
+        Offset for CHIME cylinders (due to inital numbers allotted to pathfinder) 
+
+    Attributes
+    -----------
+    get_cyl : char
+        Get cylinder ID.
+
+    """
     correlator      = config.Property(proptype=str,   default='chime')
     output_suffix   = config.Property(proptype=str,   default='sensitivity')
     acq_suffix      = config.Property(proptype=str,   default='stack_corr')
@@ -47,7 +121,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         """Main task stage: analyze data from the last period.
         """
         stop_time  = datetime.utcnow()  
-        start_time = stop_time - str2timedelta(self.period) #Query files from now to period hours back 
+        start_time = stop_time - self.period #Query files from now to period hours back 
 
         # Find all calibration files
         f = self.Finder()
