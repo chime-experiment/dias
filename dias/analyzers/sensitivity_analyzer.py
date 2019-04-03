@@ -76,8 +76,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             
         for files in all_files:
         
-            t0 = time.time()
-            
             # Look up inputmap
             inputmap   = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
                                                    correlator=self.correlator)
@@ -100,8 +98,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             polstr = np.array(sorted(prod.keys()))
             npol   = polstr.size
             
-            t0 = time.time()
-            
             # Calculate counts
             cnt = np.zeros((data.index_map['stack'].size, ntime), dtype=np.float32)
             
@@ -112,7 +108,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 for ss, val in Counter(data.reverse_map['stack']['stack'][:]).iteritems():
                     cnt[ss, :] = val
             
-            self.logger.info("Took %0.1f seconds to get the counts" % (time.time() - t0))
 
             # Initialize arrays
             var 	= np.zeros((nfreq, npol, ntime), dtype=np.float32)
@@ -120,8 +115,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Loop over frequency blocks
             for block_number in range(nblock):
-        
-                t0 = time.time()
         
                 fstart   = block_number * self.nfreq_per_block
                 fstop    = min((block_number + 1) * self.nfreq_per_block, nfreq)
@@ -133,14 +126,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                                                     datasets=['flags/vis_weight'],
                                                     apply_gain=False, renormalize=False)
 
-                t0       = time.time()
                 bflag    = (bdata.weight[:] > 0.0).astype(np.float32)
                 bvar     = tools.invert_no_zero(bdata.weight[:])
                 
                 # Loop over polarizations
                 for ii, pol in enumerate(polstr):
-
-                    self.logger.info("Processing Pol %s" % pol)
 
                     pvar   = bvar[:, prod[pol], :]
                     pflag  = bflag[:, prod[pol], :]
@@ -150,8 +140,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     var[freq_sel, ii, :]     += np.sum((pscale * pcnt)**2 * pflag * pvar, axis=1)
                     counter[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag, axis=1)
 
-                self.logger.info("Took %0.1f seconds to process this block." % (time.time() - t0))
-                
                 del bdata
                 gc.collect()
             
