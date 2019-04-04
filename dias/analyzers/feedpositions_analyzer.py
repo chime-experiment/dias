@@ -1,5 +1,5 @@
 """A CHIME analyzer to calculate the East-West feed positions."""
-from dias import CHIMEAnalyzer
+from dias import CHIMEAnalyzer, DiasConfigError
 from datetime import datetime
 from caput import config, time
 from dias.utils.string_converter import datetime2str
@@ -20,11 +20,12 @@ freq_sel = [
         597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
         ]
 # Brightest sources. VirA does not have enough S/N.
-sources = {
-        'CAS_A': ephemeris.CasA,
-        'CYG_A': ephemeris.CygA,
-        'TAU_A': ephemeris.TauA,
-        }
+SOURCES = {
+    'CAS_A': ephemeris.CasA,
+    'CYG_A': ephemeris.CygA,
+    'TAU_A': ephemeris.TauA,
+    'VIR_A': ephemeris.VirA,
+}
 
 # number of inputs in CHIME
 NINPUT = 2048
@@ -114,6 +115,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     ref_feed_P1 = config.Property(proptype=int, default=2)
     ref_feed_P2 = config.Property(proptype=int, default=258)
     pad_fac_EW = config.Property(proptype=int, default=256)
+    sources = config.Property(proptype=list)
 
     def setup(self):
         """
@@ -121,9 +123,6 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         Creates metrics.
         """
-        self.logger.info(
-                'Starting up. My name is ' + self.name +
-                ' and I am of type ' + __name__ + '.')
         self.resid_metric = self.add_task_metric(
             "ew_pos_residuals_analyzer_run",
             "feedposition task run counter for specific source",
@@ -133,8 +132,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "how many frequencies out of 10 were good (EV ratio on vs off "
             "source smaller than 2)", labelnames=['source'], unit='total')
 
+        self.logger.info('Sources: {}'.format(self.sources))
+        try:
+            self.ssources = {s: SOURCES[s] for s in self.sources}
+        except KeyError as e:
+            raise DiasConfigError('Invalid source: {}'.format(e))
+
         # initialize resid source metric
-        for source in sources:
+        for source in self.ssources:
             self.resid_metric.labels(source=source).set(0)
 
     def run(self):
@@ -158,9 +163,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         night_transits = []
 
         # Check which of these sources transit at night
-        for src in sources.keys():
+        for src in self.ssources.keys():
             transit = ephemeris.transit_times(
-                    sources[src], self.start_time_night, self.end_time_night)
+                    self.ssources[src], self.start_time_night,
+                    self.end_time_night)
             src_ra, src_dec = ephemeris.object_coords(
                     fluxcat.FluxCatalog[src].skyfield,
                     date=self.start_time_night, deg=True)
@@ -233,7 +239,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         f.set_time_range(self.start_time_night, self.end_time_night)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimecal'))
         f.accept_all_global_flags()
-        f.include_transits(sources[src], time_delta=800.)
+        f.include_transits(self.ssources[src], time_delta=800.)
 
         results_list = f.get_results()
 
