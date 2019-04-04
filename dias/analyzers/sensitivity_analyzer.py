@@ -148,7 +148,16 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         # Look up inputmap
         inputmap   = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
                                                    correlator=self.correlator)
-            
+        
+        #Read a sample file for getting index map
+        file_sample = all_files[0]
+        data        = andata.CorrData.from_acq_h5(file_sample, 
+                                               datasets=['reverse_map', 'flags/inputs'],
+                                               apply_gain=False, renormalize=False)
+
+        # Get baselines
+        prod, prodmap, dist, conj, cyl, scale = self.get_baselines(data.index_map, inputmap)
+        
         for files in all_files:
         
             # Load index map and reverse map
@@ -163,8 +172,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             timestamp = data.time
             ntime     = timestamp.size
 
-            # Get baselines
-            prod, prodmap, dist, conj, cyl, scale = self.get_baselines(data.index_map, inputmap)
 
             # Determine groups
             polstr = np.array(sorted(prod.keys()))
