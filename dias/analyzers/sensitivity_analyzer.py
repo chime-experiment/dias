@@ -42,8 +42,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     File naming
     ..........................
     <TIME>_<output_suffix>.h5
-    `TIME` is a unix timestamp of the beginning of the time window data is analyzed from in this task run and 
+    `TIME` is a unix timestamp of the first time record in each file and 
     `output_suffix` is the value of the config variable with the same name.
+     Output file is created for each input file read. 
 
     Indexes
     .............
@@ -193,7 +194,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             counter = np.zeros((nfreq, npol, ntime), dtype=np.float32)
 
             # Loop over frequency blocks
-            for block_number in range(nblock):
+            for index_0, block_number in enumerate(range(nblock)):
         
                 fstart   = block_number * self.nfreq_per_block
                 fstop    = min((block_number + 1) * self.nfreq_per_block, nfreq)
@@ -204,6 +205,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 bdata    = andata.CorrData.from_acq_h5(files, freq_sel=freq_sel,
                                                     datasets=['flags/vis_weight'],
                                                     apply_gain=False, renormalize=False)
+
+                if(not(index_0)):   timestamp_file = int(bdata.time[0]) #extract the first time of the record from the first block, used in output file
 
                 bflag    = (bdata.weight[:] > 0.0).astype(np.float32)
                 bvar     = tools.invert_no_zero(bdata.weight[:])
@@ -228,7 +231,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Write to file
             output_file = os.path.join(self.write_dir, "%d_%s.h5" % 
-                                      (timestamp0, self.output_suffix))
+                                      (timestamp_file, self.output_suffix))
             self.logger.info("Writing output file...")
             
             with h5py.File(output_file, 'w') as handler:
