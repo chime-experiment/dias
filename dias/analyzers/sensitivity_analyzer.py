@@ -72,8 +72,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     count
         Normalization to the summed and weighted noise variance.
 
-    Attributes
-    ..................
+    Attributes for output dataset
+    .............................
     instrument_name
         Correlator for the acquired (chime).
     collection_server
@@ -91,7 +91,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     -----------------------
 
     Attributes
-    -----------
+    ----------
     correlator : str
         Source of the input data
     output_suffix : str
