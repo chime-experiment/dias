@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+"""
+dias, a data integrity analysis system.
+
+``dias`` lives on
+`GitHub <https://github.com/chime-experiment/dias>`_.
+"""
+
 
 import dias
 import os

@@ -1,3 +1,7 @@
 -e git+https://github.com/radiocosmology/caput#egg=caput
 -e git+ssh://git@bitbucket.org/chime/ch_util.git#egg=ch_util
 prometheus_client>=0.5.0
+pyyaml
+scipy
+numpy
+h5py
