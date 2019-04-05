@@ -36,10 +36,12 @@ NPOL = 2
 NCYL = 4
 # number of eigenvalues to keep
 N_EVAL = 2
-# Standard deviation of feed position residuals derived from data analysis of 11 files with 10 frequencies each
+# Standard deviation of feed position residuals derived from
+# data analysis of 11 files with 10 frequencies each
 STD = 0.3
 # Threshold for bad feeds
 N_SIGMA = 5
+
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
     """A CHIME analyzer to calculate the East-West feed positions from the
@@ -78,8 +80,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "source smaller than 2)", labelnames=['source'], unit='total')
         self.percent_metric = self.add_data_metric(
             "bad_feeds",
-             "how many feeds in percent are bad (position residuals are greater than {} sigma / {} m) ".format(
-             N_SIGMA, N_SIGMA * STD), labelnames=['freq'], unit='percent')
+            "how many feeds in percent are bad(position residuals are greater "
+            + "than {} sigma / {} m)".format(N_SIGMA, N_SIGMA * STD),
+            labelnames=['freq'], unit='percent')
 
         # initialize resid source metric
         for source in sources:
@@ -168,7 +171,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 percent_bad_feeds = nbad_feeds / float(NINPUT)
                 self.logger.info('{} percent ({}) of the feeds are outside of {}'
                                  + 'sigma ({} * {}) around the expected feedpositions.'.format(
-                                 percent_bad_feeds, nbad_feeds, N_SIGMA, N_SIGMA, STD))
+                                    percent_bad_feeds, nbad_feeds, N_SIGMA, N_SIGMA, STD))
                 # Export bad feeds percentage to prometheus.
                 self.precent_metric.labels(
                     freq=np.round(freq_sel[i], 0)).set(percent_bad_feeds)
