@@ -19,7 +19,8 @@ freq_sel = [
         758.203125,  716.406250,  697.656250,  665.625000,  633.984375,
         597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
         ]
-# Brightest sources. VirA does not have enough S/N.
+
+# Brightest sources. VirA maybe does not have enough S/N. Dictionary for ephemeris sources:
 SOURCES = {
     'CAS_A': ephemeris.CasA,
     'CYG_A': ephemeris.CygA,
@@ -115,6 +116,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     ref_feed_P1 = config.Property(proptype=int, default=2)
     ref_feed_P2 = config.Property(proptype=int, default=258)
     pad_fac_EW = config.Property(proptype=int, default=256)
+
+    # Configurable list of sources to select.
     sources = config.Property(proptype=list)
 
     def setup(self):
@@ -133,13 +136,15 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "source smaller than 2)", labelnames=['source'], unit='total')
 
         self.logger.info('Sources: {}'.format(self.sources))
+
+        # Select the configured sources from the hardcoded dictionary of ephemeris sources.
         try:
-            self.ssources = {s: SOURCES[s] for s in self.sources}
+            self.sel_sources = {s: SOURCES[s] for s in self.sources}
         except KeyError as e:
             raise DiasConfigError('Invalid source: {}'.format(e))
 
         # initialize resid source metric
-        for source in self.ssources:
+        for source in self.sel_sources:
             self.resid_metric.labels(source=source).set(0)
 
     def run(self):
@@ -163,9 +168,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         night_transits = []
 
         # Check which of these sources transit at night
-        for src in self.ssources.keys():
+        for src in self.sel_sources.keys():
             transit = ephemeris.transit_times(
-                    self.ssources[src], self.start_time_night,
+                    self.sel_sources[src], self.start_time_night,
                     self.end_time_night)
             src_ra, src_dec = ephemeris.object_coords(
                     fluxcat.FluxCatalog[src].skyfield,
@@ -239,7 +244,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         f.set_time_range(self.start_time_night, self.end_time_night)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimecal'))
         f.accept_all_global_flags()
-        f.include_transits(self.ssources[src], time_delta=800.)
+        f.include_transits(self.sel_sources[src], time_delta=800.)
 
         results_list = f.get_results()
 
