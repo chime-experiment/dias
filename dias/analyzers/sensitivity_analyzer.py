@@ -16,7 +16,6 @@ import gc
 
 import h5py
 import numpy as np
-import scipy.constants
 
 from collections import Counter
 from collections import defaultdict
