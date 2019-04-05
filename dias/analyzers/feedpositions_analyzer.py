@@ -20,7 +20,8 @@ freq_sel = [
         597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
         ]
 
-# Brightest sources. VirA maybe does not have enough S/N. Dictionary for ephemeris sources:
+# Brightest sources. VirA maybe does not have enough S/N.
+# Dictionary for ephemeris sources:
 SOURCES = {
     'CAS_A': ephemeris.CasA,
     'CYG_A': ephemeris.CygA,
@@ -137,7 +138,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         self.logger.info('Sources: {}'.format(self.sources))
 
-        # Select the configured sources from the hardcoded dictionary of ephemeris sources.
+        # Select the configured sources from the hardcoded dictionary of
+        # ephemeris sources.
         try:
             self.sel_sources = {s: SOURCES[s] for s in self.sources}
         except KeyError as e:
