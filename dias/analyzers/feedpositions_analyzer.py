@@ -65,7 +65,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         source : Source transit name.
 
 
-    dias_task_<task name>_ew_pos_good_freq_total
+    dias_data_<task name>_ew_pos_good_freq_total
     ............................................
     How many frequencies out of 10 were good (EV ratio on vs off source smaller
     than 2)?
@@ -73,7 +73,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     Labels
         source : Source transit name.
 
-    dias_task_<task name>_bad_feeds_percent
+    dias_data_<task name>_bad_feeds_percent
     .......................................
     How many feeds in percent are bad(position residuals are greater than N_SIGMA sigma
     / N_SIGMA * STD  m)
