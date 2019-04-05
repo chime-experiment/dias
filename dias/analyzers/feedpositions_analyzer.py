@@ -150,8 +150,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "source smaller than 2)", labelnames=['source'], unit='total')
         self.percent_metric = self.add_data_metric(
             "bad_feeds",
-            "how many feeds in percent are bad(position residuals are greater "
-            + "than {} sigma / {} m)".format(N_SIGMA, N_SIGMA * STD),
+            "how many feeds in percent are bad (position residuals are greater "
+            "than {} sigma ({} m))".format(N_SIGMA, N_SIGMA * STD),
             labelnames=['freq'], unit='percent')
 
         self.logger.info('Sources: {}'.format(self.sources))
@@ -249,11 +249,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 nbad_feeds = np.sum(np.logical_or(residuals[i, :] > N_SIGMA*STD,
                                                   residuals[i, :] < - N_SIGMA*STD))
                 percent_bad_feeds = nbad_feeds / float(NINPUT)
-                self.logger.info('{} percent ({}) of the feeds are outside of {}'
-                                 + 'sigma ({} * {}) around the expected feedpositions.'.format(
-                                    percent_bad_feeds, nbad_feeds, N_SIGMA, N_SIGMA, STD))
+                if (percent_bad_feeds):
+                    self.logger.info('For frequency {}, {:.2f} percent ({}) of the feeds are '
+                                     'outside of {} sigma ({} m) around the expected '
+                                     'feedpositions.'
+                                     .format(freq_sel[i], percent_bad_feeds, nbad_feeds, N_SIGMA,
+                                             N_SIGMA * STD))
                 # Export bad feeds percentage to prometheus.
-                self.precent_metric.labels(
+                self.percent_metric.labels(
                     freq=np.round(freq_sel[i], 0)).set(percent_bad_feeds)
 
             with h5py.File(os.path.join(
