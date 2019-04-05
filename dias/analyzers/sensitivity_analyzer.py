@@ -11,7 +11,6 @@ from dias.utils.string_converter import str2timedelta
 from ch_util import data_index
 
 import os
-import glob
 import time
 import subprocess
 import gc
