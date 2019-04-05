@@ -82,7 +82,8 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     / N_SIGMA * STD  m)
 
     Labels
-        freq: Frequency of data.
+        freq : Frequency of data.
+        source : Source transit name.
 
     Output Data
     -----------
@@ -152,7 +153,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "bad_feeds",
             "how many feeds in percent are bad (position residuals are greater "
             "than {} sigma ({} m))".format(N_SIGMA, N_SIGMA * STD),
-            labelnames=['freq'], unit='percent')
+            labelnames=['freq', 'source'], unit='percent')
 
         self.logger.info('Sources: {}'.format(self.sources))
 
@@ -250,14 +251,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                                                   residuals[i, :] < - N_SIGMA*STD))
                 percent_bad_feeds = nbad_feeds / float(NINPUT)
                 if (percent_bad_feeds):
-                    self.logger.info('For frequency {}, {:.2f} percent ({}) of the feeds are '
+                    self.logger.info('For {}, frequency {}, {:.2f} percent ({}) of the feeds are '
                                      'outside of {} sigma ({} m) around the expected '
                                      'feedpositions.'
-                                     .format(freq_sel[i], percent_bad_feeds, nbad_feeds, N_SIGMA,
-                                             N_SIGMA * STD))
+                                     .format(night_source, freq_sel[i], percent_bad_feeds,
+                                             nbad_feeds, N_SIGMA, N_SIGMA * STD))
                 # Export bad feeds percentage to prometheus.
-                self.percent_metric.labels(
-                    freq=np.round(freq_sel[i], 0)).set(percent_bad_feeds)
+                self.percent_metric.labels(freq=np.round(freq_sel[i], 0),
+                                           source=night_source).set(percent_bad_feeds)
 
             with h5py.File(os.path.join(
                                self.write_dir,
