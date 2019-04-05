@@ -1,13 +1,10 @@
 #!/usr/bin/python3
+"""Makes a bunch of tasks using the test analyzer to test the scheduler.
 
-# Makes a bunch of tasks using the test analyzer to
-# test the scheduler
-
-# Usage:
-#
-#  python3 make_test_swarm.py TEMPORARY_PATH_FOR_CONFIG NUM_ANALYZERS
-#
-# TEMPORARY_PATH_FOR_CONFIG must not exist already
+Usage:
+python3 make_test_swarm.py TEMPORARY_PATH_FOR_CONFIG NUM_ANALYZERS
+TEMPORARY_PATH_FOR_CONFIG must not exist already
+"""
 
 import math
 import random

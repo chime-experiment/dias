@@ -13,6 +13,8 @@ addons:
   apt:
       packages:
           - libhdf5-serial-dev
+          - graphviz  # needed for the sphinx build
+
 
 before_install:
     - pip install pycodestyle
@@ -20,17 +22,24 @@ before_install:
     - pip install pytest
     -
 install:
-    - pip install -r requirements.txt
+    - pip install -r docs/rtd-requirements.txt
     - pip install .
 
 script:
     # Run pycodestyle on all .py files in all subfolders
     - find . -name \*.py -exec pycodestyle --max-line-length=99 {} +
 
+    # Run pydocstyle on all .py files
+    - find . -name \*.py -exec pydocstyle --convention=numpy {} +
+
     # Run all tests in test folder
-    - pytest
+    - pytest --ignore dias/analyzers/test_analyzer.py
 
     # test dias script
     - python test/make_test_swarm.py test_conf 1
     - python scripts/dias -c test_conf/dias.conf configtest
     - python scripts/dias -c test_conf/dias.conf tryrun task0
+
+    # Build docs
+    - cd docs
+    - make html

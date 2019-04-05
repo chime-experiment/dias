@@ -1,13 +1,15 @@
-"""Analyzers to check the integrity of data related to the thermal modeling of
-CHIME complex gain.
-
 """
+Thermaldata Analyzer.
 
+Analyzer to check the integrity of data related to the thermal modeling of
+CHIME complex gain.
+"""
 
 from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config
 from dias.utils import str2timedelta
+from dias import exception
 import numpy as np
 
 # Constant
@@ -17,14 +19,48 @@ REFERENCE_CHANNEL_IDS = [688, 1058, 2032]
 
 
 class ThermalDataAnalyzer(CHIMEAnalyzer):
-    """Analyzer to check the integrity of data related to the thermal modeling
-    of CHIME complex gain.
+    """
+    Check data integrity related to the thermal modeling of CHIME complex gain.
 
     For now it only checks for cable loop data.
+
+    Metrics
+    -------
+    dias_task_<task name>_delay_seconds
+    ...................................
+    Delays computed for each cable loop.
+
+    Labels
+        chan_id : CHIME channel ID of the cable loop.
+
+    Output Data
+    -----------
+    None
+
+    State Data
+    ----------
+    None
+
+    Config Variables
+    ----------------
+
+    Data to analyze is selected from `<now>` - `<offset>` until `<now>` -
+    `<offset>` + `<trange>`.
+
+    Attributes
+    ----------
+    offset : str
+        A string describing a timedelta. Don't analyze data older than this
+        much before task execution time.
+    trange: str
+        A string describing a timedelta. Time range data is accepted from.
+    loop_ids : list(inst)
+        Channel IDs of the cable loops.  Default : [944, 1314, 2034].
+    ref_ids : list(int)
+        Channel IDs to use as reference. Default: [688, 1058, 2032].
     """
 
-    # Config parameter for this anlyzer can be specified by assigning class
-    # attributes a caput.config.Property
+    # Config parameters
     offset = config.Property(proptype=str2timedelta, default='12h')
     trange = config.Property(proptype=str2timedelta, default='1h')
     # TODO: In the future, could figure out the loop ids from the database.
@@ -35,7 +71,11 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     checkoffset = 20  # Start checking from this time bin.
 
     def setup(self):
-        """Setup stage: this is called when dias starts up."""
+        """
+        Set up the analyzer.
+
+        Creates metrics.
+        """
         # Add a data metric for the computed cable loop delays.
         self.delay = self.add_data_metric(
                             "delay",
@@ -44,10 +84,12 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                             labelnames=['chan_id'])
 
     def run(self):
-        """Loads chimetiming data.
+        """
+        Run task.
+
+        Loads chimetiming data.
         Fits for delay of cable loops and exports delays to prometheus.
         """
-
         ncables = len(self.loop_ids)  # Number of cable loops
 
         # Calculate the start and end the data to be loaded.
@@ -62,49 +104,56 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         f.accept_all_global_flags()
 
         results_list = f.get_results()
-        # I only use the first acquisition found
-        result = results_list[0]
-        read = result.as_reader()
-        prods = read.prod
-        freq = read.freq['centre']
-        ntimes = len(read.time)
-        time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
-                                   endpoint=False, dtype=int)
+        if len(results_list) > 0:
+            # I only use the first acquisition found
+            result = results_list[0]
+            read = result.as_reader()
+            prods = read.prod
+            freq = read.freq['centre']
+            ntimes = len(read.time)
+            time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
+                                       endpoint=False, dtype=int)
 
-        # Determine prod_sel
-        prod_sel = []
-        for ii in range(ncables):
-            chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
-            pidx = np.where(
-                      np.logical_or(
-                         np.logical_and(prods['input_a'] == ref_id,
-                                        prods['input_b'] == chan_id),
-                         np.logical_and(prods['input_a'] == chan_id,
-                                        prods['input_b'] == ref_id)))[0][0]
-            prod_sel.append(pidx)
+            # Determine prod_sel
+            prod_sel = []
+            for ii in range(ncables):
+                chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
+                pidx = np.where(
+                          np.logical_or(
+                             np.logical_and(prods['input_a'] == ref_id,
+                                            prods['input_b'] == chan_id),
+                             np.logical_and(prods['input_a'] == chan_id,
+                                            prods['input_b'] == ref_id)))[0][0]
+                prod_sel.append(pidx)
 
-        # Load data
-        data = result.as_loaded_data(prod_sel=np.array(prod_sel))
-        phases = np.angle(data.vis)
+            # Load data
+            data = result.as_loaded_data(prod_sel=np.array(prod_sel))
+            phases = np.angle(data.vis)
 
-        # Perform the fits
-        for cc in range(ncables):
-            prms = self._get_fits(time_indices, phases[:, cc, :], freq)
-            for tt in range(len(prms)):
-                # First parameter is the slope
-                delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
-                self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+            # Perform the fits
+            for cc in range(ncables):
+                prms = self._get_fits(time_indices, phases[:, cc, :], freq)
+                for tt in range(len(prms)):
+                    # First parameter is the slope
+                    delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
+                    self.delay.labels(
+                        chan_id=self.loop_ids[cc]).set(delay_temp)
+        else:
+            msg = "Could not find any 'chimetiming' data between {0} and {1}"
+            msg = msg.format(start_time.strftime("%m/%d/%Y-%H:%M:%S"),
+                             end_time.strftime("%m/%d/%Y-%H:%M:%S"))
+            raise exception.DiasDataError(msg)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
         """Find the longest stretch of frequencies without phase wrapping.
+
         Step is the expected phase change between frequencies.
         Relies on the step being a quite good guess and small compared to 2 pi.
 
-        This is slow, but it is only done for a few time points.
+        Note: This is slow, but it is only done for a few time points.
 
         Parameters
         ----------
-
         phase : array of floats
             phase as a function of frequency.
         freq : array of floats
@@ -118,13 +167,11 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
         Returns
         -------
-
         stt_idx : int
             Index of start of longest uninterrupted stretch found.
         length : int
             Length of longest uninterrupted stretch found (number of points).
         """
-
         speed_factor = 0.84
         stt_idx = 0
         length = 0
@@ -161,7 +208,6 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
         Parameters
         ----------
-
         tmidxs : array of int
             Perform one fit for each point in tmidxs.
         allphase : array of float
@@ -172,7 +218,6 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
         Returns
         -------
-
         prms_list : list of array of float
             Optimal parameters of the fit.
             List is of length equal to the length of tmidxs.

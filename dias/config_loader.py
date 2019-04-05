@@ -1,3 +1,4 @@
+"""dias config loader."""
 import importlib
 import logging
 import yaml
@@ -15,7 +16,34 @@ MIN_TRIGGER_INTERVAL_MINUTES = 10
 
 
 class ConfigLoader:
+    """
+    dias Config loader class.
+
+    Imports analyzer modules, loads dias and task config and can check config
+    parameters.
+
+    Hint
+    ----
+    Config values can be accessed by name, as if this were a `dict`:
+    ``config[name]``
+
+    Assignment is supported: ``config[name] = value``
+
+    as is iteration: ``iterator = iter(config)``.
+    """
+
     def __init__(self, config_path, limit_task=None):
+        """
+        Construct the config loader.
+
+        Parameters
+        ----------
+        config_path : str
+            Full path to YAML config file.
+        limit_task : :class:`Task` or `None`
+            If this is not `None`, only the config of the given task is loaded.
+            Default: `None`.
+        """
         logging.basicConfig(format=LOG_FORMAT)
 
         self.config_path = config_path
@@ -73,14 +101,26 @@ class ConfigLoader:
 
     def _check_config_variable(self, key, proptype, default=None, config=None):
         """
-        Validates a config variable from the global config.
-        :param config: A dictionary in which to look for the given key.
-        :param key: The key (name) of the variable.
-        :param proptype: A function validating the loaded value.
-        :param default: The default value (default: None).
-        Raises an exception on error.
-        """
+        Validate a config variable from the global config.
 
+        Parameters
+        ----------
+        config : dict
+            A dictionary in which to look for the given key.
+        key : str
+            The key (name) of the variable.
+        proptype : function
+            A function validating the loaded value.
+        default : a type accepted by the proptype function
+            The default value (default: None).
+
+        Raises
+        ------
+        DiasConfigError
+            If the key is not found in the config and no default is provided,
+            if the proptype function does not accept the value or
+            if proptype returns None when given the value.
+        """
         if config is None:
             config = self.global_config
         try:
@@ -105,9 +145,17 @@ class ConfigLoader:
 
     def _load_analyzers(self, limit_task):
         """
-        Locate and load all task config files
-        """
+        Locate and load all task config files.
 
+        Instantiate all :class:Task objects by locating and loading all task
+        config files. The tasks are stored in a list as `self.tasks`.
+
+        Parameters
+        ----------
+        limit_task : string or None
+            If not None, only the task named `limit_task` will be loaded: all
+            other tasks are ignored.
+        """
         self.tasks = list()
 
         for config_file in os.listdir(self['task_config_dir']):
@@ -170,12 +218,24 @@ class ConfigLoader:
 
     def _import_analyzer_class(self, name):
         """
-        Finds the Analyser class given by name.  If name includes a module,
-        first imports the module.
+        Find the Analyser class given by name.
 
-        Returns the class specified, if found.  On error, raises ImportError.
+        If name includes a module, first imports the module.
+
+        Parameters
+        ----------
+        name : str
+            Full name of a module to import.
+
+        Returns
+        -------
+        The class specified, if found.
+
+        Raises
+        ------
+        ImportError
+            In case a class or module couldn't be found.
         """
-
         # Split the name into a module and a classname
         (modulename, separator, classname) = name.rpartition('.')
 
@@ -207,13 +267,24 @@ class ConfigLoader:
 
     # Data model
     def __getitem__(self, key):
+        """
+        Return `self[key]`.
+
+        Note
+        ----
+        For those interested in the implementation: since key can be a slice,
+        this function can return multiple tasks or none at all.
+        """
         return self.global_config[key]
 
     def __setitem__(self, key, value):
+        """Set `self[key] = value`."""
         self.global_config[key] = value
 
     def __contains__(self, key):
+        """Test `key in self` and `key not in self`."""
         return self.global_config.__contains__(key)
 
     def __iter__(self):
+        """Return `iter(self)`."""
         return self.global_config.__iter__()
