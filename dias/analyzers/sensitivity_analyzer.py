@@ -92,7 +92,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         Source of the input data
     output_suffix : str
         Suffix for the output file
-    acq_suffix  : str
+    acq_suffix : str
         Type of dataset to be read
     nfreq_per_block : int
         number of frequency channels to be run in one block
