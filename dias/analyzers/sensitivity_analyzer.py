@@ -107,7 +107,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         option to preserve cylinder pairs
     cyl_start_char : int
         Starting character for the cylinders (ASCII)
-    cyl_start_num :  int
+    cyl_start_num : int
         Offset for CHIME cylinders
         (due to inital numbers allotted to pathfinder)
     lag : timedelta
