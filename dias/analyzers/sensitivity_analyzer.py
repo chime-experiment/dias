@@ -216,7 +216,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                 freq_sel = slice(fstart, fstop)
 
-                self.logger.info("Processing block %d (of %d):  %d - %d" %
+                self.logger.debug("Processing block %d (of %d):  %d - %d" %
                                  (block_number + 1, nblock, fstart, fstop))
 
                 bdata = andata.CorrData.from_acq_h5(
