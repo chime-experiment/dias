@@ -7,19 +7,15 @@ from dias import CHIMEAnalyzer
 from datetime import datetime
 import calendar
 from caput import config
-from dias.utils.string_converter import str2timedelta, datetime2str
+from dias.utils.string_converter import str2timedelta
 from ch_util import data_index
 
 import os
-import sys
-import glob
-import time
 import subprocess
 import gc
 
 import h5py
 import numpy as np
-import scipy.constants
 
 from collections import Counter
 from collections import defaultdict
@@ -48,7 +44,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     File naming
     ..........................
-    <TIME>_<output_suffix>.h5
+    `<TIME>_<output_suffix>.h5`
     `TIME` is a unix timestamp of the first time record in each file and
     `output_suffix` is the value of the config variable with the same name.
      Output file is created for each input file read.
@@ -96,7 +92,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         Source of the input data
     output_suffix : str
         Suffix for the output file
-    acq_suffix  : str
+    acq_suffix : str
         Type of dataset to be read
     nfreq_per_block : int
         number of frequency channels to be run in one block
@@ -111,7 +107,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         option to preserve cylinder pairs
     cyl_start_char : int
         Starting character for the cylinders (ASCII)
-    cyl_start_num :  int
+    cyl_start_num : int
         Offset for CHIME cylinders
         (due to inital numbers allotted to pathfinder)
     lag : timedelta
@@ -222,7 +218,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                 freq_sel = slice(fstart, fstop)
 
-                self.logger.info("Processing block %d (of %d):  %d - %d" %
+                self.logger.debug("Processing block %d (of %d):  %d - %d" %
                                  (block_number + 1, nblock, fstart, fstop))
 
                 bdata = andata.CorrData.from_acq_h5(
