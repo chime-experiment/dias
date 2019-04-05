@@ -44,7 +44,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     File naming
     ..........................
-    <TIME>_<output_suffix>.h5
+    `<TIME>_<output_suffix>.h5`
     `TIME` is a unix timestamp of the first time record in each file and
     `output_suffix` is the value of the config variable with the same name.
      Output file is created for each input file read.
