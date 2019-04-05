@@ -73,6 +73,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     Labels
         source : Source transit name.
 
+    dias_task_<task name>_bad_feeds_percent
+    .......................................
+    How many feeds in percent are bad(position residuals are greater than N_SIGMA sigma
+    / N_SIGMA * STD  m)
+
+    Labels
+        freq: Frequency of data.
+
     Output Data
     -----------
 
