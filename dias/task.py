@@ -146,8 +146,8 @@ class Task:
             if start_now:
                 self.start_time = reference_time
             else:
-                self.start_time = reference_time \
-                        + random.random() * self.period
+                random_delay = random.random() * str2total_seconds(self.period)
+                self.start_time = reference_time + random_delay
         else:
             # Convert to seconds
             self.start_time = str2timestamp(self.start_time)
