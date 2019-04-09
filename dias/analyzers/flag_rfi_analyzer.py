@@ -239,7 +239,10 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # and create table if it does not exist
         db_file = os.path.join(self.write_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        self.data_index = sqlite3.connect(db_file, detect_types=db_types)
+        # The connection can only be used by one thread at a time. This analyzer does not
+        # serialize use of the connection. Don't schedule multiple tasks at the same time.
+        # At the moment dias doesn't support that anyways.
+        self.data_index = sqlite3.connect(db_file, detect_types=db_types, check_same_thread=False)
 
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
