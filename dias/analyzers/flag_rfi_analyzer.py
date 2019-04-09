@@ -33,6 +33,7 @@ from caput import config
 
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
+from dias import __version__ as dias_version_tag
 
 __version__ = '0.1.0'
 
@@ -288,14 +289,12 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                 unit="ratio")
 
         # Determine default achive attributes
-        tag = subprocess.check_output(["git", "-C", os.path.dirname(__file__),
-                                       "describe", "--always"]).strip()
         host = subprocess.check_output(["hostname"]).strip()
         user = subprocess.check_output(["id", "-u", "-n"]).strip()
 
         self.output_attrs = {}
         self.output_attrs['type'] = str(type(self))
-        self.output_attrs['git_version_tag'] = tag
+        self.output_attrs['git_version_tag'] = dias_version_tag
         self.output_attrs['collection_server'] = host
         self.output_attrs['system_user'] = user
         self.output_attrs['instrument_name'] = self.instrument
