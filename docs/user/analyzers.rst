@@ -37,6 +37,14 @@ listed here.
 
    FlagRFIAnalyzer
 
+.. currentmodule:: dias.analyzers.sensitivity_analyzer
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   SensitivityAnalyzer
+
 .. currentmodule:: dias.analyzers.test_analyzer
 
 .. autosummary::
