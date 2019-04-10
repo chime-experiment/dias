@@ -147,7 +147,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 raise IndexError()
         except IndexError:
             err_msg = 'No {} files found from last {}.'.format(
-                    self.acq_suffix, self.period)
+                self.acq_suffix, self.period)
             raise exception.DiasDataError(msg)
 
         self.logger.info('Calculating sensitivity from %s to %s' %
@@ -220,7 +220,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 freq_sel = slice(fstart, fstop)
 
                 self.logger.debug("Processing block %d (of %d):  %d - %d" %
-                                 (block_number + 1, nblock, fstart, fstop))
+                                  (block_number + 1, nblock, fstart, fstop))
 
                 bdata = andata.CorrData.from_acq_h5(
                     files,
