@@ -1,5 +1,5 @@
 """A CHIME analyzer to calculate the East-West feed positions."""
-from dias import CHIMEAnalyzer
+from dias import CHIMEAnalyzer, DiasConfigError
 from datetime import datetime
 from caput import config, time
 from dias.utils.string_converter import datetime2str
@@ -19,12 +19,15 @@ freq_sel = [
         758.203125,  716.406250,  697.656250,  665.625000,  633.984375,
         597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
         ]
-# Brightest sources. VirA does not have enough S/N.
-sources = {
-        'CAS_A': ephemeris.CasA,
-        'CYG_A': ephemeris.CygA,
-        'TAU_A': ephemeris.TauA,
-        }
+
+# Brightest sources. VirA maybe does not have enough S/N.
+# Dictionary for ephemeris sources:
+SOURCES = {
+    'CAS_A': ephemeris.CasA,
+    'CYG_A': ephemeris.CygA,
+    'TAU_A': ephemeris.TauA,
+    'VIR_A': ephemeris.VirA,
+}
 
 # number of inputs in CHIME
 NINPUT = 2048
@@ -37,6 +40,11 @@ NPOL = 2
 NCYL = 4
 # number of eigenvalues to keep
 N_EVAL = 2
+# Standard deviation of feed position residuals derived from
+# data analysis of 11 files with 10 frequencies each
+STD = 0.3
+# Threshold for bad feeds
+N_SIGMA = 5
 
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
@@ -60,12 +68,21 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         source : Source transit name.
 
 
-    dias_task_<task name>_ew_pos_good_freq_total
+    dias_data_<task name>_ew_pos_good_freq_total
     ............................................
     How many frequencies out of 10 were good (EV ratio on vs off source smaller
     than 2)?
 
     Labels
+        source : Source transit name.
+
+    dias_data_<task name>_bad_feeds_percent
+    .......................................
+    How many feeds in percent are bad(position residuals are greater than N_SIGMA sigma
+    / N_SIGMA * STD  m)
+
+    Labels
+        freq : Frequency of data.
         source : Source transit name.
 
     Output Data
@@ -115,15 +132,15 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     ref_feed_P2 = config.Property(proptype=int, default=258)
     pad_fac_EW = config.Property(proptype=int, default=256)
 
+    # Configurable list of sources to select.
+    sources = config.Property(proptype=list)
+
     def setup(self):
         """
         Set up the task.
 
         Creates metrics.
         """
-        self.logger.info(
-                'Starting up. My name is ' + self.name +
-                ' and I am of type ' + __name__ + '.')
         self.resid_metric = self.add_task_metric(
             "ew_pos_residuals_analyzer_run",
             "feedposition task run counter for specific source",
@@ -132,9 +149,23 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "ew_pos_good_freq",
             "how many frequencies out of 10 were good (EV ratio on vs off "
             "source smaller than 2)", labelnames=['source'], unit='total')
+        self.percent_metric = self.add_data_metric(
+            "bad_feeds",
+            "how many feeds in percent are bad (position residuals are greater "
+            "than {} sigma ({} m))".format(N_SIGMA, N_SIGMA * STD),
+            labelnames=['freq', 'source'], unit='percent')
+
+        self.logger.info('Sources: {}'.format(self.sources))
+
+        # Select the configured sources from the hardcoded dictionary of
+        # ephemeris sources.
+        try:
+            self.sel_sources = {s: SOURCES[s] for s in self.sources}
+        except KeyError as e:
+            raise DiasConfigError('Invalid source: {}'.format(e))
 
         # initialize resid source metric
-        for source in sources:
+        for source in self.sel_sources:
             self.resid_metric.labels(source=source).set(0)
 
     def run(self):
@@ -150,6 +181,18 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         self.start_time_night = time.unix_to_datetime(
                 ephemeris.solar_setting(start_time, end_time))[0]
 
+        # In case the analyzer runs at night figure out when was sunset and
+        # take one hour off.
+        if self.start_time_night > self.end_time_night:
+            # Instead of now we set the end time to one hour before sunset
+            end_time = self.start_time_night - timedelta(hours=1)
+            start_time = end_time - self.period
+            # Overwrite start time night, end time night
+            self.end_time_night = time.unix_to_datetime(
+                ephemeris.solar_rising(start_time, end_time))[0]
+            self.start_time_night = time.unix_to_datetime(
+                ephemeris.solar_setting(start_time, end_time))[0]
+
         self.logger.info(
                 'Analyzing night data between UTC times '
                 + datetime2str(self.start_time_night)
@@ -158,9 +201,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         night_transits = []
 
         # Check which of these sources transit at night
-        for src in sources.keys():
+        for src in self.sel_sources.keys():
             transit = ephemeris.transit_times(
-                    sources[src], self.start_time_night, self.end_time_night)
+                    self.sel_sources[src], self.start_time_night,
+                    self.end_time_night)
             src_ra, src_dec = ephemeris.object_coords(
                     fluxcat.FluxCatalog[src].skyfield,
                     date=self.start_time_night, deg=True)
@@ -198,6 +242,24 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
 
+            # Calculate percentage of bad feeds, from analysis we know
+            # that when excluding large outliers the standard deviation in the
+            # residuals range around 0.3m. In a single feedposition analysis
+            # normally no more than 2 percent of feeds lie outside of 5 sigma.
+            for i in range(len(freq_sel)):
+                nbad_feeds = np.sum(np.logical_or(residuals[i, :] > N_SIGMA*STD,
+                                                  residuals[i, :] < - N_SIGMA*STD))
+                percent_bad_feeds = nbad_feeds / float(NINPUT)
+                if (percent_bad_feeds):
+                    self.logger.info('For {}, frequency {}, {:.2f} percent ({}) of the feeds are '
+                                     'outside of {} sigma ({} m) around the expected '
+                                     'feedpositions.'
+                                     .format(night_source, freq_sel[i], percent_bad_feeds,
+                                             nbad_feeds, N_SIGMA, N_SIGMA * STD))
+                # Export bad feeds percentage to prometheus.
+                self.percent_metric.labels(freq=np.round(freq_sel[i], 0),
+                                           source=night_source).set(percent_bad_feeds)
+
             with h5py.File(os.path.join(
                                self.write_dir,
                                time_str + '_' + night_source
@@ -233,14 +295,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         f.set_time_range(self.start_time_night, self.end_time_night)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimecal'))
         f.accept_all_global_flags()
-        f.include_transits(sources[src], time_delta=800.)
+        f.include_transits(self.sel_sources[src], time_delta=800.)
 
         results_list = f.get_results()
 
         if not results_list:
             self.logger.warn(
                     'Did not find any data in the archive for source ' + src)
-            return
+            return (None, None)
 
         reader = results_list[0].as_reader()
         reader.select_freq_physical(freq_sel)
@@ -259,7 +321,6 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         ra, dec = ephemeris.object_coords(
                 fluxcat.FluxCatalog[src].skyfield,
                 date=self.start_time_night, deg=True)
-        lat = np.radians(ephemeris.CHIMELATITUDE)
         ra_time = ephemeris.lsa(data.time)
         ha = ra_time - ra
         # In case we are dealing with CasA...

@@ -12,6 +12,7 @@ import os
 import setuptools
 import shutil
 import sys
+import versioneer
 
 # The path to install the task configuration files into, if any
 task_dst = None
@@ -57,7 +58,8 @@ if task_dst:
 # Now for the regular setuptools-y stuff
 setuptools.setup(
     name='dias',
-    version=dias.__version__,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     author="The CHIME Collaboration",
     author_email="dvw@phas.ubc.ca",
     description="CHIME data integrity automation system",
