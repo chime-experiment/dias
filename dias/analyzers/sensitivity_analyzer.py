@@ -37,17 +37,17 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Output Data
     -----------------
-    h5 file, containing noise rms (Jy),
-    averaged over all feeds for each polarization,
-    as a function of frequency and time.
-    The input file is the chime stacked dataset.
+        h5 file, containing noise rms (Jy),
+        averaged over all feeds for each polarization,
+        as a function of frequency and time.
+        The input file is the chime stacked dataset.
 
     File naming
     ..........................
-    `<TIME>_<output_suffix>.h5`
-    `TIME` is a unix timestamp of the first time record in each file and
-    `output_suffix` is the value of the config variable with the same name.
-     Output file is created for each input file read.
+        `<TIME>_<output_suffix>.h5`
+        `TIME` is a unix timestamp of the first time record in each file and
+        `output_suffix` is the value of the config variable with the same name.
+        Output file is created for each input file read.
 
     Indexes
     .............
@@ -141,12 +141,13 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         f.only_corr()
         f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
         file_list = f.get_results()
-        all_files = file_list[0][0]
-
-        if not all_files:
+        try:
+            all_files = file_list[0][0]
+            if not all_files:
+                raise IndexError()
+        except IndexError:
             err_msg = 'No {} files found from last {}.'.format(
-                self.acq_suffix, self.period)
-            self.logger.error(err_msg)
+                    self.acq_suffix, self.period)
             raise exception.DiasDataError(msg)
 
         self.logger.info('Calculating sensitivity from %s to %s' %
