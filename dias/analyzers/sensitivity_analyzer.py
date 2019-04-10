@@ -181,7 +181,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 files, datasets=['reverse_map', 'flags/inputs'],
                 apply_gain=False, renormalize=False)
 
-            flag_ind = data.flags
+            flag_ind = data.flags['inputs']
 
             # Determine axes
             nfreq = data.nfreq
@@ -198,11 +198,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             cnt = np.zeros(
                 (data.index_map['stack'].size, ntime), dtype=np.float32)
 
-            if np.any(flag_ind['inputs'][:]):
+            if np.any(flag_ind[:]):
                 for pp, ss in zip(data.index_map['prod'][:],
                                   data.reverse_map['stack']['stack'][:]):
-                    cnt[ss, :] += (flag_ind['inputs'][pp[0], :]
-                                   * flag_ind['inputs'][pp[1], :])
+                    cnt[ss, :] += (flag_ind[pp[0], :]
+                                   * flag_ind[pp[1], :])
             else:
                 for ss, val in Counter(
                         data.reverse_map['stack']['stack'][:]).iteritems():
