@@ -24,6 +24,7 @@ from ch_util import andata
 from ch_util import tools
 from ch_util import ephemeris
 from dias import exception
+from dias import __version__ as dias_version_tag
 
 
 class SensitivityAnalyzer(CHIMEAnalyzer):
@@ -284,9 +285,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     ["hostname"]).strip()
                 handler.attrs['system_user'] = subprocess.check_output(
                     ["id", "-u", "-n"]).strip()
-                handler.attrs['git_version_tag'] = subprocess.check_output(
-                    ["git", "-C", os.path.dirname(__file__),
-                            "describe", "--always"]).strip()
+                handler.attrs['git_version_tag'] = dias_version_tag
             self.logger.info('File successfully written out.')
 
     def get_baselines(self, indexmap, inputmap):
