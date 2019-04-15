@@ -27,6 +27,7 @@ import datetime
 import subprocess
 import glob
 import sqlite3
+import requests
 import gc
 
 import numpy as np
@@ -358,6 +359,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     window
         1D array of type `int` that labels the time samples in the
         window around each jump.
+    weather_station_time
+        1D array of type `float` that contains the unix timestamp for
+        datasets obtained from the weather station.
 
     Searched
     ........
@@ -376,6 +380,10 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     Datasets
     ........
+    accumulated_rain_fall
+        1D array with axis [`weather_station_time`] that contains
+        the accumulated rain fall in millimeters between that time
+        and `rain_window` hours before that time.
     freq
         1D structured array with axis [`jump`] that contains the `centre` and
         `width` of the frequency channels where each jump occured.
@@ -449,6 +457,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     input_threshold : float
         Input is considered good if it was flagged as good for more than this
         fraction of the time.  Only used if `input_flag` is True.
+    rain_window : int
+        Query the prometheus server for the rain fall accumulated over this
+        amount of time in hours.
     wavelet_name : str
         Name of `pywt` wavelet.  Must be asymmetric for the algorithm to work.
     threshold : float
@@ -510,6 +521,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     use_input_flag = config.Property(proptype=bool, default=False)
     input_threshold = config.Property(proptype=float, default=0.70)
 
+    # Config parameters related to weather data
+    rain_window = config.Property(proptype=int, default=6)
+
     # Config parameters for the jump finding algorithm
     wavelet_name = config.Property(proptype=str, default='gaus5')
     threshold = config.Property(proptype=float, default=0.15)
@@ -534,7 +548,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # and create table if it does not exist.
         db_file = os.path.join(self.write_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        self.data_index = sqlite3.connect(db_file, detect_types=db_types)
+        self.data_index = sqlite3.connect(db_file, detect_types=db_types,
+                                          check_same_thread=False)
 
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
@@ -543,7 +558,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # Open connection to archive index database
         # and create table if it does not exist.
         adb_file = os.path.join(self.write_dir, ARCHIVE_DB_FILE)
-        self.archive_index = sqlite3.connect(adb_file, detect_types=db_types)
+        self.archive_index = sqlite3.connect(adb_file, detect_types=db_types,
+                                             check_same_thread=False)
 
         cursor = self.archive_index.cursor()
         cursor.execute(CREATE_ARCHIVE_DB_TABLE)
@@ -630,7 +646,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             self.scale = np.arange(self.min_scale, self.nwin, dtype=np.int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
-        self.logger.info("istart = %s" % self.istart)
 
     def run(self):
         """Run the analyzer.
@@ -639,7 +654,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         Loop over frequencies and inputs and find jumps.
         Write locations and snapshots of the jumps to disk.
         """
-        self.run_start_time = time.time()
+        run_start_time = time.time()
 
         # Refresh the databases
         self.refresh_data_index()
@@ -892,7 +907,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 for ff, freq in enumerate(dfreq):
 
                     print_cnt = -1
-                    msg = ("Processing frequency %d (%0.2f MHz, %0.2f MHz)" %
+                    msg = ("Processing frequency " +
+                           "%d (centre=%0.2f MHz, width=%0.2f MHz)" %
                            (ff, freq['centre'], freq['width']))
                     self.logger.info(msg)
 
@@ -994,42 +1010,58 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                             temp_var[0:ncut] = signal[aa:bb].copy()
                             jump_auto.append(temp_var)
 
-                # If we found any jumps, write them to a file.
-                if ncandidate > 0:
+                # Get the accumulated rainfall for this period of time
+                rain = self.load_rain(this_time[0], this_time[-1])
 
-                    arr_cfreq = np.array(cfreq, dtype=this_freq.dtype)
-                    uniq_freq = np.unique(arr_cfreq['centre'])
-                    nuniq_freq = uniq_freq.size
+                # Create output file
+                seconds_elapsed = tstart - acq_start
+                output_file = os.path.join(output_dir,
+                                           "%08d.h5" % seconds_elapsed)
 
-                    arr_cinput = np.array(cinput, dtype=this_input.dtype)
-                    uniq_input = np.unique(arr_cinput['chan_id'])
-                    nuniq_input = uniq_input.size
+                self.logger.info("Writing %d jumps to: %s" %
+                                 (ncandidate, output_file))
 
-                    seconds_elapsed = tstart - acq_start
-                    output_file = os.path.join(output_dir,
-                                               "%08d.h5" % seconds_elapsed)
+                # Write to output file
+                with h5py.File(output_file, 'w') as handler:
 
-                    self.logger.info("Writing %d jumps to: %s" %
-                                     (ncandidate, output_file))
+                    # Set the default archive attributes
+                    handler.attrs['acquisition_name'] = output_acq
+                    handler.attrs['njump'] = ncandidate
+                    for key, val in self.output_attrs.items():
+                        handler.attrs[key] = val
 
-                    # Write to output file
-                    with h5py.File(output_file, 'w') as handler:
+                    # Create a group that describes the data
+                    # that was searched
+                    srchd = handler.create_group('searched')
+                    srchd.create_dataset('files', data=np.string_(files))
+                    srchd.create_dataset('freq', data=this_freq)
+                    srchd.create_dataset('input', data=this_input[ifeed])
+                    srchd.create_dataset('time', data=this_time)
 
-                        # Set the default archive attributes
-                        handler.attrs['acquisition_name'] = output_acq
-                        for key, val in self.output_attrs.items():
-                            handler.attrs[key] = val
+                    # Create weather related index map
+                    index_map = handler.create_group('index_map')
+                    index_map.create_dataset('weather_station_time',
+                                             data=rain['time'])
 
-                        # Create a dataset that indicates the data
-                        # that was searched
-                        srchd = handler.create_group('searched')
-                        srchd.create_dataset('files', data=np.string_(files))
-                        srchd.create_dataset('freq', data=this_freq)
-                        srchd.create_dataset('input', data=this_input[ifeed])
-                        srchd.create_dataset('time', data=this_time)
+                    # Create a dataset with accumulated rain fall
+                    ax = np.string_(['weather_station_time'])
+                    dset = handler.create_dataset('accumulated_rain_fall',
+                                                  data=rain['accum'])
+                    dset.attrs['axis'] = ax
+                    dset.attrs['window'] = self.rain_window * 3600.0
 
-                        # Create an index map
-                        index_map = handler.create_group('index_map')
+                    # If we found any jumps, write them to the file.
+                    if ncandidate > 0:
+
+                        arr_cfreq = np.array(cfreq, dtype=this_freq.dtype)
+                        uniq_freq = np.unique(arr_cfreq['centre'])
+                        nuniq_freq = uniq_freq.size
+
+                        arr_cinput = np.array(cinput, dtype=this_input.dtype)
+                        uniq_input = np.unique(arr_cinput['chan_id'])
+                        nuniq_input = uniq_input.size
+
+                        # Add jump related index maps
                         index_map.create_dataset('jump',
                                                  data=np.arange(ncandidate))
                         index_map.create_dataset('window',
@@ -1073,13 +1105,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                       data=np.array(jump_flag))
                         dset.attrs['axis'] = ax
 
-                else:
-                    self.logger.info("No jumps found for acq %s, chunk %d." %
-                                     (acq, chnk))
-
-                    output_file = None
-                    nuniq_freq = 0
-                    nuniq_input = 0
+                    else:
+                        nuniq_freq = 0
+                        nuniq_input = 0
 
                 # Update data index database
                 self.update_data_index(this_time[0], this_time[-1],
@@ -1101,7 +1129,61 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 self.njump_detected.set(ncandidate)
 
         # Set run timer
-        self.run_timer.set(int(time.time() - self.run_start_time))
+        self.run_timer.set(int(time.time() - run_start_time))
+
+    def load_rain(self, start_time, end_time):
+        """Query prometheus server for rainfall metrics.
+
+        Parameters
+        ----------
+        start_time : datetime.datetime
+            Load all data after this datetime (in UTC).
+        end_time : datetime.datetime
+            Load all data before this datetime (in UTC).
+
+        Returns
+        -------
+        output : dict
+            Dictionary containing a 'time' and 'accum' key that
+            provide the unix timestamp and accumulated rain fall
+            in millimeters between that timestamp and `rain_window`
+            hours before that timestamp.
+        """
+        t0 = time.time()
+
+        output = {}
+        output['time'] = []
+        output['accum'] = []
+
+        start_datetime = ephemeris.unix_to_datetime(start_time)
+        end_datetime = ephemeris.unix_to_datetime(end_time)
+
+        # Format parameters for prometheus query
+        step = (self.rain_window / 10.0) * 60.0
+        sts = start_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')
+        ets = end_datetime.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Query prometheus running on hk-east
+        # Note that our definition of start is flipped to prometheus
+        prom_query = 'sum_over_time(weather_rain[%dh])' % self.rain_window
+        http_query = ('http://hk-east:9090/api/v1/query_range?query=%s&start='
+                      '%s&end=%s&step=%dm' % (prom_query, sts, ets, step))
+
+        resp = requests.get(http_query)
+        jresp = resp.json()
+
+        for res in jresp['data']['result']:
+            timestamp, rain = zip(*res['values'])
+            output['time'] += timestamp
+            output['accum'] += [float(rr) for rr in rain]
+
+        output['time'] = np.array(output['time'])
+        output['accum'] = np.array(output['accum'])
+
+        self.logger.info("Took %0.2f seconds to load rain." %
+                         (time.time() - t0))
+
+        return output
 
     def update_data_index(self, start, stop, njump=0, filename=None):
         """Add row to data index database.
