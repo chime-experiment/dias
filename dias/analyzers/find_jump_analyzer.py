@@ -711,17 +711,21 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                             ephemeris.timestr_to_datetime(
                                 output_acq.split('_')[0]))
 
-            # Determine list of feeds to examine
+            # Load meta-data for this acquisition
             dset = ['flags/inputs'] if self.use_input_flag else ()
 
             all_data = andata.CorrData.from_acq_h5(all_files,
                                                    datasets=dset)
 
+            # Do not process this acquisition if it is too short
+            if all_data.ntime < (self.nwin * 3):
+                continue
+
+            # Extract good inputs
             inputmap = tools.get_correlator_inputs(
                                 ephemeris.unix_to_datetime(all_data.time[0]),
                                 correlator='chime')
 
-            # Extract good inputs
             if self.use_input_flag:
                 ngt = np.sum(all_data.flags['inputs'][:],
                              axis=-1, dtype=np.int)
