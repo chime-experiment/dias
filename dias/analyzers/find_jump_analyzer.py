@@ -631,7 +631,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                      np.log10(self.max_scale + 2),
                                      num=self.num_scale, dtype=np.int)
         else:
-            self.scale = np.arange(self.min_scale, self.max_scale + 2, dtype=np.int)
+            self.scale = np.arange(self.min_scale,
+                                   self.max_scale + 2,
+                                   dtype=np.int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
 
@@ -785,7 +787,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     for ff, fsel in enumerate(freq_sel):
 
                         self.logger.debug("Loading freq block %d of %d. %s" %
-                                         (ff+1, len(freq_sel), str(fsel)))
+                                          (ff+1, len(freq_sel), str(fsel)))
 
                         t1 = time.time()
 
@@ -797,7 +799,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                         apply_gain=False,
                                                         renormalize=False)
 
-                        self.logger.debug("Took %0.1f sec." % (time.time() - t1,))
+                        self.logger.debug("Took %0.1f sec." %
+                                          (time.time() - t1,))
 
                         # Save the index map
                         if not ff:
@@ -884,7 +887,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     del data, auto, inv_med_auto
                     gc.collect()
 
-                self.logger.info("Took %0.1f sec to load autocorrelations." %
+                self.logger.info("Took %0.1f sec to load autocorr." %
                                  (time.time() - t0,))
 
                 t0 = time.time()
@@ -971,7 +974,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         if ngood == 0:
                             continue
 
-                        self.logger.debug("Input %d has %d jumps" % (ii, ngood))
+                        self.logger.debug("Input %d has %d jumps" %
+                                          (ii, ngood))
 
                         # Add remaining candidates to list
                         ncandidate += ngood
@@ -1015,7 +1019,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 output_file = os.path.join(output_dir,
                                            "%08d.h5" % seconds_elapsed)
 
-                self.logger.info("Took %0.1f sec to process autocorrelations." %
+                self.logger.info("Took %0.1f sec to process autocorr." %
                                  (time.time() - t0,))
 
                 self.logger.info("Writing %d jumps to: %s" %
