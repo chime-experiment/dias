@@ -29,6 +29,7 @@ import glob
 import sqlite3
 import requests
 import gc
+from collections import Counter
 
 import numpy as np
 import h5py
@@ -40,6 +41,7 @@ from caput import config
 
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
+from dias import __version__ as dias_version_tag
 
 __version__ = '0.1.0'
 
@@ -319,27 +321,23 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     .......................................
     Time to process single file.
 
-    dias_data_<task_name>_number_freq_processed
+    dias_data_<task_name>_freq_processed_total
     ...........................................
     Number of frequencies processed.
 
-    dias_data_<task_name>_number_freq_detected
-    ..........................................
-    Number of unique frequencies in which one or more jumps were detected.
-    Must be less than `dias_data_<task_name>_number_freq_processed`.
-
-    dias_data_<task_name>_number_input_processed
+    dias_data_<task_name>_input_processed_total
     ............................................
     Number of correlator inputs processed.
 
-    dias_data_<task_name>_number_input_detected
-    ...........................................
-    Number of unique inputs in which one or more jumps were detected.
-    Must be less than `dias_data_<task_name>_number_input_processed`.
+    dias_task_<task_name>_jumps_total
+    .................................
+    Number of jumps detected for each frequency and input.
 
-    dias_data_<task_name>_number_jump_detected
-    ..........................................
-    Total number of jumps that were detected.
+    Labels
+        freq : float
+            Centre frequency in MHz.
+        input : int
+            Feed number in cylinder order (also known as `chan_id`).
 
     Output Data
     -----------
@@ -582,38 +580,30 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                         unit="seconds")
 
         # Add data metrics.
-        self.nfreq_processed = self.add_data_metric(
-                                        "number_freq_processed",
-                                        "Number of frequencies analyzed.")
+        self.freq_processed_total = self.add_data_metric(
+                                        "freq_processed",
+                                        "Number of frequencies analyzed.",
+                                        unit="total")
 
-        self.nfreq_detected = self.add_data_metric(
-                                        "number_freq_detected",
-                                        "Number of unique frequencies with " +
-                                        "a jump detected.")
+        self.input_processed_total = self.add_data_metric(
+                                        "input_processed",
+                                        "Number of inputs being analyzed.",
+                                        unit="total")
 
-        self.ninput_processed = self.add_data_metric(
-                                        "number_input_processed",
-                                        "Number of inputs being analyzed.")
-
-        self.ninput_detected = self.add_data_metric(
-                                        "number_input_detected",
-                                        "Number of unique inputs with " +
-                                        "a jump detected.")
-
-        self.njump_detected = self.add_data_metric(
-                                        "number_jump_detected",
+        self.jumps_total = self.add_data_metric(
+                                        "jumps",
                                         "Number of jumps detected " +
-                                        "per frequency.")
+                                        "for each frequency and input.",
+                                        labelnames=['freq', 'input'],
+                                        unit="total")
 
         # Determine default achive attributes
-        tag = subprocess.check_output(["git", "-C", os.path.dirname(__file__),
-                                       "describe", "--always"]).strip()
         host = subprocess.check_output(["hostname"]).strip()
         user = subprocess.check_output(["id", "-u", "-n"]).strip()
 
         self.output_attrs = {}
         self.output_attrs['type'] = str(type(self))
-        self.output_attrs['git_version_tag'] = tag
+        self.output_attrs['git_version_tag'] = dias_version_tag
         self.output_attrs['collection_server'] = host
         self.output_attrs['system_user'] = user
         self.output_attrs['instrument_name'] = self.instrument
@@ -1064,12 +1054,10 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     if ncandidate > 0:
 
                         arr_cfreq = np.array(cfreq, dtype=this_freq.dtype)
-                        uniq_freq = np.unique(arr_cfreq['centre'])
-                        nuniq_freq = uniq_freq.size
-
                         arr_cinput = np.array(cinput, dtype=this_input.dtype)
-                        uniq_input = np.unique(arr_cinput['chan_id'])
-                        nuniq_input = uniq_input.size
+
+                        jump_counter = Counter(zip(arr_cfreq['centre'],
+                                                   arr_cinput['chan_id']))
 
                         # Add jump related index maps
                         index_map.create_dataset('jump',
@@ -1116,8 +1104,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         dset.attrs['axis'] = ax
 
                     else:
-                        nuniq_freq = 0
-                        nuniq_input = 0
+                        jump_counter = {}
 
                 # Update data index database
                 self.update_data_index(this_time[0], this_time[-1],
@@ -1130,13 +1117,13 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 time_span = time.time() - self.file_start_time
                 self.file_timer.set(int(time_span / float(ndf)))
 
-                self.nfreq_processed.set(dfreq.size)
-                self.nfreq_detected.set(nuniq_freq)
+                for (lbl_freq, lbl_inp), jumps_total in jump_counter.items():
+                    self.jumps_total.labels(freq=lbl_freq,
+                                            input=lbl_inp).set(jumps_total)
 
-                self.ninput_processed.set(ifeed.size)
-                self.ninput_detected.set(nuniq_input)
+                self.freq_processed_total.set(dfreq.size)
 
-                self.njump_detected.set(ncandidate)
+                self.input_processed_total.set(ifeed.size)
 
         # Set run timer
         self.run_timer.set(int(time.time() - run_start_time))
