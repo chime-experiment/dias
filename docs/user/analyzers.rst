@@ -37,6 +37,14 @@ listed here.
 
    FindJumpAnalyzer
 
+.. currentmodule:: dias.analyzers.flag_rfi_analyzer
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   FlagRFIAnalyzer
+
 .. currentmodule:: dias.analyzers.test_analyzer
 
 .. autosummary::

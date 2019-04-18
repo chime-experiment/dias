@@ -27,10 +27,10 @@ install:
 
 script:
     # Run pycodestyle on all .py files in all subfolders
-    - find . -name \*.py -exec pycodestyle {} +
+    - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pycodestyle --max-line-length=99 {} +
 
     # Run pydocstyle on all .py files
-    - find . -name \*.py -exec pydocstyle --convention=numpy {} +
+    - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy {} +
 
     # Run all tests in test folder
     - pytest --ignore dias/analyzers/test_analyzer.py
