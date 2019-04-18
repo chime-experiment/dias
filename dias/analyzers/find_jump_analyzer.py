@@ -486,7 +486,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     max_scale : int
         Find jumps that exceed `threshold` for more than this number
         of time samples.  The wavelet transform will be evaluated for
-        scales up to `2 * max_scale + 1`.
+        scales up to `max_scale + 1`.
     num_scale : int
         Number of scales to evaluate the wavelet transform.  This is only
         used if `log_scale` is True.
@@ -637,13 +637,11 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.nhwin = self.nwin // 2
 
         if self.log_scale:
-            self.logger.info("Using log scale.")
             self.scale = np.logspace(np.log10(self.min_scale),
-                                     np.log10(self.nwin),
+                                     np.log10(self.max_scale + 2),
                                      num=self.num_scale, dtype=np.int)
         else:
-            self.logger.info("Using linear scale.")
-            self.scale = np.arange(self.min_scale, self.nwin, dtype=np.int)
+            self.scale = np.arange(self.min_scale, self.max_scale + 2, dtype=np.int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
 
@@ -737,7 +735,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
             ninp = len(ifeed)
 
-            self.logger.info("Processing %d feeds." % ninp)
+            self.logger.debug("Processing %d feeds." % ninp)
 
             # Deteremine selections along the various axes
             auto_sel = np.array([ii for ii, pp in enumerate(all_data.prod)
@@ -756,8 +754,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
             else:
 
-                in_range = np.flatnonzero((all_data.freq >= self.freq_low) &
-                                          (all_data.freq < self.freq_high))
+                in_range = np.flatnonzero((all_data.freq > self.freq_low) &
+                                          (all_data.freq <= self.freq_high))
 
                 findex = np.arange(in_range[0], in_range[-1]+1, self.freq_step)
 
@@ -796,17 +794,21 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # in blocks to limit memory usage.
                     for ff, fsel in enumerate(freq_sel):
 
-                        self.logger.info("Loading freq block %d of %d." %
-                                         (ff+1, len(freq_sel)))
+                        self.logger.debug("Loading freq block %d of %d. %s" %
+                                         (ff+1, len(freq_sel), str(fsel)))
+
+                        t1 = time.time()
 
                         # Load this block of frequencies
                         data = andata.CorrData.from_acq_h5(
                                                         files,
                                                         datasets=self.datasets,
                                                         freq_sel=fsel,
-                                                        prod_sel=auto_sel,
                                                         apply_gain=False,
                                                         renormalize=False)
+
+                        self.logger.debug("Took %0.1f sec." % (time.time() - t1,))
+
                         # Save the index map
                         if not ff:
                             this_freq = data.index_map['freq'].copy()
@@ -895,6 +897,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 self.logger.info("Took %0.1f sec to load autocorrelations." %
                                  (time.time() - t0,))
 
+                t0 = time.time()
+
                 # If requested, ignore jumps that occur during solar transit
                 # or near bright source transits
                 tquiet = np.ones(ntime, dtype=np.bool)
@@ -914,7 +918,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     msg = ("Processing frequency " +
                            "%d (centre=%0.2f MHz, width=%0.2f MHz)" %
                            (ff, freq['centre'], freq['width']))
-                    self.logger.info(msg)
+                    self.logger.debug(msg)
 
                     # Loop over inputs
                     for ii in ifeed:
@@ -924,7 +928,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                         if do_print:
                             self.logger.debug("Processing input %d" % ii)
-                            t0 = time.time()
+                            t2 = time.time()
 
                         signal = autonorm[ff, ii, :]
 
@@ -933,10 +937,10 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                             self.wavelet_name)
 
                         if do_print:
-                            tspan = time.time() - t0
+                            tspan = time.time() - t2
                             self.logger.debug("Time to perform wavelet " +
                                               "transform: %0.1f sec" % tspan)
-                            t0 = time.time()
+                            t2 = time.time()
 
                         # Find local modulus maxima
                         flg_mod_max, mod_max = mod_max_finder(
@@ -945,10 +949,10 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                 search_span=self.search_span)
 
                         if do_print:
-                            tspan = time.time() - t0
+                            tspan = time.time() - t2
                             self.logger.debug("Time to find local modulus " +
                                               "maxima: %0.1f sec" % tspan)
-                            t0 = time.time()
+                            t2 = time.time()
 
                         # Find persisent modulus maxima across scales (fingers)
                         fingers = finger_finder(self.scale,
@@ -959,10 +963,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         candidates, cmm, pdrift, start, stop, lbl = fingers
 
                         if do_print:
-                            tspan = time.time() - t0
+                            tspan = time.time() - t2
                             self.logger.debug("Time to find fingers: " +
                                               "%0.1f sec " % tspan)
-                            t0 = time.time()
 
                         if candidates is None:
                             continue
@@ -978,7 +981,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         if ngood == 0:
                             continue
 
-                        self.logger.info("Input %d has %d jumps" % (ii, ngood))
+                        self.logger.debug("Input %d has %d jumps" % (ii, ngood))
 
                         # Add remaining candidates to list
                         ncandidate += ngood
@@ -1021,6 +1024,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 seconds_elapsed = tstart - acq_start
                 output_file = os.path.join(output_dir,
                                            "%08d.h5" % seconds_elapsed)
+
+                self.logger.info("Took %0.1f sec to process autocorrelations." %
+                                 (time.time() - t0,))
 
                 self.logger.info("Writing %d jumps to: %s" %
                                  (ncandidate, output_file))
@@ -1153,8 +1159,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             in millimeters between that timestamp and `rain_window`
             hours before that timestamp.
         """
-        t0 = time.time()
-
         output = {}
         output['time'] = []
         output['accum'] = []
@@ -1183,9 +1187,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         output['time'] = np.array(output['time'])
         output['accum'] = np.array(output['accum'])
-
-        self.logger.info("Took %0.2f seconds to load rain." %
-                         (time.time() - t0))
 
         return output
 
@@ -1306,8 +1307,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             cursor.execute("INSERT INTO files VALUES (?, ?, ?, ?)",
                            (dt_start, dt_stop, 0, relpath))
             self.archive_index.commit()
-
-        self.logger.info("Finished refreshing archive index.")
 
     def finish(self):
         """Close connection to data index and archive index databases."""
