@@ -821,6 +821,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                         files,
                                                         datasets=self.datasets,
                                                         freq_sel=fsel,
+                                                        prod_sel=auto_sel,
                                                         apply_gain=False,
                                                         renormalize=False)
 
