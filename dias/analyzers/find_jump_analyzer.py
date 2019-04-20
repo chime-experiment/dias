@@ -1331,7 +1331,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
             # Insert row for this file
             cursor = self.archive_index.cursor()
-            cursor.execute("INSERT INTO files VALUES (?, ?, ?, ?)",
+            cursor.execute("INSERT INTO files VALUES (?, ?, ?, ?, ?)",
                            (dt_start, dt_stop, ntime, delta_t, relpath))
             self.archive_index.commit()
 
