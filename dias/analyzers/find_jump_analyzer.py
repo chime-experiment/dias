@@ -56,7 +56,8 @@ ARCHIVE_DB_FILE = "archive_index.db"
 CREATE_ARCHIVE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(
                             start TIMESTAMP,
                             stop TIMESTAMP,
-                            status INTEGER,
+                            ntime INTEGER,
+                            time_step REAL,
                             filename TEXT UNIQUE ON CONFLICT REPLACE)'''
 
 
@@ -86,10 +87,10 @@ def _flag_transit(name, timestamp, window=900.0):
     return flag
 
 
-def _chunks(l, n):
+def _chunks(l, n, m=0):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
-        yield l[i:i + n]
+        yield l[max(0, i-m):i+n]
 
 
 def _sliding_window(arr, window):
@@ -488,6 +489,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     num_scale : int
         Number of scales to evaluate the wavelet transform.  This is only
         used if `log_scale` is True.
+    edge_buffer : int
+        Number of time samples at the edge that are considered invalid
+        is set to `edge_buffer * max_scale`.
     """
 
     # Config parameters related to scheduling
@@ -532,6 +536,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     min_scale = config.Property(proptype=int, default=31)
     max_scale = config.Property(proptype=int, default=201)
     num_scale = config.Property(proptype=int, default=100)
+    edge_buffer = config.Property(proptype=int, default=3)
 
     def setup(self):
         """Set up the analyzer.
@@ -636,6 +641,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                    dtype=np.int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
+        self.nedge = self.edge_buffer * self.max_scale
 
     def run(self):
         """Run the analyzer.
@@ -661,12 +667,23 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         self.logger.info('Analyzing data between {} and {}.'.format(
                          datetime2str(start_time), datetime2str(end_time)))
 
+        valid_start = ephemeris.datetime_to_unix(start_time)
+
+        # Pad the start time to handle edge effects for the CWT
+        cursor = self.archive_index.cursor()
+        query = 'SELECT AVG(ntime), AVG(time_step) FROM files'
+        avg_ntime, avg_time_step = list(cursor.execute(query))[0]
+
+        offset_start = datetime.timedelta(seconds=self.nedge * avg_time_step)
+        offset_nfile = int(np.ceil(2 * self.nedge / float(avg_ntime)))
+
         # Find files that have not been analyzed
         cursor = self.archive_index.cursor()
         query = '''SELECT filename, start, stop FROM files
-                   WHERE ((status = ?) AND ((stop > ?) AND (start < ?)))
+                   WHERE ((stop > ?) AND (start < ?))
                    ORDER BY start'''
-        results = list(cursor.execute(query, (0, start_time, end_time)))
+        results = list(cursor.execute(query, (start_time - offset_start,
+                                              end_time)))
 
         acquisitions = sorted(list(set([os.path.dirname(res[0])
                                         for res in results])))
@@ -708,7 +725,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                    datasets=dset)
 
             # Do not process this acquisition if it is too short
-            if all_data.ntime < (self.nwin * 3):
+            if all_data.ntime < (2 * self.nedge + 1):
                 continue
 
             # Extract good inputs
@@ -763,13 +780,21 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             else:
                 chunk_size = min(self.max_num_file, nfiles)
 
+            chunk_files = _chunks(all_files, chunk_size, m=offset_nfile)
+
             # Loop over chunks of files
-            for chnk, files in enumerate(_chunks(all_files, chunk_size)):
+            for chnk, files in enumerate(chunk_files):
 
                 self.logger.info("Now processing chunk %d (%d files)" %
                                  (chnk, len(files)))
 
                 self.file_start_time = time.time()
+
+                cursor = self.data_index.cursor()
+                query = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
+                results = list(cursor.execute(query))
+                if results:
+                    valid_start = ephemeris.datetime_to_unix(results[0][0])
 
                 # Create list of candidates
                 cfreq, cinput, ctime, cindex, csize = [], [], [], [], []
@@ -892,17 +917,23 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                 t0 = time.time()
 
+                # Create a flag indicating valid times
+                valid = this_time > valid_start
+                valid[:self.nedge] = False
+                valid[-self.nedge:] = False
+
                 # If requested, ignore jumps that occur during solar transit
                 # or near bright source transits
-                tquiet = np.ones(ntime, dtype=np.bool)
                 if self.ignore_sun:
-                    tquiet &= ~_flag_transit('sun', this_time,
-                                             window=self.transit_window)
+                    valid &= ~_flag_transit('sun', this_time,
+                                            window=self.transit_window)
 
                 if self.ignore_point_sources:
                     for ss in ["CYG_A", "CAS_A"]:
-                        tquiet &= ~_flag_transit(ss, this_time,
-                                                 window=self.transit_window)
+                        valid &= ~_flag_transit(ss, this_time,
+                                                window=self.transit_window)
+
+                valid_time = this_time[valid]
 
                 # Loop over frequencies
                 for ff, freq in enumerate(dfreq):
@@ -966,7 +997,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         # Cut bad candidates
                         index_good_candidates = np.flatnonzero(
                             (self.scale[stop] >= self.max_scale) &
-                            tquiet[candidates[start, np.arange(start.size)]] &
+                            valid[candidates[start, np.arange(start.size)]] &
                             (pdrift <= self.psigma_max))
 
                         ngood = index_good_candidates.size
@@ -1040,7 +1071,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     srchd.create_dataset('files', data=np.string_(files))
                     srchd.create_dataset('freq', data=this_freq)
                     srchd.create_dataset('input', data=this_input[ifeed])
-                    srchd.create_dataset('time', data=this_time)
+                    srchd.create_dataset('time', data=valid_time)
 
                     # Create weather related index map
                     index_map = handler.create_group('index_map')
@@ -1111,7 +1142,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         jump_counter = {}
 
                 # Update data index database
-                self.update_data_index(this_time[0], this_time[-1],
+                self.update_data_index(valid_time[0], valid_time[-1],
                                        njump=ncandidate, filename=output_file)
 
                 # Update prometheus metrics
@@ -1260,7 +1291,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Find all files in database
         cursor = self.archive_index.cursor()
-        query = 'SELECT filename, status FROM files ORDER BY start'
+        query = 'SELECT filename FROM files ORDER BY start'
         db_files = list(cursor.execute(query))
 
         for result in db_files:
@@ -1279,16 +1310,20 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                (relpath,))
                 self.archive_index.commit()
 
-        # Add all remaining files to the database with status not processed
+        # Add all remaining files to the database
         for filename in all_files:
 
             relpath = os.path.relpath(filename, self.archive_data_dir)
 
             with h5py.File(filename, 'r') as handler:
                 ftime = handler['index_map']['time']['ctime'][:]
-                ftime += 0.5 * np.median(np.abs(np.diff(ftime)))
-                time_start = ftime[0]
-                time_stop = ftime[-1]
+
+            delta_t = np.median(np.abs(np.diff(ftime)))
+            ntime = ftime.size
+
+            ftime += 0.5 * delta_t
+            time_start = ftime[0]
+            time_stop = ftime[-1]
 
             dt_start = ephemeris.unix_to_datetime(time_start)
             dt_stop = ephemeris.unix_to_datetime(time_stop)
@@ -1296,7 +1331,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             # Insert row for this file
             cursor = self.archive_index.cursor()
             cursor.execute("INSERT INTO files VALUES (?, ?, ?, ?)",
-                           (dt_start, dt_stop, 0, relpath))
+                           (dt_start, dt_stop, ntime, delta_t, relpath))
             self.archive_index.commit()
 
     def finish(self):
