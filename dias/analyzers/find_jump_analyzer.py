@@ -790,11 +790,11 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                 self.file_start_time = time.time()
 
-                cursor = self.data_index.cursor()
-                query = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
-                results = list(cursor.execute(query))
-                if results:
-                    valid_start = ephemeris.datetime_to_unix(results[0][0])
+                ccursor = self.data_index.cursor()
+                cquery = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
+                cresults = list(ccursor.execute(cquery))
+                if cresults:
+                    valid_start = ephemeris.datetime_to_unix(cresults[0][0])
 
                 # Create list of candidates
                 cfreq, cinput, ctime, cindex, csize = [], [], [], [], []
