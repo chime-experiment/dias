@@ -725,7 +725,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                                    datasets=dset)
 
             # Do not process this acquisition if it is too short
-            if all_data.ntime < (2 * self.nedge + 1):
+            if all_data.ntime < (3 * self.nedge):
                 continue
 
             # Extract good inputs
@@ -933,6 +933,11 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     for ss in ["CYG_A", "CAS_A"]:
                         valid &= ~_flag_transit(ss, this_time,
                                                 window=self.transit_window)
+
+                # Check to make sure we have valid times to process
+                if not np.any(valid):
+                    self.logger.info("No valid times.  Skipping.")
+                    continue
 
                 valid_time = this_time[valid]
 
@@ -1316,8 +1321,12 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
             relpath = os.path.relpath(filename, self.archive_data_dir)
 
-            with h5py.File(filename, 'r') as handler:
-                ftime = handler['index_map']['time']['ctime'][:]
+            try:
+                with h5py.File(filename, 'r') as handler:
+                    ftime = handler['index_map']['time']['ctime'][:]
+            except Exception as ex:
+                self.logger.info("Could not load %s:  %s" % (filename, ex))
+                continue
 
             delta_t = np.median(np.abs(np.diff(ftime)))
             ntime = ftime.size
