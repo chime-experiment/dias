@@ -35,6 +35,9 @@ script:
     # Run all tests in test folder
     - pytest --ignore dias/analyzers/test_analyzer.py
 
+    # Test configs. Also imports analyzers and finds import errors (like missing requirements).
+    - python scripts/dias -c conf/dias.conf configtest
+
     # test dias script
     - python test/make_test_swarm.py test_conf 1
     - python scripts/dias -c test_conf/dias.conf configtest
