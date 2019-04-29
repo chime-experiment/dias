@@ -5,3 +5,4 @@ from .test_analyzer import TestAnalyzer
 from .thermaldata_analyzer import ThermalDataAnalyzer
 from .find_jump_analyzer import FindJumpAnalyzer
 from .flag_rfi_analyzer import FlagRFIAnalyzer
+from .sensitivity_analyzer import SensitivityAnalyzer
