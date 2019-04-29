@@ -54,7 +54,7 @@ class ConfigLoader:
         except Exception as exc:
             raise DiasUsageError('Failed to open dias config file: {}'
                                  .format(exc))
-        self.global_config = yaml.load(global_file)
+        self.global_config = yaml.safe_load(global_file)
 
         global_file.close()
 
@@ -182,7 +182,7 @@ class ConfigLoader:
                 task_config = copy.deepcopy(self.global_config)
 
                 # override with values from task config if specified
-                task_config.update(yaml.load(task_file))
+                task_config.update(yaml.safe_load(task_file))
 
                 # check task config vars
                 # start_time is optional and default is None, so don't touch it
