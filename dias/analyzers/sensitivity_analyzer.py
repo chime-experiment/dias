@@ -9,6 +9,7 @@ import calendar
 from caput import config
 from dias.utils.string_converter import str2timedelta
 from ch_util import data_index
+import sqlite3
 
 import os
 import subprocess
@@ -26,6 +27,10 @@ from ch_util import ephemeris
 from dias import exception
 from dias import __version__ as dias_version_tag
 
+DB_FILE = "data_index.db"
+CREATE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(
+                     start TIMESTAMP, stop TIMESTAMP,
+                     filename TEXT UNIQUE ON CONFLICT REPLACE)'''
 
 class SensitivityAnalyzer(CHIMEAnalyzer):
     """SensitivityAnalyzer.
@@ -129,11 +134,30 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     cyl_start_num = config.Property(proptype=int, default=2)
     lag = config.Property(proptype=str2timedelta, default="4h")
 
+    def setup(self):
+        # Open connection to data index database
+        # and create table if it does not exist
+        db_file = os.path.join(self.write_dir, DB_FILE)
+        db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        self.data_index = sqlite3.connect(db_file, detect_types=db_types,
+                                          check_same_thread=False)
+
+        cursor = self.data_index.cursor()
+        cursor.execute(CREATE_DB_TABLE)
+        self.data_index.commit()
+
     def run(self):
         """Task stage: analyzes data from the last period."""
         stop_time = datetime.utcnow() - self.lag
-        # Query files from now to period hours back
-        start_time = stop_time - self.period
+        
+        # Refresh the database
+        self.refresh_data_index()
+        
+        cursor = self.data_index.cursor()
+        query = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
+        results = list(cursor.execute(query))
+        start_time = results[0][0] if results else stop_time - self.period
+    	
 
         # Find all calibration files
         f = self.Finder()
@@ -149,7 +173,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         except IndexError:
             err_msg = 'No {} files found from last {}.'.format(
                 self.acq_suffix, self.period)
-            raise exception.DiasDataError(msg)
+            raise exception.DiasDataError(err_msg)
 
         self.logger.info('Calculating sensitivity from %s to %s' %
                          (str(start_time), str(stop_time)))
@@ -188,6 +212,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             nfreq = data.nfreq
             nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
 
+            #Also used in the output file name and database
             timestamp = data.time
             ntime = timestamp.size
 
@@ -230,11 +255,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     apply_gain=False,
                     renormalize=False)
 
-                if(not(index_0)):
-                    # extract the first time of the record from the first
-                    # block, used in output file
-                    timestamp_file = int(bdata.time[0])
-
                 bflag = (bdata.weight[:] > 0.0).astype(np.float32)
                 bvar = tools.invert_no_zero(bdata.weight[:])
 
@@ -260,8 +280,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Write to file
             output_file = os.path.join(self.write_dir, "%d_%s.h5" %
-                                       (timestamp_file, self.output_suffix))
+                                       (timestamp[0], self.output_suffix))
             self.logger.info("Writing output file...")
+            self.update_data_index(data.time[0], data.time[-1], filename=output_file)
 
             with h5py.File(output_file, 'w') as handler:
 
@@ -370,3 +391,61 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     def get_cyl(self, cyl_num):
         """Return the cylinfer ID (char)."""
         return chr(cyl_num - self.cyl_start_num + self.cyl_start_char)
+    
+    def update_data_index(self, start, stop, filename=None):
+        """Add row to data index database.
+        Update the data index database with a row that
+        contains the name of the file and the span of time
+        the file contains.
+        Parameters
+        ----------
+        start : unix time
+            Earliest time contained in the file.
+        stop : unix time
+            Latest time contained in the file.
+        filename : str
+            Name of the file.
+        """
+        # Parse arguments
+        dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
+        dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
+
+        relpath = None
+        if filename is not None:
+            relpath = os.path.relpath(filename, self.write_dir)
+
+        # Insert row for this file
+        cursor = self.data_index.cursor()
+        cursor.execute("INSERT INTO files VALUES (?, ?, ?)",
+                       (dt_start, dt_stop, relpath))
+
+        self.data_index.commit()    
+    
+    
+    def refresh_data_index(self):
+        """Remove expired rows from the data index database.
+        Remove any rows of the data index database
+        that correspond to files that have been cleaned
+        (removed) by dias manager.
+        """
+        cursor = self.data_index.cursor()
+        query = 'SELECT filename FROM files ORDER BY start'
+        all_files = list(cursor.execute(query))
+
+        for result in all_files:
+
+            filename = result[0]
+
+            if not os.path.isfile(os.path.join(self.write_dir, filename)):
+
+                cursor = self.data_index.cursor()
+                cursor.execute('DELETE FROM files WHERE filename = ?',
+                               (filename,))
+                self.data_index.commit()
+                self.log.info("Removed %s from data index database." %
+                              filename)
+                              
+    def finish(self):
+        """Close connection to data index database."""
+        self.logger.info('Shutting down.')
+        self.data_index.close()
