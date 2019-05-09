@@ -23,11 +23,13 @@ Functions
 
 """
 import os
-import time
+import time as tt
 import datetime
 from glob import glob
 from bisect import bisect_left
 from caput import config, time
+import warnings
+from scipy.optimize import OptimizeWarning
 
 import numpy as np
 import h5py
@@ -39,6 +41,8 @@ from dias import CHIMEAnalyzer
 
 from dias.utils.string_converter import str2timedelta, datetime2str
 from dias import __version__ as dias_version_tag
+
+warnings.simplefilter("error", OptimizeWarning)
 
 # Brightest sources.
 SOURCES = {
@@ -53,14 +57,18 @@ NINPUT = 2048
 
 
 def gauss(x, A, mu, sigma):
+    """Fits data to a Gaussian function."""
     return A*np.exp(-(x-mu)**2/(2.*sigma**2))
 
 
 def poly3(x, p, q, r, s):
+    """Fits data to a 3rd order polynomial function."""
     return (p*x**3) + (q*x**2) + r*x + s
 
 
 def get_flag_window(ttrans, window, timestamp):
+    """Flag indices for an array of timestamps which are
+    located within a specified window around transit."""
     time_start, time_end = ttrans - window, ttrans + window
     flag_window = np.flatnonzero((timestamp > time_start) & (timestamp < time_end))
     return flag_window
@@ -72,7 +80,17 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    None
+    dias_task_<task name>_run_time
+    ...........................................................
+    Time to process single transit in seconds.
+
+    dias_task_<task name>_transits_found
+    ...........................................................
+    Number of total transits found in search window.
+
+    dias_data_<task name>_bad_fits
+    ............................................
+    Counter for any time an attempt to fit a transit failed.
 
     Output Data
     -----------
@@ -125,6 +143,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
         'CAS_A'). Default : 'CYG_A'.
 
     """
+
     source = config.Property(proptype=str, default='CYG_A')
 
     transit_window = config.Property(proptype=float, default=600.0)
@@ -139,7 +158,6 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
         Creates metrics.
         """
-
         # Add task metrics.
         self.run_timer = self.add_task_metric(
                                         "run_time",
@@ -170,7 +188,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
         Define time range to look for transits.
         Write fit parameters to disk.
         """
-        run_start_time = time.time()
+        run_start_time = tt.time()
 
         end_time = datetime.datetime.utcnow()
         start_time = end_time - datetime.timedelta(hours=self.search_window)  # period is 24h
@@ -188,10 +206,8 @@ class AutosAnalyzer(CHIMEAnalyzer):
                     'Processing source ' + self.source)
         centroid_wander, width, gain, sefd, rms_noise, freq = self.fitparams(start_time, end_time)
 
-        with h5py.File(os.path.join(
-                               self.write_dir,
-                               time_str + '_' + self.source
-                               + '_fitparams.h5'), 'w') as f:
+        with h5py.File(os.path.join(self.write_dir,
+                                    time_str + '_' + self.source + '_fitparams.h5'), 'w') as f:
                 f.create_dataset(
                         'centroid_wander', data=centroid_wander, dtype=float)
                 f.create_dataset(
@@ -207,7 +223,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
                         'axis/input', data=np.arange(NINPUT), dtype=int)
                 f.close()
 
-        self.run_timer.set(int(time.time() - run_start_time))
+        self.run_timer.set(int(tt.time() - run_start_time))
 
     def fitparams(self, start_time, end_time):
         """Load autocorrelations from the most recent transit.
@@ -239,7 +255,6 @@ class AutosAnalyzer(CHIMEAnalyzer):
         freq : list
             Centre frequencies in MHz.
         """
-
         # Set a Finder object
         f = self.Finder()
         f.set_time_range(start_time, end_time)
@@ -261,21 +276,26 @@ class AutosAnalyzer(CHIMEAnalyzer):
                 'Found ' + str(len(results_list)) + ' transits.')
         self.transits_found.set(len(results_list))
 
-        data = andata.CorrData.from_acq_h5(result[-1], freq_sel=self.freq_sel)
+        result = results_list[-1]
 
-        time = data.index_map['time']['ctime']
+        nfreq = len(self.freq_sel)
+        self.logger.info(
+                'Loading autocorrelations at ' + str(nfreq) + ' frequencies.')
+        data = andata.CorrData.from_acq_h5(result[0], freq_sel=self.freq_sel)
+
+        times = data.index_map['time']['ctime']
         freq = data.index_map['freq']['centre']
         input_list = data.index_map['input']['chan_id']
         self.freq_width = data.index_map['freq']['width']
 
-        self.transit_time = ephemeris.transit_times(self.sel_source, time[0], time[-1])[0]
+        self.transit_time = ephemeris.transit_times(self.sel_source, times[0], times[-1])[0]
 
         local_time = np.array([ephemeris.unix_to_datetime(tt) - datetime.timedelta(hours=8)
-                               for tt in time])
+                               for tt in times])
         local_ttrans = ephemeris.unix_to_datetime(self.transit_time) - datetime.timedelta(hours=8)
 
-        flag_window = get_flag_window(self.transit_time, self.transit_window, time)
-        timestamp = time[flag_window]
+        flag_window = get_flag_window(self.transit_time, self.transit_window, times)
+        timestamp = times[flag_window]
         self.t0 = timestamp[0]
         self.tau = np.median(np.diff(timestamp))
 
@@ -283,10 +303,9 @@ class AutosAnalyzer(CHIMEAnalyzer):
         fluxes = fluxcat.FluxCatalog[self.source].predict_flux(freq)
 
         self.logger.info(
-                'Processing ' + self.source + ' transit at local time '
+                'Fitting ' + self.source + ' transit from local time '
                 + datetime2str(local_ttrans) + '.')
 
-        nfreq = len(self.freq_sel)
         # initialize parameters
         centroid_wander = np.zeros((nfreq, NINPUT))
         width = np.zeros((nfreq, NINPUT))
@@ -295,9 +314,6 @@ class AutosAnalyzer(CHIMEAnalyzer):
         rms_noise = np.zeros((nfreq, NINPUT))
         radiometer_rms = np.zeros((nfreq, NINPUT))
 
-        self.logger.info(
-                'Processing ' + str(nfreq) + ' frequencies.')
-
         no_fit = 0
         for fbin in range(nfreq):
             for i in input_list:
@@ -305,9 +321,9 @@ class AutosAnalyzer(CHIMEAnalyzer):
                 flux = fluxes[fbin]
 
                 try:
-                    centroid_wander[fbin, i], width[fbin, i], gain[fbin, i],
-                    sefd[fbin, i], rms_noise[fbin, i] = self.fit_autos(v, timestamp, flux)
-                except:
+                    (centroid_wander[fbin, i], width[fbin, i], gain[fbin, i],
+                     sefd[fbin, i], rms_noise[fbin, i]) = self.fit_autos(v, timestamp, flux)
+                except (OptimizeWarning, RuntimeError):
                     no_fit += 1
                     continue
         self.bad_fits.set(no_fit)
@@ -342,9 +358,8 @@ class AutosAnalyzer(CHIMEAnalyzer):
         rms_noise : float
             Root mean square noise in Jy.
         """
-
-        auto_vec = v.real
         # subtract an overall offset to help with fitting
+        auto_vec = v.real
         offset = np.min(auto_vec)
         vis = (auto_vec-offset)
         n = len(timestamp)
@@ -369,20 +384,17 @@ class AutosAnalyzer(CHIMEAnalyzer):
             return fit
 
         height = popt[0]  # in ADC units
-        y = flux/(height)  # Jy per AC unit
-
-        centroid = popt[1] + self.t0  # unix seconds
-        centroid_wander = popt[1] + self.t0 - self.transit_time  # unix seconds
+        gain = flux/(height)  # Jy per AC unit
         width = 2. * np.sqrt(2 * np.log(2)) * popt[2]  # seconds
-        gain = jy
+        centroid_wander = popt[1] + self.t0 - self.transit_time  # unix seconds
 
-        radiometer_rms = jy * popt2[-1] / np.sqrt(self.tau * self.freq_width)
+        radiometer_rms = gain * popt2[-1] / np.sqrt(self.tau * self.freq_width)
 
-        sefd = jy * baseline(popt[1])
+        sefd = gain * baseline(popt[1])
 
-        residuals = np.diff((vis + offset - best_fit(timestamp)))
         # find and remove RFI spikes before calculated RMS noise
+        residuals = np.diff((vis + offset - best_fit(timestamp)))
         no_spikes = np.where(np.absolute(residuals) < 3 * np.median(np.absolute(residuals)))[0]
-        rms_noise = np.sqrt(np.sum((residuals[no_spikes] * jy)**2) / (2 * len(no_spikes) - 2))
+        rms_noise = np.sqrt(np.sum((residuals[no_spikes] * gain)**2) / (2 * len(no_spikes) - 2))
 
         return centroid_wander, width, gain, sefd, rms_noise
