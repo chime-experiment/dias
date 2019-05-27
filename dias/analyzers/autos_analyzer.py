@@ -67,8 +67,7 @@ def poly3(x, p, q, r, s):
 
 
 def get_flag_window(ttrans, window, timestamp):
-    """Flag indices for an array of timestamps which are
-    located within a specified window around transit."""
+    """Flag indices for a specified window around transit."""
     time_start, time_end = ttrans - window, ttrans + window
     flag_window = np.flatnonzero((timestamp > time_start) & (timestamp < time_end))
     return flag_window
@@ -204,7 +203,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
         # calculate fit parameters
         self.logger.info(
                     'Processing source ' + self.source)
-        centroid_wander, width, gain, sefd, rms_noise, freq = self.fitparams(start_time, end_time)
+        centroid_wander, width, gain, sefd, rms_noise, freq = self.fit_autos(start_time, end_time)
 
         with h5py.File(os.path.join(self.write_dir,
                                     time_str + '_' + self.source + '_fitparams.h5'), 'w') as f:
@@ -225,8 +224,9 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
         self.run_timer.set(int(tt.time() - run_start_time))
 
-    def fitparams(self, start_time, end_time):
+    def fit_autos(self, start_time, end_time):
         """Load autocorrelations from the most recent transit.
+
         Loop over frequencies and inputs and get fit paramters.
 
         Parameters
@@ -322,7 +322,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
                 try:
                     (centroid_wander[fbin, i], width[fbin, i], gain[fbin, i],
-                     sefd[fbin, i], rms_noise[fbin, i]) = self.fit_autos(v, timestamp, flux)
+                     sefd[fbin, i], rms_noise[fbin, i]) = self.fit_params(v, timestamp, flux)
                 except (OptimizeWarning, RuntimeError):
                     no_fit += 1
                     continue
@@ -330,9 +330,8 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
         return centroid_wander, width, gain, sefd, rms_noise, freq
 
-    def fit_autos(self, v, timestamp, flux):
-        """Load autocorrelations from the most recent transit.
-        Loop over frequencies and inputs and get fit paramters.
+    def fit_params(self, v, timestamp, flux):
+        """Fit autos to Gaussian + background and return fit parameters and other data metrics.
 
         Parameters
         ----------
@@ -392,7 +391,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
         sefd = gain * baseline(popt[1])
 
-        # find and remove RFI spikes before calculated RMS noise
+        # find and remove RFI spikes before calculating RMS noise
         residuals = np.diff((vis + offset - best_fit(timestamp)))
         no_spikes = np.where(np.absolute(residuals) < 3 * np.median(np.absolute(residuals)))[0]
         rms_noise = np.sqrt(np.sum((residuals[no_spikes] * gain)**2) / (2 * len(no_spikes) - 2))
