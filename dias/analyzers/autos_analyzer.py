@@ -207,20 +207,14 @@ class AutosAnalyzer(CHIMEAnalyzer):
 
         with h5py.File(os.path.join(self.write_dir,
                                     time_str + '_' + self.source + '_fitparams.h5'), 'w') as f:
-                f.create_dataset(
-                        'centroid_wander', data=centroid_wander, dtype=float)
-                f.create_dataset(
-                        'FWHM', data=width, dtype=float)
-                f.create_dataset(
-                        'gain', data=gain, dtype=float)
-                f.create_dataset(
-                        'SEFD', data=sefd, dtype=float)
-                f.create_dataset(
-                        'rms_noise', data=rms_noise, dtype=float)
-                f.create_dataset('axis/freq', data=freq, dtype=float)
-                f.create_dataset(
-                        'axis/input', data=np.arange(NINPUT), dtype=int)
-                f.close()
+            f.create_dataset('centroid_wander', data=centroid_wander, dtype=float)
+            f.create_dataset('FWHM', data=width, dtype=float)
+            f.create_dataset('gain', data=gain, dtype=float)
+            f.create_dataset('SEFD', data=sefd, dtype=float)
+            f.create_dataset('rms_noise', data=rms_noise, dtype=float)
+            f.create_dataset('axis/freq', data=freq, dtype=float)
+            f.create_dataset('axis/input', data=np.arange(NINPUT), dtype=int)
+            f.close()
 
         self.run_timer.set(int(tt.time() - run_start_time))
 
