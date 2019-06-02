@@ -452,7 +452,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 cursor.execute('DELETE FROM files WHERE filename = ?',
                                (filename,))
                 self.data_index.commit()
-                self.log.info("Removed %s from data index database." %
+                self.logger.info("Removed %s from data index database." %
                               filename)
 
     def finish(self):
