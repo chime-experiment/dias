@@ -453,7 +453,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                                (filename,))
                 self.data_index.commit()
                 self.logger.info("Removed %s from data index database." %
-                              filename)
+                                 filename)
 
     def finish(self):
         """Close connection to data index database."""
