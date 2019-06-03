@@ -143,7 +143,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         """
         # Check for database
 
-        db_file = os.path.join(self.write_dir, DB_FILE)
+        db_file = os.path.join(self.state_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         self.data_index = sqlite3.connect(db_file, detect_types=db_types,
                                           check_same_thread=False)
@@ -452,8 +452,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 cursor.execute('DELETE FROM files WHERE filename = ?',
                                (filename,))
                 self.data_index.commit()
-                self.log.info("Removed %s from data index database." %
-                              filename)
+                self.logger.info("Removed %s from data index database." %
+                                 filename)
 
     def finish(self):
         """Close connection to data index database."""
