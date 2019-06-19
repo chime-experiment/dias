@@ -40,7 +40,13 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Metrics
     ----------
-    None
+    dias_task_<task name>_average_sensitivity
+    ...................................
+    RMS of thermal noise, averaged over inter-cylinder
+    baselines, all frequencies, and 1.5 hours.
+
+    Labels
+        pol : Polarization of the feeds averaged (EW/NS).
 
     Output Data
     -----------------
@@ -139,7 +145,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         """Open connection to data index database.
 
         Creates table if it does not exist.
-
+        Further, it adds the data metric.
         """
         # Check for database
 
@@ -151,6 +157,15 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
         self.data_index.commit()
+
+	# Add a data metric for the computed cable loop delays.
+        self.sens = self.add_data_metric(
+                            "Thermal noise RMS",
+                            "Thermal noise estimate averaged over 
+                            all frequencies, inter-cylinder baselines, and 
+                            1.5 hours",
+                            unit='uJy',
+                            labelnames=['pol'])
 
     def run(self):
         """Task stage: analyzes data from the last period."""
@@ -282,6 +297,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             # Normalize
             inv_counter = tools.invert_no_zero(counter)
             var *= inv_counter**2
+
+            # Compute metric to be exported
+            self.sens.labels(pol='EW').set(np.sqrt(1.0/np.sum(tools.invert_no_zero(var[:,0:,]))))
+            self.sens.labels(pol='NS').set(np.sqrt(1.0/np.sum(tools.invert_no_zero(var[:,1:,]))))
 
             # Write to file
             output_file = os.path.join(self.write_dir, "%d_%s.h5" %
