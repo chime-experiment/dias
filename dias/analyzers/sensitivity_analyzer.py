@@ -158,7 +158,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         cursor.execute(CREATE_DB_TABLE)
         self.data_index.commit()
 
-        # Add a data metric for the computed cable loop delays.
+        # Add a data metric for sensitivity.
         self.sens = self.add_data_metric(
             "Thermal noise RMS",
             "Thermal noise estimate averaged over
