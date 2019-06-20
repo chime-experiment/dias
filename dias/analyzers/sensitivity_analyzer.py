@@ -160,10 +160,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         # Add a data metric for sensitivity.
         self.sens = self.add_data_metric(
-            "Thermal noise RMS",
-            "Thermal noise estimate averaged over
+            "Thermal_noise_RMS",
+            """Thermal noise estimate averaged over
             all frequencies, inter-cylinder baselines, and
-            1.5 hours",
+            1.5 hours""",
             unit='uJy',
             labelnames=['pol'])
 
