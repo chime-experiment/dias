@@ -41,7 +41,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     Metrics
     ----------
     dias_task_<task name>_average_sensitivity
-    ...................................
+    ................................................
     RMS of thermal noise, averaged over inter-cylinder
     baselines, all frequencies, and 1.5 hours.
 
