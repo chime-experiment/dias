@@ -40,7 +40,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Metrics
     ----------
-    dias_task_<task name>_average_sensitivity
+    dias_data_<task name>_average_sensitivity
     ................................................
     RMS of thermal noise, averaged over inter-cylinder
     baselines, all frequencies, and 1.5 hours.
@@ -160,11 +160,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         # Add a data metric for sensitivity.
         self.sens = self.add_data_metric(
-            "Thermal_noise_RMS",
+            "average_sensitivity",
             """Thermal noise estimate averaged over
             all frequencies, inter-cylinder baselines, and
             1.5 hours""",
-            unit='uJy',
+            unit='ujy',
             labelnames=['pol'])
 
     def run(self):
