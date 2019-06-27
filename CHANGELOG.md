@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 0.1.1 (2019-06-27)
+
+### New Features
+[SensitivityAnalyzer] Add sensitivity metric
+
 
 ## Version 0.1.0 (2019-06-13)
 
