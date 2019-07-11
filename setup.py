@@ -7,7 +7,6 @@ dias, a data integrity analysis system.
 """
 
 
-import dias
 import os
 import setuptools
 import shutil
