@@ -1328,8 +1328,13 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 self.logger.info("Could not load %s:  %s" % (filename, ex))
                 continue
 
-            delta_t = np.median(np.abs(np.diff(ftime)))
             ntime = ftime.size
+            if ntime < 2:
+                self.logger.info("%s only contains %d samples. Skipping." %
+                                 (filename, ntime))
+                continue
+
+            delta_t = np.median(np.abs(np.diff(ftime)))
 
             ftime += 0.5 * delta_t
             time_start = ftime[0]
