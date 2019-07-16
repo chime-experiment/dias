@@ -300,9 +300,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Compute metric to be exported
             self.sens.labels(pol='EW').set(
-                np.sqrt(1.e6/np.sum(tools.invert_no_zero(var[:, 0:, ]))))
+                1.e6*np.sqrt(1./np.sum(tools.invert_no_zero(var[:, 0, :]))))
             self.sens.labels(pol='NS').set(
-                np.sqrt(1.e6/np.sum(tools.invert_no_zero(var[:, 1:, ]))))
+                1.e6*np.sqrt(1./np.sum(tools.invert_no_zero(var[:, 1, :]))))
 
             # Write to file
             output_file = os.path.join(self.write_dir, "%d_%s.h5" %
