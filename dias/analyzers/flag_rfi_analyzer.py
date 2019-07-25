@@ -575,8 +575,8 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 cursor.execute('DELETE FROM files WHERE filename = ?',
                                (filename,))
                 self.data_index.commit()
-                self.log.info("Removed %s from data index database." %
-                              filename)
+                self.logger.info("Removed %s from data index database." %
+                                 filename)
 
     def finish(self):
         """Close connection to data index database."""
