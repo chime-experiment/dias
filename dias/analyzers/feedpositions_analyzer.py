@@ -156,7 +156,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         self.num_feeds_above_threshold = self.add_data_metric(
             "num_feeds_above_threshold",
             "how many feeds have position residuals greater "
-            "than *threshold* times the feedposition (0.3048m)",
+            "than *threshold* times the feedposition ({}m)".format(FEED_SEPERATION),
             labelnames=['freq', 'source', 'threshold'], unit='total')
 
         self.logger.info('Sources: {}'.format(self.sources))
@@ -214,13 +214,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                     date=self.start_time_night, deg=True)
             if transit:
                 night_transits.append(src)
-            # At this point it's also good to set all metrics for all sources
-            # to zero even if it's not at night time
-            self.freq_metric.labels(source=src).set(0)
-            for f in range(len(freq_sel)):
-                for t in range(len(threshold_levels)):
-                    self.num_feeds_above_threshold.labels(freq=np.round(freq_sel[f], 0),
-                                                          source=src, threshold=float(t)).set(0)
+            else:
+                # At this point set all metrics for day sources to zero
+                self.__set_metrics_to_zero(src)
 
         self.logger.info('Found night transits:\n{}'.format(night_transits))
 
@@ -236,6 +232,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
             if ew_positions is None:
                 self.logger.info('Moving on.')
+                self.__set_metrics_to_zero(night_source)
                 continue
 
             # If we want to flag bad input channels, set their values to nan.
@@ -257,6 +254,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
 
+            # Here I am making a copy of residuals and setting the nan values to zero
+            # to avoid RuntimeError
+            residuals_copy = residuals.copy()
+            residuals_copy[:, bad_inputs] = 0.0
             # Calculate number of bad feeds for each threshold in threshold_levels
             for i in range(len(freq_sel)):
                 # Calculate MAD and derive a standard deviation from it
@@ -265,9 +266,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
                 for t in range(len(threshold_levels)):
                     threshold = threshold_levels[t]
-                    nbad_feeds = np.sum(np.logical_or(residuals[i, :] > (threshold
+                    nbad_feeds = np.sum(np.logical_or(residuals_copy[i, :] > (threshold
                                                       * FEED_SEPERATION),
-                                                      residuals[i, :] < (- threshold
+                                                      residuals_copy[i, :] < (- threshold
                                                       * FEED_SEPERATION)))
 
                     self.logger.info('For {}, frequency {} MHz, {} of the {} feeds have '
@@ -277,7 +278,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                                              NINPUT, threshold, FEED_SEPERATION,
                                              np.round(threshold * FEED_SEPERATION, 3)))
 
-                    # Export bad feeds percentage to prometheus.
+                    # Export number of bad feeds to prometheus.
                     self.num_feeds_above_threshold.labels(freq=np.round(freq_sel[i], 0),
                                                           source=night_source,
                                                           threshold=threshold).set(nbad_feeds)
@@ -423,6 +424,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             bad_inputs = np.array([inp[0] for inp in response['payload']])
 
         return ew_positions, resolution, bad_inputs
+
+    def __set_metrics_to_zero(self, src):
+        # Function to set all the data metrics to zero
+        self.freq_metric.labels(source=src).set(0)
+        for f in range(len(freq_sel)):
+            for t in range(len(threshold_levels)):
+                self.num_feeds_above_threshold.labels(freq=np.round(freq_sel[f], 0),
+                                                      source=src, threshold=float(t)).set(0)
 
     def __orthogonalize(self, data, fsel, time_index):
         # If we did not write data for that frequency because of a node crash
