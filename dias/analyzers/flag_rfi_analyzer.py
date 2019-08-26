@@ -83,6 +83,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     stacked autocorrelations are greater than some number of local
     median absolute deviations (MAD) from the local median.
 
+    `DocLib 777 <https://bao.chimenet.ca/doc/documents/777>`_ describes this analyzer and the
+    associated theremin graph.
+
     Metrics
     -------
     dias_task_<task_name>_run_time_seconds
