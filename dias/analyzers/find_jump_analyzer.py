@@ -308,6 +308,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     See "Singularity Detection and Processing with Wavelets" by
     Stephane Mallat and Wen Liang Hwang for more information.
 
+    `DocLib 788 <https://bao.chimenet.ca/doc/documents/788>`_ describes this analyzer and the
+    associated theremin graph.
+
     Metrics
     -------
     dias_task_<task_name>_run_time_seconds

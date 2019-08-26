@@ -38,6 +38,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Analyzer for telescope sensitivity.
 
+    `DocLib 792 <https://bao.chimenet.ca/doc/documents/792>`_ describes this analyzer and the
+    associated theremin graph.
+
     Metrics
     ----------
     dias_data_<task name>_average_sensitivity
