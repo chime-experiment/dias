@@ -1,17 +1,17 @@
 """A CHIME analyzer to calculate the East-West feed positions."""
-from dias import CHIMEAnalyzer, DiasConfigError
-from datetime import datetime
-from caput import config, time
-from dias.utils.string_converter import datetime2str
-
-from ch_util import data_index, ephemeris, fluxcat
-import numpy as np
 import os
+import requests
+import h5py
+import numpy as np
 
 import scipy.linalg as la
+from datetime import datetime
 
-import h5py
+from caput import config, time
+from ch_util import data_index, ephemeris, fluxcat
 
+from dias import CHIMEAnalyzer, DiasConfigError
+from dias.utils.string_converter import datetime2str
 
 # Choose 10 good frequencies. I chose the same ones that we used when writing
 # full N2 data for 10 frequencies.
@@ -19,6 +19,9 @@ freq_sel = [
         758.203125,  716.406250,  697.656250,  665.625000,  633.984375,
         597.265625,  558.203125,  516.406250,  497.265625,  433.593750,
         ]
+
+# Thresholds to report number of bad feeds for
+threshold_levels = [2.0, 3.0, 4.0, 5.0, 7.0, 10.0]
 
 # Brightest sources. VirA maybe does not have enough S/N.
 # Dictionary for ephemeris sources:
@@ -40,11 +43,10 @@ NPOL = 2
 NCYL = 4
 # number of eigenvalues to keep
 N_EVAL = 2
-# Standard deviation of feed position residuals derived from
-# data analysis of 11 files with 10 frequencies each
-STD = 0.3
-# Threshold for bad feeds
-N_SIGMA = 5
+# Median absolute deviation to standard deviation conversion
+MAD_TO_SIGMA = 1.4826
+# Feed sepeartion in meters
+FEED_SEPERATION = 0.3048
 
 
 class FeedpositionsAnalyzer(CHIMEAnalyzer):
@@ -125,12 +127,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
     pad_fac_EW : integer
         By which factor we pad the data before performing the fourier
         transform.  Default : 256.
-
+    flag_bad_inputs : bool
+        Wheter to flag the inputs from the flagging broker or not. Default : True.
     """
 
     ref_feed_P1 = config.Property(proptype=int, default=2)
     ref_feed_P2 = config.Property(proptype=int, default=258)
     pad_fac_EW = config.Property(proptype=int, default=256)
+    flag_bad_inputs = config.Property(proptype=bool, default=True)
 
     # Configurable list of sources to select.
     sources = config.Property(proptype=list)
@@ -149,11 +153,11 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             "ew_pos_good_freq",
             "how many frequencies out of 10 were good (EV ratio on vs off "
             "source smaller than 2)", labelnames=['source'], unit='total')
-        self.percent_metric = self.add_data_metric(
-            "bad_feeds",
-            "how many feeds in percent are bad (position residuals are greater "
-            "than {} sigma ({} m))".format(N_SIGMA, N_SIGMA * STD),
-            labelnames=['freq', 'source'], unit='percent')
+        self.num_feeds_above_threshold = self.add_data_metric(
+            "num_feeds_above_threshold",
+            "how many feeds have position residuals greater "
+            "than *threshold* times the feedposition ({}m)".format(FEED_SEPERATION),
+            labelnames=['freq', 'source', 'threshold'], unit='total')
 
         self.logger.info('Sources: {}'.format(self.sources))
 
@@ -210,6 +214,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                     date=self.start_time_night, deg=True)
             if transit:
                 night_transits.append(src)
+            else:
+                # At this point set all metrics for day sources to zero
+                self.__set_metrics_to_zero(src)
 
         self.logger.info('Found night transits:\n{}'.format(night_transits))
 
@@ -221,44 +228,60 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             self.logger.info(
                     'Processing source ' + night_source
                     + ' to find feed positions...')
-            ew_positions, resolution = self.__east_west_positions(night_source)
+            ew_positions, resolution, bad_inputs = self.__east_west_positions(night_source)
 
             if ew_positions is None:
                 self.logger.info('Moving on.')
+                self.__set_metrics_to_zero(night_source)
                 continue
+
+            # If we want to flag bad input channels, set their values to nan.
+            if self.flag_bad_inputs:
+                ew_positions[:, bad_inputs] = np.nan
 
             # Calculate the median for each cylinder/ polarisation pair.
             ew_offsets = np.ones_like(ew_positions)
             for i in range(0, NCYL*NPOL, NPOL):
                 ew_offsets[:, i * NCYLPOL:(i + 1) * NCYLPOL] *= \
-                    np.median(ew_positions[
+                    np.nanmedian(ew_positions[
                         :, i * NCYLPOL:(i + 1) * NCYLPOL
                         ], axis=1)[:, np.newaxis]
                 ew_offsets[:, (i + 1) * NCYLPOL:(i + 2) * NCYLPOL] *= \
-                    np.median(ew_positions[
+                    np.nanmedian(ew_positions[
                         :, (i + 1) * NCYLPOL:(i + 2) * NCYLPOL
                         ], axis=1)[:, np.newaxis]
 
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
 
-            # Calculate percentage of bad feeds, from analysis we know
-            # that when excluding large outliers the standard deviation in the
-            # residuals range around 0.3m. In a single feedposition analysis
-            # normally no more than 2 percent of feeds lie outside of 5 sigma.
+            # Here I am making a copy of residuals and setting the nan values to zero
+            # to avoid RuntimeError
+            residuals_copy = residuals.copy()
+            residuals_copy[:, bad_inputs] = 0.0
+            # Calculate number of bad feeds for each threshold in threshold_levels
             for i in range(len(freq_sel)):
-                nbad_feeds = np.sum(np.logical_or(residuals[i, :] > N_SIGMA*STD,
-                                                  residuals[i, :] < - N_SIGMA*STD))
-                percent_bad_feeds = nbad_feeds / float(NINPUT)
-                if (percent_bad_feeds):
-                    self.logger.info('For {}, frequency {}, {:.2f} percent ({}) of the feeds are '
-                                     'outside of {} sigma ({} m) around the expected '
-                                     'feedpositions.'
-                                     .format(night_source, freq_sel[i], percent_bad_feeds,
-                                             nbad_feeds, N_SIGMA, N_SIGMA * STD))
-                # Export bad feeds percentage to prometheus.
-                self.percent_metric.labels(freq=np.round(freq_sel[i], 0),
-                                           source=night_source).set(percent_bad_feeds)
+                # Calculate MAD and derive a standard deviation from it
+                # mad = np.nanmedian(abs(residuals[i] - np.nanmedian(residuals[i])))
+                # sigma = MAD_TO_SIGMA * mad
+
+                for t in range(len(threshold_levels)):
+                    threshold = threshold_levels[t]
+                    nbad_feeds = np.sum(np.logical_or(residuals_copy[i, :] > (threshold
+                                                      * FEED_SEPERATION),
+                                                      residuals_copy[i, :] < (- threshold
+                                                      * FEED_SEPERATION)))
+
+                    self.logger.info('For {}, frequency {} MHz, {} of the {} feeds have '
+                                     'feedpositions {} times {} ({} m) away from nominal '
+                                     'feedposition.'
+                                     .format(night_source, np.round(freq_sel[i], 0), nbad_feeds,
+                                             NINPUT, threshold, FEED_SEPERATION,
+                                             np.round(threshold * FEED_SEPERATION, 3)))
+
+                    # Export number of bad feeds to prometheus.
+                    self.num_feeds_above_threshold.labels(freq=np.round(freq_sel[i], 0),
+                                                          source=night_source,
+                                                          threshold=threshold).set(nbad_feeds)
 
             with h5py.File(os.path.join(
                                self.write_dir,
@@ -392,7 +415,23 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                         time, evec[f, i, :], freq[f], np.radians(dec),
                         pad_fac=self.pad_fac_EW)
 
-        return ew_positions, resolution
+        if self.flag_bad_inputs:
+            # Request bad inputs from flagging broker at time of source transit
+            response = requests.post('http://recv2:54327/past-bad-correlator-inputs',
+                                     data={'timestamp': time[transit_time]})
+
+            response = response.json()
+            bad_inputs = np.array([inp[0] for inp in response['payload']])
+
+        return ew_positions, resolution, bad_inputs
+
+    def __set_metrics_to_zero(self, src):
+        # Function to set all the data metrics to zero
+        self.freq_metric.labels(source=src).set(0)
+        for f in range(len(freq_sel)):
+            for t in range(len(threshold_levels)):
+                self.num_feeds_above_threshold.labels(freq=np.round(freq_sel[f], 0),
+                                                      source=src, threshold=float(t)).set(0)
 
     def __orthogonalize(self, data, fsel, time_index):
         # If we did not write data for that frequency because of a node crash
