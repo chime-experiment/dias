@@ -4,7 +4,8 @@ from datetime import datetime
 from caput import config, time
 from dias.utils.string_converter import datetime2str
 
-from ch_util import data_index, ephemeris, fluxcat
+from chimedb import data_index
+from ch_util import ephemeris, finder, fluxcat
 import numpy as np
 import os
 
@@ -291,7 +292,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         # Set a Finder object
         f = self.Finder()
-        # f = data_index.Finder({'
+        # f = finder.Finder({'
         f.set_time_range(self.start_time_night, self.end_time_night)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimecal'))
         f.accept_all_global_flags()

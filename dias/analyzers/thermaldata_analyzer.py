@@ -97,7 +97,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         start_time = datetime.now() - self.offset
         end_time = start_time + self.trange
 
-        from ch_util import data_index
+        from chimedb import data_index
         f = self.Finder()
         f.set_time_range(start_time, end_time)
         f.filter_acqs((data_index.ArchiveInst.name == 'chimetiming'))

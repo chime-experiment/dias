@@ -2,7 +2,7 @@
 
 from caput import config
 from dias import Analyzer
-from ch_util import data_index
+from ch_util import finder
 
 
 class CHIMEAnalyzer(Analyzer):
@@ -42,5 +42,5 @@ class CHIMEAnalyzer(Analyzer):
         -------
         An instance of :class:`Finder`.
         """
-        return data_index.Finder(
+        return finder.Finder(
             acqs=acqs, node_spoof={"gong": self.archive_data_dir})

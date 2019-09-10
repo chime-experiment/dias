@@ -8,7 +8,7 @@ from datetime import datetime
 import calendar
 from caput import config
 from dias.utils.string_converter import str2timedelta
-from ch_util import data_index
+from chimedb import data_index
 import sqlite3
 
 import os

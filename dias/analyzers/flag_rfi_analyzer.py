@@ -28,7 +28,8 @@ import gc
 import numpy as np
 import h5py
 
-from ch_util import tools, ephemeris, andata, data_index, rfi
+from chimedb import data_index
+from ch_util import tools, ephemeris, andata, rfi
 from caput import config
 
 from dias import chime_analyzer

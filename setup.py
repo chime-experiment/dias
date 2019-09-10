@@ -64,7 +64,17 @@ setuptools.setup(
     description="CHIME data integrity automation system",
     packages=['dias', 'dias.analyzers', 'dias.utils'],
     scripts=['scripts/dias'],
-    requires=['caput', 'ch_util'],
+    install_requires=[
+        'chimedb.data_index @ git+ssh://git@github.com/chime-experiment/chimedb_di.git',
+        'caput @ git+https://github.com/radiocosmology/caput.git',
+        'ch_util @ git+ssh://git@bitbucket.org/chime/ch_util.git',
+        'prometheus_client>=0.5.0',
+        'pyyaml',
+        'scipy',
+        'numpy',
+        'h5py',
+        'pywavelets',
+        ],
     license="GPL v3.0",
     url="http://github.com/chime-experiment/dias"
 )
