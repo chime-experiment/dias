@@ -138,7 +138,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
     search_window : integer
         Number of hours to search back from current time. Default : 48.
     source : string
-        Name of oint source to analyze. One of ('TAU_A', 'CYG_A', 'VIR_A', or
+        Name of point source to analyze. One of ('TAU_A', 'CYG_A', 'VIR_A', or
         'CAS_A'). Default : 'CYG_A'.
 
     """
