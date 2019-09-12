@@ -81,14 +81,15 @@ class Analyzer(config.Reader):
         log_level_override : String
             If this is passed, it will override the global log level of dias.
         """
-        self.logger = logging.getLogger('dias[{0}]'.format(self.name))
+        self.logger = logging.getLogger("dias[{0}]".format(self.name))
         if log_level_override:
             self.log_level = log_level_override
 
         self.logger.setLevel(self.log_level)
 
     def add_task_metric(
-            self, metric_name, description='', labelnames=[], unit=''):
+        self, metric_name, description="", labelnames=[], unit=""
+    ):
         """
         Add a gauge metric.
 
@@ -116,10 +117,10 @@ class Analyzer(config.Reader):
         :class:`prometheus_client.Gauge`
             The metric object to be kept and updated by the analyzer.
         """
-        name = 'dias_task_{}_{}'.format(self.name, metric_name)
+        name = "dias_task_{}_{}".format(self.name, metric_name)
         return Gauge(name, description, labelnames=labelnames, unit=unit)
 
-    def add_data_metric(self, name, description='', labelnames=[], unit=''):
+    def add_data_metric(self, name, description="", labelnames=[], unit=""):
         """
         Add a gauge metric.
 
@@ -147,7 +148,7 @@ class Analyzer(config.Reader):
         :class:`prometheus_client.Gauge`
             The metric object to be kept and updated by the analyzer.
         """
-        name = 'dias_data_{}_{}'.format(self.name, name)
+        name = "dias_data_{}_{}".format(self.name, name)
         return Gauge(name, description, labelnames=labelnames, unit=unit)
 
     # Overridable Attributes

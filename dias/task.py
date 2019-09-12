@@ -77,36 +77,49 @@ class Task:
 
         # We're only allowed to define these once, so we cache them
         if not task_metrics:
-            task_metrics['data_written'] = Gauge(
-                    'data_written',
-                    'Total amount of data written, '
-                    'including files deleted due to '
-                    'disk space overage.',
-                    labelnames=['task', 'directory'],
-                    namespace='dias',
-                    unit='bytes')
-            task_metrics['disk_space'] = Gauge(
-                    'disk_space',
-                    'Total amount of data on disk.',
-                    labelnames=['task', 'directory'],
-                    namespace='dias',
-                    unit='bytes')
-            task_metrics['runs'] = Counter(
-                    'runs', 'Total times task ran.',
-                    labelnames=['task'],
-                    namespace='dias', unit='total')
-            task_metrics['failed'] = Counter(
-                'failed', 'Counts how often each task failed.',
-                labelnames=['task'], namespace='dias', unit='total')
-            task_metrics['no_data'] = Counter(
-                'no_data', "Counts how often each task failed because it couldn't find any data.",
-                labelnames=['task'], namespace='dias', unit='total')
+            task_metrics["data_written"] = Gauge(
+                "data_written",
+                "Total amount of data written, "
+                "including files deleted due to "
+                "disk space overage.",
+                labelnames=["task", "directory"],
+                namespace="dias",
+                unit="bytes",
+            )
+            task_metrics["disk_space"] = Gauge(
+                "disk_space",
+                "Total amount of data on disk.",
+                labelnames=["task", "directory"],
+                namespace="dias",
+                unit="bytes",
+            )
+            task_metrics["runs"] = Counter(
+                "runs",
+                "Total times task ran.",
+                labelnames=["task"],
+                namespace="dias",
+                unit="total",
+            )
+            task_metrics["failed"] = Counter(
+                "failed",
+                "Counts how often each task failed.",
+                labelnames=["task"],
+                namespace="dias",
+                unit="total",
+            )
+            task_metrics["no_data"] = Counter(
+                "no_data",
+                "Counts how often each task failed because it couldn't find any data.",
+                labelnames=["task"],
+                namespace="dias",
+                unit="total",
+            )
 
-        self.data_written_metric = task_metrics['data_written']
-        self.disk_space_metric = task_metrics['disk_space']
-        self.metric_runs_total = task_metrics['runs']
-        self.metric_failed_total = task_metrics['failed']
-        self.metric_no_data_total = task_metrics['no_data']
+        self.data_written_metric = task_metrics["data_written"]
+        self.disk_space_metric = task_metrics["disk_space"]
+        self.metric_runs_total = task_metrics["runs"]
+        self.metric_failed_total = task_metrics["failed"]
+        self.metric_no_data_total = task_metrics["no_data"]
 
         # Initialize counter with zero. prometheus_client does not export a
         # value until the counter is incremented.
@@ -115,15 +128,13 @@ class Task:
         self.metric_no_data_total.labels(task=task_name).inc(0)
 
         # Extract important stuff from the task config
-        self.period = task_config['period']
-        if 'start_time' in task_config:
-            self.start_time = task_config['start_time']
+        self.period = task_config["period"]
+        if "start_time" in task_config:
+            self.start_time = task_config["start_time"]
         else:
             self.start_time = None
 
-    def prepare(self, reference_time,
-                log_level_override=None,
-                start_now=False):
+    def prepare(self, reference_time, log_level_override=None, start_now=False):
         """
         Prepare a task for execution.
 
@@ -168,21 +179,24 @@ class Task:
         # Create the task's output directory if it doesn't exist
         if not os.path.isdir(self.write_dir):
             self.analyzer.logger.debug(
-                    'Creating new output directory: {0}'
-                    .format(self.write_dir))
+                "Creating new output directory: {0}".format(self.write_dir)
+            )
             os.makedirs(self.write_dir)
         else:
             self.analyzer.logger.debug(
-                    'Write directory: {0}.'.format(self.write_dir))
+                "Write directory: {0}.".format(self.write_dir)
+            )
 
         # Create the task's state directory if it doesn't exist
         if not os.path.isdir(self.state_dir):
-            self.analyzer.logger.debug('Creating new state directory: {}.'
-                                       .format(self.state_dir))
+            self.analyzer.logger.debug(
+                "Creating new state directory: {}.".format(self.state_dir)
+            )
             os.makedirs(self.state_dir)
         else:
             self.analyzer.logger.debug(
-                    'Set state directory: {}.'.format(self.state_dir))
+                "Set state directory: {}.".format(self.state_dir)
+            )
 
         # Run the setup
         self.analyzer.setup()
@@ -227,29 +241,36 @@ class Task:
             self.metric_failed_total.labels(task=self.name).inc()
         else:
             self.analyzer.logger.info(
-                "Shut-down; result: {0}".format(repr(result)))
+                "Shut-down; result: {0}".format(repr(result))
+            )
 
         self.runcount -= 1
 
         # Check for disk space overage, delete files, export metrics
         before_data_space_used = self.data_space_used
         (data_size, self.data_space_used) = self.cleanup(
-            self.analyzer.write_dir, self.analyzer.data_size_max)
+            self.analyzer.write_dir, self.analyzer.data_size_max
+        )
         data_written = data_size - before_data_space_used
-        self.data_written_metric.labels(task=self.name, directory='write')\
-            .set(data_written)
-        self.disk_space_metric.labels(task=self.name, directory='write')\
-            .set(self.data_space_used)
+        self.data_written_metric.labels(task=self.name, directory="write").set(
+            data_written
+        )
+        self.disk_space_metric.labels(task=self.name, directory="write").set(
+            self.data_space_used
+        )
 
         # For now don't enforce state data size limit.
         before_state_space_used = self.state_space_used
         (state_size, self.state_space_used) = self.cleanup(
-            self.analyzer.state_dir, self.analyzer.state_size_max, check=True)
+            self.analyzer.state_dir, self.analyzer.state_size_max, check=True
+        )
         state_written = state_size - before_state_space_used
-        self.data_written_metric.labels(task=self.name, directory='state')\
-            .set(state_written)
-        self.disk_space_metric.labels(task=self.name, directory='state')\
-            .set(self.state_space_used)
+        self.data_written_metric.labels(task=self.name, directory="state").set(
+            state_written
+        )
+        self.disk_space_metric.labels(task=self.name, directory="state").set(
+            self.state_space_used
+        )
 
         if not result == "Failed":
             self.metric_runs_total.labels(task=self.name).inc()
@@ -275,8 +296,11 @@ class Task:
         tuple(int, int)
             Total data size before and after cleanup in bytes.
         """
-        self.analyzer.logger.debug("Cleaning up {}: data size maximum: {}"
-                                   .format(dir, bytes2str(max_size)))
+        self.analyzer.logger.debug(
+            "Cleaning up {}: data size maximum: {}".format(
+                dir, bytes2str(max_size)
+            )
+        )
 
         # gather all files their modification times and sizes (recursively)
         files = list()
@@ -297,20 +321,26 @@ class Task:
                 if check:
                     self.analyzer.logger.warning(
                         "File '{}' of size {} exceeds total state size limit"
-                        " ({}).".format(f.absolute(),
-                                        bytes2str(f.stat().st_size),
-                                        bytes2str(max_size)))
+                        " ({}).".format(
+                            f.absolute(),
+                            bytes2str(f.stat().st_size),
+                            bytes2str(max_size),
+                        )
+                    )
                 else:
-                    self.analyzer.logger.info("Deleting file: {}"
-                                              .format(f.absolute()))
+                    self.analyzer.logger.info(
+                        "Deleting file: {}".format(f.absolute())
+                    )
                     deleted_files.append(f)
                     try:
                         # Remove file or symbolic link
                         f.unlink()
                     except Exception as e:
                         self.analyzer.logger.warning(
-                            "Unable to delete file '{}': {}"
-                            .format(f.absolute(), e))
+                            "Unable to delete file '{}': {}".format(
+                                f.absolute(), e
+                            )
+                        )
                         deleted_files.pop()
                         disk_usage = total_data_size
             else:

@@ -13,7 +13,7 @@ from dias import exception
 import numpy as np
 
 # Constant
-SLOPE_TO_SECONDS = 1./2./np.pi/1E6  # Convert slope to seconds
+SLOPE_TO_SECONDS = 1.0 / 2.0 / np.pi / 1e6  # Convert slope to seconds
 CABLE_LOOP_CHANNEL_IDS = [944, 1314, 2034]
 REFERENCE_CHANNEL_IDS = [688, 1058, 2032]
 
@@ -61,8 +61,8 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     """
 
     # Config parameters
-    offset = config.Property(proptype=str2timedelta, default='12h')
-    trange = config.Property(proptype=str2timedelta, default='1h')
+    offset = config.Property(proptype=str2timedelta, default="12h")
+    trange = config.Property(proptype=str2timedelta, default="1h")
     # TODO: In the future, could figure out the loop ids from the database.
     loop_ids = config.Property(proptype=list, default=CABLE_LOOP_CHANNEL_IDS)
     ref_ids = config.Property(proptype=list, default=REFERENCE_CHANNEL_IDS)
@@ -78,10 +78,11 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         """
         # Add a data metric for the computed cable loop delays.
         self.delay = self.add_data_metric(
-                            "delay",
-                            "delays computed for each cable loop",
-                            unit='seconds',
-                            labelnames=['chan_id'])
+            "delay",
+            "delays computed for each cable loop",
+            unit="seconds",
+            labelnames=["chan_id"],
+        )
 
     def run(self):
         """
@@ -98,9 +99,10 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         end_time = start_time + self.trange
 
         from chimedb import data_index
+
         f = self.Finder()
         f.set_time_range(start_time, end_time)
-        f.filter_acqs((data_index.ArchiveInst.name == 'chimetiming'))
+        f.filter_acqs((data_index.ArchiveInst.name == "chimetiming"))
         f.accept_all_global_flags()
 
         results_list = f.get_results()
@@ -109,21 +111,32 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             result = results_list[0]
             read = result.as_reader()
             prods = read.prod
-            freq = read.freq['centre']
+            freq = read.freq["centre"]
             ntimes = len(read.time)
-            time_indices = np.linspace(self.checkoffset, ntimes, self.nchecks,
-                                       endpoint=False, dtype=int)
+            time_indices = np.linspace(
+                self.checkoffset,
+                ntimes,
+                self.nchecks,
+                endpoint=False,
+                dtype=int,
+            )
 
             # Determine prod_sel
             prod_sel = []
             for ii in range(ncables):
                 chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
                 pidx = np.where(
-                          np.logical_or(
-                             np.logical_and(prods['input_a'] == ref_id,
-                                            prods['input_b'] == chan_id),
-                             np.logical_and(prods['input_a'] == chan_id,
-                                            prods['input_b'] == ref_id)))[0][0]
+                    np.logical_or(
+                        np.logical_and(
+                            prods["input_a"] == ref_id,
+                            prods["input_b"] == chan_id,
+                        ),
+                        np.logical_and(
+                            prods["input_a"] == chan_id,
+                            prods["input_b"] == ref_id,
+                        ),
+                    )
+                )[0][0]
                 prod_sel.append(pidx)
 
             # Load data
@@ -135,13 +148,14 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 prms = self._get_fits(time_indices, phases[:, cc, :], freq)
                 for tt in range(len(prms)):
                     # First parameter is the slope
-                    delay_temp = prms[tt][0]*SLOPE_TO_SECONDS
-                    self.delay.labels(
-                        chan_id=self.loop_ids[cc]).set(delay_temp)
+                    delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
+                    self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
         else:
             msg = "Could not find any 'chimetiming' data between {0} and {1}"
-            msg = msg.format(start_time.strftime("%m/%d/%Y-%H:%M:%S"),
-                             end_time.strftime("%m/%d/%Y-%H:%M:%S"))
+            msg = msg.format(
+                start_time.strftime("%m/%d/%Y-%H:%M:%S"),
+                end_time.strftime("%m/%d/%Y-%H:%M:%S"),
+            )
             raise exception.DiasDataError(msg)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
@@ -180,14 +194,15 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         n = len(phase)
         if step is None:
             L = 100  # Initial estimate of loop length in meters.
-            thz = 1E6  # Convert MHz to Hz
-            c = 3E8  # Poor man's speed of light.
-            phase_fact = 2.*np.pi*L/(speed_factor*c)
-            step = phase_fact * abs(freq[1]-freq[0])*thz
+            thz = 1e6  # Convert MHz to Hz
+            c = 3e8  # Poor man's speed of light.
+            phase_fact = 2.0 * np.pi * L / (speed_factor * c)
+            step = phase_fact * abs(freq[1] - freq[0]) * thz
         for ii in np.arange(1, n):
             bad_step = np.logical_or(
-                                abs(phase[ii]-phase[ii-1]) > step*(1.+tol),
-                                abs(phase[ii]-phase[ii-1]) < step*(1.-tol))
+                abs(phase[ii] - phase[ii - 1]) > step * (1.0 + tol),
+                abs(phase[ii] - phase[ii - 1]) < step * (1.0 - tol),
+            )
             if not bad_step:
                 current_length += 1
             else:
@@ -234,9 +249,10 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             phase = allphase[:, tm_idx]
             # Find longest uninterrupted stretch
             stt_idx, length = self._find_longest_stretch(
-                            phase[fit_stt:fit_stp], freq[fit_stt:fit_stp])
-            stt_idx = stt_idx+fit_stt
-            fitslc = np.s_[stt_idx:stt_idx+length]
+                phase[fit_stt:fit_stp], freq[fit_stt:fit_stp]
+            )
+            stt_idx = stt_idx + fit_stt
+            fitslc = np.s_[stt_idx : stt_idx + length]
             # Fit for delay
             prms = np.polyfit(x=freq[fitslc], y=phase[fitslc], deg=1)
             prms_list.append(prms)

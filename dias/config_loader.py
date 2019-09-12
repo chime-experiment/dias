@@ -8,8 +8,8 @@ from dias import DiasConfigError, DiasUsageError, Task
 import copy
 
 # This is how a log line produced by dias will look like:
-LOG_FORMAT = '[%(asctime)s] %(name)s: %(message)s'
-DEFAULT_LOG_LEVEL = 'INFO'
+LOG_FORMAT = "[%(asctime)s] %(name)s: %(message)s"
+DEFAULT_LOG_LEVEL = "INFO"
 
 # Minimum value for config value trigger_interval dias allows (in minutes)
 MIN_TRIGGER_INTERVAL_MINUTES = 10
@@ -52,8 +52,9 @@ class ConfigLoader:
         try:
             global_file = open(self.config_path, "r")
         except Exception as exc:
-            raise DiasUsageError('Failed to open dias config file: {}'
-                                 .format(exc))
+            raise DiasUsageError(
+                "Failed to open dias config file: {}".format(exc)
+            )
         self.global_config = yaml.safe_load(global_file)
 
         global_file.close()
@@ -63,30 +64,38 @@ class ConfigLoader:
         # The default task config dir is the subdirectory "task" in
         # the directory containing dais.conf
         self._check_config_variable(
-                'task_config_dir', proptype=str2path,
-                default=os.path.join(
-                    os.path.dirname(self.config_path), "tasks"))
+            "task_config_dir",
+            proptype=str2path,
+            default=os.path.join(os.path.dirname(self.config_path), "tasks"),
+        )
 
-        self._check_config_variable('task_write_dir', proptype=str2path)
-        self._check_config_variable('task_state_dir', proptype=str2path)
+        self._check_config_variable("task_write_dir", proptype=str2path)
+        self._check_config_variable("task_state_dir", proptype=str2path)
         # now shell-expand these paths
-        self['task_config_dir'] = str2path(self['task_config_dir'])
-        self['task_write_dir'] = str2path(self['task_write_dir'])
-        self['task_state_dir'] = str2path(self['task_state_dir'])
+        self["task_config_dir"] = str2path(self["task_config_dir"])
+        self["task_write_dir"] = str2path(self["task_write_dir"])
+        self["task_state_dir"] = str2path(self["task_state_dir"])
 
-        self._check_config_variable('prometheus_client_port', proptype=int)
+        self._check_config_variable("prometheus_client_port", proptype=int)
         self._check_config_variable(
-                'log_level', default=DEFAULT_LOG_LEVEL,
-                proptype=logging.getLevelName)
+            "log_level",
+            default=DEFAULT_LOG_LEVEL,
+            proptype=logging.getLevelName,
+        )
         self._check_config_variable(
-                'trigger_interval', default='1h', proptype=str2timedelta)
+            "trigger_interval", default="1h", proptype=str2timedelta
+        )
 
-        if str2timedelta(self['trigger_interval']).seconds * 60 \
-                < MIN_TRIGGER_INTERVAL_MINUTES:
-            msg = 'Config value `trigger_interval` is too small ({}). '\
-                    'dias does not allow values smaller than {} minutes.'\
-                    .format(self['trigger_interval'],
-                            MIN_TRIGGER_INTERVAL_MINUTES)
+        if (
+            str2timedelta(self["trigger_interval"]).seconds * 60
+            < MIN_TRIGGER_INTERVAL_MINUTES
+        ):
+            msg = (
+                "Config value `trigger_interval` is too small ({}). "
+                "dias does not allow values smaller than {} minutes.".format(
+                    self["trigger_interval"], MIN_TRIGGER_INTERVAL_MINUTES
+                )
+            )
             raise AttributeError(msg)
 
         # Load all the analyzers
@@ -127,21 +136,25 @@ class ConfigLoader:
             value = config[key]
         except KeyError:
             if default is None:
-                raise DiasConfigError("Could not find variable {} in config."
-                                      .format(key))
+                raise DiasConfigError(
+                    "Could not find variable {} in config.".format(key)
+                )
             else:
                 value = self[key] = default
 
         try:
             value = proptype(value)
         except Exception as exc:
-            raise DiasConfigError("Value ({}) for config variable {} not "
-                                  "accepted: {}".format(value, key, exc))
+            raise DiasConfigError(
+                "Value ({}) for config variable {} not "
+                "accepted: {}".format(value, key, exc)
+            )
         finally:
             if value is None:
-                raise DiasConfigError("Value ({}) for config variable {} not "
-                                      "accepted: Not of type {}."
-                                      .format(value, key, proptype))
+                raise DiasConfigError(
+                    "Value ({}) for config variable {} not "
+                    "accepted: Not of type {}.".format(value, key, proptype)
+                )
 
     def _load_analyzers(self, limit_task):
         """
@@ -158,11 +171,12 @@ class ConfigLoader:
         """
         self.tasks = list()
 
-        for config_file in os.listdir(self['task_config_dir']):
+        for config_file in os.listdir(self["task_config_dir"]):
             # Only accept files ending in .conf as task configs.
             # Task config files starting with an underscore (_) are disabled.
-            if config_file.endswith(".conf") and not\
-                    config_file.startswith("_"):
+            if config_file.endswith(".conf") and not config_file.startswith(
+                "_"
+            ):
 
                 # Remove .conf from the config file name to get the name of the
                 # task
@@ -175,8 +189,8 @@ class ConfigLoader:
 
                 # caput config reader class for task config
                 task_file = open(
-                        os.path.join(self['task_config_dir'], config_file),
-                        "r")
+                    os.path.join(self["task_config_dir"], config_file), "r"
+                )
 
                 # use any values configured on global level
                 task_config = copy.deepcopy(self.global_config)
@@ -186,28 +200,33 @@ class ConfigLoader:
 
                 # check task config vars
                 # start_time is optional and default is None, so don't touch it
-                self._check_config_variable('log_level', logging.getLevelName,
-                                            'INFO', task_config)
-                self._check_config_variable('period', str2timedelta,
-                                            None, task_config)
-                self._check_config_variable('data_size_max', str2bytes,
-                                            None, task_config)
-                self._check_config_variable('state_size_max', str2bytes,
-                                            None, task_config)
+                self._check_config_variable(
+                    "log_level", logging.getLevelName, "INFO", task_config
+                )
+                self._check_config_variable(
+                    "period", str2timedelta, None, task_config
+                )
+                self._check_config_variable(
+                    "data_size_max", str2bytes, None, task_config
+                )
+                self._check_config_variable(
+                    "state_size_max", str2bytes, None, task_config
+                )
 
                 # This is where we tell the task to write its output
-                write_dir = os.path.join(self['task_write_dir'], task_name)
+                write_dir = os.path.join(self["task_write_dir"], task_name)
 
                 # This is where they can write a state until next time dias
                 # starts up.
-                state_dir = os.path.join(self['task_state_dir'], task_name)
+                state_dir = os.path.join(self["task_state_dir"], task_name)
 
                 # create the task object
                 task = Task(task_name, task_config, write_dir, state_dir)
 
                 # Load the analyzer for this task from the task config
-                analyzer_class = \
-                    self._import_analyzer_class(task_config['analyzer'])
+                analyzer_class = self._import_analyzer_class(
+                    task_config["analyzer"]
+                )
 
                 task.analyzer = analyzer_class(task_name, write_dir, state_dir)
                 task.analyzer.read_config(task_config)
@@ -237,7 +256,7 @@ class ConfigLoader:
             In case a class or module couldn't be found.
         """
         # Split the name into a module and a classname
-        (modulename, separator, classname) = name.rpartition('.')
+        (modulename, separator, classname) = name.rpartition(".")
 
         # Check if we successfully split
         if separator == "":
@@ -246,22 +265,26 @@ class ConfigLoader:
                 class_ = globals()[classname]
             except KeyError:
                 raise ImportError(
-                        "Analyzer class {0} not found".format(classname))
+                    "Analyzer class {0} not found".format(classname)
+                )
         else:
             # Try to load the module
             try:
                 ext_module = importlib.import_module(modulename)
             except ImportError:
-                raise ImportError("Analyzer module {0} not found".format(
-                    modulename))
+                raise ImportError(
+                    "Analyzer module {0} not found".format(modulename)
+                )
 
             # Now, find the class in the module
             try:
                 class_ = getattr(ext_module, classname)
             except AttributeError:
                 raise ImportError(
-                        "Analyzer class {0} not found in module {1}".format(
-                            classname, modulename))
+                    "Analyzer class {0} not found in module {1}".format(
+                        classname, modulename
+                    )
+                )
 
         return class_
 
