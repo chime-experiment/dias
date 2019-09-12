@@ -9,6 +9,7 @@ scipy
 numpy
 h5py
 pywavelets
+msgpack
 
 # Documentation
 recommonmark
