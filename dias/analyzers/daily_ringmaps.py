@@ -35,39 +35,20 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         except KeyError:
             raise DiasDataError("Ringmap axes missing expected freq and pol values.")
 
-        # Get all data from server before writing
-        # This is to try and ensure the times are consistent between all freq/pol
-        # If it turns out this strains the ringmap server too much, could merge loops
-        # to increase time between requests, but will probably lead to mismatched time axes
-        all_data = []
-        for pi, p in enumerate(pol):
-            for fi, f in enumerate(freq):
-                r = self._check_request(data={"freq_ind": fi, "pol": pi}, return_raw=True)
-                all_data.append(r)
-
-        # Check that some data was successfully retrieved
-        got_something = False
-        for d in data:
-            if d is not None:
-                got_something = True
-                break
-        if not got_something:
-            raise DiasDataError("Failed to retrieve any ringmaps from server.")
-
-        # write to file
+        # Retrieve data from server and write to file
         fh = None
         try:
             for pi, p in enumerate(pol):
                 for fi, f in enumerate(freq):
-                    i = pi * len(freq) + fi
+                    r = self._check_request(data={"freq_ind": fi, "pol": pi}, return_raw=True)
 
-                    if all_data[i] is None:
+                    if r is None:
                         self.warn("Failed to fetch ringmap for pol {}, freq {}.".format(p, f))
                         # TODO: record in prometheus
 
                     # Unpack data
                     try:
-                        data = msgpack.unpackb(all_data[i], raw=False)
+                        data = msgpack.unpackb(r, raw=False)
                     except:
                         self.logger.warn("Failed to unpack data for pol {}, freq {}.".format(p, f))
                         # TODO: record in prometheus
