@@ -2,7 +2,7 @@
 ch_util @ git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
 
 # From install_requires
-chimedb.data_index @ git+ssh://git@github.com/chime-experiment/chimedb_di.git,
+chimedb.data_index @ git+https://git@github.com/chime-experiment/chimedb_di.git,
 caput @ git+https://github.com/radiocosmology/caput.git,
 prometheus_client>=0.5.0
 pyyaml
