@@ -57,7 +57,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                     # Unpack data
                     try:
                         data = msgpack.unpackb(r, raw=False)
-                    except:
+                    except Exception:
                         self.logger.warn("Failed to unpack data for pol {}, freq {}.".format(p, f))
                         continue
 
