@@ -26,7 +26,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     def run(self):
         # fetch available frequencies and polarizations
-        data = self._check_request(self.ringmap_url)
+        data = self._check_request()
         if data is None:
             raise DiasDataError("Failed to retrieve ringmap axes from server.")
         try:
@@ -42,7 +42,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         all_data = []
         for pi, p in enumerate(pol):
             for fi, f in enumerate(freq):
-                r = self._check_request(data={"freq_ind": fi, "pol": pi})
+                r = self._check_request(data={"freq_ind": fi, "pol": pi}, return_raw=True)
                 all_data.append(r)
 
         # Check that some data was successfully retrieved
@@ -75,12 +75,12 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
                     # Parse data
                     try:
-                        sinza = np.array(data["sinza"])
+                        sinza = np.array(data["sinza"], dtype=np.float32)
                         time = np.array([(t["fpga_count"], t["ctime"]) for t in data["time"]],
                                         dtype=TIME_DTYPE)
-                        rmap = np.array(data["ringmap"])
-                        rmap = np.reshape(rmap.shape[0] // len(sinza), len(sinza)).T
-                        wgt = np.array(data["weight"])
+                        rmap = np.array(data["ringmap"], dtype=np.float32)
+                        rmap = rmap.reshape(rmap.shape[0] // len(sinza), len(sinza)).T
+                        wgt = np.array(data["weight"], dtype=np.float32)
                     except KeyError:
                         self.logger.warn("Missing keys in ringmap response.")
                         # TODO: record in prometheus
@@ -90,17 +90,17 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                     sort_t = np.argsort(time["ctime"])
                     if fh is None:
                         # Use common axes for all maps
-                        common_time = time[sort_t]
+                        common_time = time
                         # create file
-                        fh = self._create_file(pol, freq, common_time, sinza)
+                        fh = self._create_file(pol, freq, common_time[sort_t], sinza)
 
                     # determine if some times were updated during requests
-                    t_offset = time[sort_t] - common_time
+                    t_offset = time["ctime"] - common_time["ctime"]
                     if not (t_offset == 0.).all():
                         # zero times that are different
-                        new_t = np.where(t_offset != 0.)[0]
-                        rmap[sort_t][new_t] = 0.
-                        wgt[sort_t][new_t] = 0.
+                        new_t = t_offset != 0.
+                        rmap[:, new_t[sort_t]] = 0.
+                        wgt[new_t[sort_t]] = 0.
 
                     # write to file
                     fh["ringmap"][pi, fi, :, :] = rmap[:, sort_t]
@@ -114,13 +114,6 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         # TODO: return more informative summary
         return msg
 
-    def finish(self):
-        if self.success:
-            self.logger.debug("Saved daily ringmaps.")
-            # TODO: record in prometheus
-        else:
-            self.logger.warn("Failed to fetch ringmaps.")
-            # TODO: record failure in prometheus
 
     def delete_callback(self, deleted_files):
         pass
@@ -150,7 +143,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     def _create_file(self, pol, freq, time, sinza):
         # Create new file
-        self.tag = ephem.unix_to_datetime(time[0]['ctime']).strftime("%Y%M%dT%H%M%SZ")
+        self.tag = ephem.unix_to_datetime(time[0]['ctime']).strftime("%Y%m%dT%H%M%SZ")
         fname = path.join(self.write_dir, "{}.h5".format(self.tag))
         fh = h5py.File(fname)
 
@@ -158,7 +151,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         comp = h5.H5FILTER if self.use_bitshuffle else None
         comp_opts = (0, h5.H5_COMPRESS_LZ4) if self.use_bitshuffle else None
         # Create datasets
-        im = self.fh.create_group("index_map")
+        im = fh.create_group("index_map")
         im.create_dataset("time", data=time)
         im.create_dataset("pol", data=pol)
         im.create_dataset("freq", data=freq)
