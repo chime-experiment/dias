@@ -68,10 +68,10 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                         continue
 
                     # reorder so that time is increasing
-                    sort_t = np.argsort(time["ctime"])
                     if fh is None:
                         # Use common axes for all maps
-                        common_time = time
+                        common_time = time.copy()
+                        sort_t = np.argsort(time["ctime"])
                         # create file
                         fh = self._create_file(pol, freq, common_time[sort_t], sinza)
 
@@ -80,8 +80,8 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                     if not (t_offset == 0.).all():
                         # zero times that are different
                         new_t = t_offset != 0.
-                        rmap[:, new_t[sort_t]] = 0.
-                        wgt[new_t[sort_t]] = 0.
+                        rmap[:, new_t] = 0.
+                        wgt[new_t] = 0.
 
                     # write to file
                     fh["ringmap"][pi, fi, :, :] = rmap[:, sort_t]
