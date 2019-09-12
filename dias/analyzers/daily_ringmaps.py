@@ -1,3 +1,4 @@
+"""Analyzer to retrieve and store daily ringmaps."""
 import numpy as np
 import requests
 import msgpack
@@ -16,11 +17,41 @@ TIME_DTYPE = np.dtype([("fpga_count", "<u8"), ("ctime", "<f8")])
 
 
 class DailyRingmapAnalyzer(CHIMEAnalyzer):
+    """
+    Analyzer to retrieve and store daily ringmaps.
+
+    Metrics
+    -------
+    dias_task_daily_ringmaps_maps_total
+    .....................................
+    The number of maps that were saved in the last run.
+
+    Output Data
+    -----------
+    A file for every day containing ringmaps at all available
+    frequencies and polarizations.
+
+    State Data
+    ----------
+    None
+
+    Config
+    ------
+    ringmap_url : str
+        URL of the ringmap server.
+    use_bitshuffle : bool
+        Whether to use bitshuffle to compress the data in the output HDF5 files
+
+    Attributes
+    ----------
+    None
+    """
 
     ringmap_url = config.Property(proptype=str, default="http://recv1:12048/ringmap")
     use_bitshuffle = config.Property(proptype=bool, default=False)
 
     def setup(self):
+        """Set up metrics for task."""
         # TODO: Allow subset of frequencies?
 
         # metric for number of maps in last run
@@ -30,6 +61,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         super().setup()
 
     def run(self):
+        """Retrieve and save ringmaps."""
         # reset maps metric
         self.num_maps_metric.set(0)
 
