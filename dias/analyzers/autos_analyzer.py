@@ -25,8 +25,6 @@ Functions
 import os
 import time as tt
 import datetime
-from glob import glob
-from bisect import bisect_left
 from caput import config, time
 import warnings
 from scipy.optimize import OptimizeWarning
@@ -39,8 +37,7 @@ from ch_util import data_index, ephemeris, fluxcat, andata
 
 from dias import CHIMEAnalyzer
 
-from dias.utils.string_converter import str2timedelta, datetime2str
-from dias import __version__ as dias_version_tag
+from dias.utils.string_converter import datetime2str
 
 warnings.simplefilter("error", OptimizeWarning)
 
