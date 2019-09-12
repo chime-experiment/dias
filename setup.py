@@ -65,7 +65,7 @@ setuptools.setup(
     packages=["dias", "dias.analyzers", "dias.utils"],
     scripts=["scripts/dias"],
     install_requires=[
-        "chimedb.data_index @ git+ssh://git@github.com/chime-experiment/chimedb_di.git",
+        "chimedb.data_index @ git+https://git@github.com/chime-experiment/chimedb_di.git",
         "caput @ git+https://github.com/radiocosmology/caput.git",
         "ch_util @ git+ssh://git@bitbucket.org/chime/ch_util.git",
         "prometheus_client>=0.5.0",
