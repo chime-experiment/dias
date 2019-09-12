@@ -22,9 +22,16 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     def setup(self):
         # TODO: Allow subset of frequencies?
+
+        # metric for number of maps in last run
+        self.num_maps_metric = self.add_data_metric("maps", "Number of maps saved in last run.",
+                                                    unit="total")
         super().setup()
 
     def run(self):
+        # reset maps metric
+        self.num_maps_metric.set(0)
+
         # fetch available frequencies and polarizations
         data = self._check_request()
         if data is None:
@@ -44,14 +51,13 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
                     if r is None:
                         self.warn("Failed to fetch ringmap for pol {}, freq {}.".format(p, f))
-                        # TODO: record in prometheus
+                        continue
 
                     # Unpack data
                     try:
                         data = msgpack.unpackb(r, raw=False)
                     except:
                         self.logger.warn("Failed to unpack data for pol {}, freq {}.".format(p, f))
-                        # TODO: record in prometheus
                         continue
 
                     # Parse data
@@ -64,7 +70,6 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                         wgt = np.array(data["weight"], dtype=np.float32)
                     except KeyError:
                         self.logger.warn("Missing keys in ringmap response.")
-                        # TODO: record in prometheus
                         continue
 
                     # reorder so that time is increasing
@@ -86,18 +91,14 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                     # write to file
                     fh["ringmap"][pi, fi, :, :] = rmap[:, sort_t]
                     fh["weight"][pi, fi, :] = wgt[sort_t]
+                    self.num_maps_metric.inc()
         finally:
             if fh is not None:
                 fh.close()
 
         msg = "Saved daily ringmaps for {}.".format(self.tag)
         self.logger.debug(msg)
-        # TODO: return more informative summary
         return msg
-
-
-    def delete_callback(self, deleted_files):
-        pass
 
     def _check_request(self, data={}, return_raw=False):
         url = self.ringmap_url
