@@ -18,6 +18,7 @@ TIME_DTYPE = np.dtype([('fpga_count', '<u8'), ('ctime', '<f8')])
 class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     ringmap_url = config.Property(proptype=str, default="http://recv1:12048/ringmap")
+    use_bitshuffle = config.Property(proptype=bool, default=False)
 
     def setup(self):
         # TODO: Allow subset of frequencies?
@@ -153,6 +154,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         fname = path.join(self.write_dir, "{}.h5".format(self.tag))
         fh = h5py.File(fname)
 
+        # compression
+        comp = h5.H5FILTER if self.use_bitshuffle else None
+        comp_opts = (0, h5.H5_COMPRESS_LZ4) if self.use_bitshuffle else None
         # Create datasets
         im = self.fh.create_group("index_map")
         im.create_dataset("time", data=time)
@@ -160,11 +164,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         im.create_dataset("freq", data=freq)
         im.create_dataset("sinza", data=sinza)
         fh.create_dataset("ringmap", shape=(len(pol), len(freq), len(sinza), len(time)),
-                          dtype=np.float32, compression=h5.H5FILTER,
-                          compression_opts=(0, h5.H5_COMPRESS_LZ4))
+                          dtype=np.float32, compression=comp, compression_opts=comp_opts)
         fh.create_dataset("weight", shape=(len(pol), len(freq), len(time)),
-                          dtype=np.float32, compression=h5.H5FILTER,
-                          compression_opts=(0, h5.H5_COMPRESS_LZ4))
+                          dtype=np.float32, compression=comp, compression_opts=comp_opts)
         fh["ringmap"].attrs["axes"] = ("pol", "freq", "sinza", "time")
         fh["weight"].attrs["axes"] = ("pol", "freq", "time")
 
