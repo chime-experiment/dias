@@ -12,7 +12,7 @@ from caput import config
 from ch_util import ephemeris as ephem
 from bitshuffle import h5
 
-TIME_DTYPE = np.dtype([('fpga_count', '<u8'), ('ctime', '<f8')])
+TIME_DTYPE = np.dtype([("fpga_count", "<u8"), ("ctime", "<f8")])
 
 
 class DailyRingmapAnalyzer(CHIMEAnalyzer):
@@ -24,8 +24,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         # TODO: Allow subset of frequencies?
 
         # metric for number of maps in last run
-        self.num_maps_metric = self.add_data_metric("maps", "Number of maps saved in last run.",
-                                                    unit="total")
+        self.num_maps_metric = self.add_data_metric(
+            "maps", "Number of maps saved in last run.", unit="total"
+        )
         super().setup()
 
     def run(self):
@@ -63,8 +64,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                     # Parse data
                     try:
                         sinza = np.array(data["sinza"], dtype=np.float32)
-                        time = np.array([(t["fpga_count"], t["ctime"]) for t in data["time"]],
-                                        dtype=TIME_DTYPE)
+                        time = np.array(
+                            [(t["fpga_count"], t["ctime"]) for t in data["time"]], dtype=TIME_DTYPE
+                        )
                         rmap = np.array(data["ringmap"], dtype=np.float32)
                         rmap = rmap.reshape(rmap.shape[0] // len(sinza), len(sinza)).T
                         wgt = np.array(data["weight"], dtype=np.float32)
@@ -82,11 +84,11 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
                     # determine if some times were updated during requests
                     t_offset = time["ctime"] - common_time["ctime"]
-                    if not (t_offset == 0.).all():
+                    if not (t_offset == 0.0).all():
                         # zero times that are different
-                        new_t = t_offset != 0.
-                        rmap[:, new_t] = 0.
-                        wgt[new_t] = 0.
+                        new_t = t_offset != 0.0
+                        rmap[:, new_t] = 0.0
+                        wgt[new_t] = 0.0
 
                     # write to file
                     fh["ringmap"][pi, fi, :, :] = rmap[:, sort_t]
@@ -125,7 +127,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     def _create_file(self, pol, freq, time, sinza):
         # Create new file
-        self.tag = ephem.unix_to_datetime(time[0]['ctime']).strftime("%Y%m%dT%H%M%SZ")
+        self.tag = ephem.unix_to_datetime(time[0]["ctime"]).strftime("%Y%m%dT%H%M%SZ")
         fname = path.join(self.write_dir, "{}.h5".format(self.tag))
         fh = h5py.File(fname)
 
@@ -138,10 +140,20 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         im.create_dataset("pol", data=pol)
         im.create_dataset("freq", data=freq)
         im.create_dataset("sinza", data=sinza)
-        fh.create_dataset("ringmap", shape=(len(pol), len(freq), len(sinza), len(time)),
-                          dtype=np.float32, compression=comp, compression_opts=comp_opts)
-        fh.create_dataset("weight", shape=(len(pol), len(freq), len(time)),
-                          dtype=np.float32, compression=comp, compression_opts=comp_opts)
+        fh.create_dataset(
+            "ringmap",
+            shape=(len(pol), len(freq), len(sinza), len(time)),
+            dtype=np.float32,
+            compression=comp,
+            compression_opts=comp_opts,
+        )
+        fh.create_dataset(
+            "weight",
+            shape=(len(pol), len(freq), len(time)),
+            dtype=np.float32,
+            compression=comp,
+            compression_opts=comp_opts,
+        )
         fh["ringmap"].attrs["axes"] = ("pol", "freq", "sinza", "time")
         fh["weight"].attrs["axes"] = ("pol", "freq", "time")
 
