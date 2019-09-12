@@ -64,7 +64,7 @@ setuptools.setup(
     description="CHIME data integrity automation system",
     packages=['dias', 'dias.analyzers', 'dias.utils'],
     scripts=['scripts/dias'],
-    requires=['caput', 'ch_util'],
+    requires=['caput', 'ch_util', 'bitshuffle', 'msgpack'],
     license="GPL v3.0",
     url="http://github.com/chime-experiment/dias"
 )
