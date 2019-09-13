@@ -68,6 +68,7 @@ setuptools.setup(
         "caput @ git+https://github.com/radiocosmology/caput.git",
         "ch_util @ git+ssh://git@bitbucket.org/chime/ch_util.git",
         "prometheus_client>=0.5.0",
+        "bitshuffle",
         "pyyaml",
         "scipy",
         "numpy",

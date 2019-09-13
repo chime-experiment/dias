@@ -5,6 +5,7 @@ ch_util @ git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
 chimedb.data_index @ git+https://github.com/chime-experiment/chimedb_di.git
 caput @ git+https://github.com/radiocosmology/caput.git
 prometheus_client>=0.5.0
+bitshuffle
 pyyaml
 scipy
 numpy
