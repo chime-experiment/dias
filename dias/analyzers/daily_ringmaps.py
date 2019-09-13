@@ -14,7 +14,7 @@ from ch_util import ephemeris as ephem
 from bitshuffle import h5
 
 TIME_DTYPE = np.dtype([("fpga_count", "<u8"), ("ctime", "<f8")])
-POL_LABELS = ['XX', 'XY', 'YX', 'YY']
+POL_LABELS = ["XX", "XY", "YX", "YY"]
 
 
 class DailyRingmapAnalyzer(CHIMEAnalyzer):
