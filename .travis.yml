@@ -4,7 +4,7 @@ sudo: required
 dist: xenial
 
 python:
-    - 3.5
+    - 3.6
 notifications:
     email: false
 addons:
@@ -17,7 +17,7 @@ addons:
 
 
 before_install:
-    - pip install pycodestyle
+    - pip install black
     - pip install future
     - pip install pytest
     -
@@ -26,8 +26,8 @@ install:
     - pip install .
 
 script:
-    # Run pycodestyle on all .py files in all subfolders
-    - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pycodestyle --max-line-length=99 {} +
+    # Run black on all .py files in all subfolders
+    - black --check .
 
     # Run pydocstyle on all .py files
     - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy {} +

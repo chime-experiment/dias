@@ -8,7 +8,7 @@ from datetime import datetime
 import calendar
 from caput import config
 from dias.utils.string_converter import str2timedelta
-from ch_util import data_index
+from chimedb import data_index
 import sqlite3
 
 import os
@@ -28,9 +28,9 @@ from dias import exception
 from dias import __version__ as dias_version_tag
 
 DB_FILE = "data_index.db"
-CREATE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(
+CREATE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
                      start TIMESTAMP, stop TIMESTAMP,
-                     filename TEXT UNIQUE ON CONFLICT REPLACE)'''
+                     filename TEXT UNIQUE ON CONFLICT REPLACE)"""
 
 
 class SensitivityAnalyzer(CHIMEAnalyzer):
@@ -131,9 +131,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     """
 
-    correlator = config.Property(proptype=str, default='chime')
-    output_suffix = config.Property(proptype=str, default='sensitivity')
-    acq_suffix = config.Property(proptype=str, default='stack_corr')
+    correlator = config.Property(proptype=str, default="chime")
+    output_suffix = config.Property(proptype=str, default="sensitivity")
+    acq_suffix = config.Property(proptype=str, default="stack_corr")
 
     nfreq_per_block = config.Property(proptype=int, default=16)
     include_auto = config.Property(proptype=bool, default=False)
@@ -154,8 +154,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         db_file = os.path.join(self.state_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        self.data_index = sqlite3.connect(db_file, detect_types=db_types,
-                                          check_same_thread=False)
+        self.data_index = sqlite3.connect(
+            db_file, detect_types=db_types, check_same_thread=False
+        )
 
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
@@ -167,8 +168,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             """Thermal noise estimate averaged over
             all frequencies, inter-cylinder baselines, and
             1.5 hours""",
-            unit='ujy',
-            labelnames=['pol'])
+            unit="ujy",
+            labelnames=["pol"],
+        )
 
     def run(self):
         """Task stage: analyzes data from the last period."""
@@ -178,7 +180,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         self.refresh_data_index()
 
         cursor = self.data_index.cursor()
-        query = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
+        query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
         results = list(cursor.execute(query))
         start_time = results[0][0] if results else stop_time - self.period
 
@@ -194,12 +196,14 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             if not all_files:
                 raise IndexError()
         except IndexError:
-            err_msg = 'No {} files found from last {}.'.format(
-                self.acq_suffix, self.period)
+            err_msg = "No {} files found from last {}.".format(
+                self.acq_suffix, self.period
+            )
             raise exception.DiasDataError(err_msg)
 
-        self.logger.info('Calculating sensitivity from %s to %s' %
-                         (str(start_time), str(stop_time)))
+        self.logger.info(
+            "Calculating sensitivity from %s to %s" % (str(start_time), str(stop_time))
+        )
 
         # Get Unix time for the start time for timestamp
         time_tuple = start_time.timetuple()
@@ -208,28 +212,34 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         # Look up inputmap
         inputmap = tools.get_correlator_inputs(
-            ephemeris.unix_to_datetime(timestamp0),
-            correlator=self.correlator)
+            ephemeris.unix_to_datetime(timestamp0), correlator=self.correlator
+        )
 
         # Read a sample file for getting index map
         file_sample = all_files[0]
-        data = andata.CorrData.from_acq_h5(file_sample,
-                                           datasets=[
-                                               'reverse_map', 'flags/inputs'],
-                                           apply_gain=False, renormalize=False)
+        data = andata.CorrData.from_acq_h5(
+            file_sample,
+            datasets=["reverse_map", "flags/inputs"],
+            apply_gain=False,
+            renormalize=False,
+        )
 
         # Get baselines
         prod, prodmap, dist, conj, cyl, scale = self.get_baselines(
-            data.index_map, inputmap)
+            data.index_map, inputmap
+        )
 
         for files in all_files:
 
             # Load index map and reverse map
             data = andata.CorrData.from_acq_h5(
-                files, datasets=['reverse_map', 'flags/inputs'],
-                apply_gain=False, renormalize=False)
+                files,
+                datasets=["reverse_map", "flags/inputs"],
+                apply_gain=False,
+                renormalize=False,
+            )
 
-            flag_ind = data.flags['inputs']
+            flag_ind = data.flags["inputs"]
 
             # Determine axes
             nfreq = data.nfreq
@@ -244,17 +254,17 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             npol = polstr.size
 
             # Calculate counts
-            cnt = np.zeros(
-                (data.index_map['stack'].size, ntime), dtype=np.float32)
+            cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
 
             if np.any(flag_ind[:]):
-                for pp, ss in zip(data.index_map['prod'][:],
-                                  data.reverse_map['stack']['stack'][:]):
-                    cnt[ss, :] += (flag_ind[pp[0], :]
-                                   * flag_ind[pp[1], :])
+                for pp, ss in zip(
+                    data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
+                ):
+                    cnt[ss, :] += flag_ind[pp[0], :] * flag_ind[pp[1], :]
             else:
                 for ss, val in Counter(
-                        data.reverse_map['stack']['stack'][:]).iteritems():
+                    data.reverse_map["stack"]["stack"][:]
+                ).iteritems():
                     cnt[ss, :] = val
 
             # Initialize arrays
@@ -268,15 +278,18 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                 freq_sel = slice(fstart, fstop)
 
-                self.logger.debug("Processing block %d (of %d):  %d - %d" %
-                                  (block_number + 1, nblock, fstart, fstop))
+                self.logger.debug(
+                    "Processing block %d (of %d):  %d - %d"
+                    % (block_number + 1, nblock, fstart, fstop)
+                )
 
                 bdata = andata.CorrData.from_acq_h5(
                     files,
                     freq_sel=freq_sel,
-                    datasets=['flags/vis_weight'],
+                    datasets=["flags/vis_weight"],
                     apply_gain=False,
-                    renormalize=False)
+                    renormalize=False,
+                )
 
                 bflag = (bdata.weight[:] > 0.0).astype(np.float32)
                 bvar = tools.invert_no_zero(bdata.weight[:])
@@ -289,55 +302,55 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     pcnt = cnt[np.newaxis, prod[pol], :]
                     pscale = scale[pol][np.newaxis, :, np.newaxis]
 
-                    var[freq_sel, ii,
-                        :] += np.sum((pscale * pcnt)**2 * pflag * pvar, axis=1)
-                    counter[freq_sel, ii,
-                            :] += np.sum(pscale * pcnt * pflag, axis=1)
+                    var[freq_sel, ii, :] += np.sum(
+                        (pscale * pcnt) ** 2 * pflag * pvar, axis=1
+                    )
+                    counter[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag, axis=1)
 
                 del bdata
                 gc.collect()
 
             # Normalize
             inv_counter = tools.invert_no_zero(counter)
-            var *= inv_counter**2
+            var *= inv_counter ** 2
 
             # Compute metric to be exported
-            self.sens.labels(pol='EW').set(
-                1.e6*np.sqrt(1./np.sum(tools.invert_no_zero(var[:, 0, :]))))
-            self.sens.labels(pol='NS').set(
-                1.e6*np.sqrt(1./np.sum(tools.invert_no_zero(var[:, 1, :]))))
+            self.sens.labels(pol="EW").set(
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 0, :])))
+            )
+            self.sens.labels(pol="NS").set(
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 1, :])))
+            )
 
             # Write to file
-            output_file = os.path.join(self.write_dir, "%d_%s.h5" %
-                                       (timestamp[0], self.output_suffix))
+            output_file = os.path.join(
+                self.write_dir, "%d_%s.h5" % (timestamp[0], self.output_suffix)
+            )
             self.logger.info("Writing output file...")
-            self.update_data_index(data.time[0], data.time[-1],
-                                   filename=output_file)
+            self.update_data_index(data.time[0], data.time[-1], filename=output_file)
 
-            with h5py.File(output_file, 'w') as handler:
+            with h5py.File(output_file, "w") as handler:
 
-                index_map = handler.create_group('index_map')
-                index_map.create_dataset(
-                    'freq', data=data.index_map['freq'][:])
-                index_map.create_dataset('pol', data=np.string_(polstr))
-                index_map.create_dataset('time', data=data.time)
+                index_map = handler.create_group("index_map")
+                index_map.create_dataset("freq", data=data.index_map["freq"][:])
+                index_map.create_dataset("pol", data=np.string_(polstr))
+                index_map.create_dataset("time", data=data.time)
 
-                dset = handler.create_dataset('rms', data=np.sqrt(var))
-                dset.attrs['axis'] = np.array(
-                    ['freq', 'pol', 'time'], dtype='S')
+                dset = handler.create_dataset("rms", data=np.sqrt(var))
+                dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
-                dset = handler.create_dataset(
-                    'count', data=counter.astype(np.int))
-                dset.attrs['axis'] = np.array(
-                    ['freq', 'pol', 'time'], dtype='S')
+                dset = handler.create_dataset("count", data=counter.astype(np.int))
+                dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
-                handler.attrs['instrument_name'] = self.correlator
-                handler.attrs['collection_server'] = subprocess.check_output(
-                    ["hostname"]).strip()
-                handler.attrs['system_user'] = subprocess.check_output(
-                    ["id", "-u", "-n"]).strip()
-                handler.attrs['git_version_tag'] = dias_version_tag
-            self.logger.info('File successfully written out.')
+                handler.attrs["instrument_name"] = self.correlator
+                handler.attrs["collection_server"] = subprocess.check_output(
+                    ["hostname"]
+                ).strip()
+                handler.attrs["system_user"] = subprocess.check_output(
+                    ["id", "-u", "-n"]
+                ).strip()
+                handler.attrs["git_version_tag"] = dias_version_tag
+            self.logger.info("File successfully written out.")
 
     def get_baselines(self, indexmap, inputmap):
         """Return baseline indices for averaging."""
@@ -350,12 +363,12 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         feedpos = tools.get_feed_positions(inputmap)
 
-        for pp, (this_prod, this_conj) in enumerate(indexmap['stack']):
+        for pp, (this_prod, this_conj) in enumerate(indexmap["stack"]):
 
             if this_conj:
-                bb, aa = indexmap['prod'][this_prod]
+                bb, aa = indexmap["prod"][this_prod]
             else:
-                aa, bb = indexmap['prod'][this_prod]
+                aa, bb = indexmap["prod"][this_prod]
 
             inp_aa = inputmap[aa]
             inp_bb = inputmap[bb]
@@ -372,27 +385,26 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             this_dist = list(feedpos[aa, :] - feedpos[bb, :])
 
             if tools.is_array_x(inp_aa) and tools.is_array_x(inp_bb):
-                key = 'XX'
+                key = "XX"
 
             elif tools.is_array_y(inp_aa) and tools.is_array_y(inp_bb):
-                key = 'YY'
+                key = "YY"
 
             elif not self.include_crosspol:
                 continue
 
             elif tools.is_array_x(inp_aa) and tools.is_array_y(inp_bb):
-                key = 'XY'
+                key = "XY"
 
             elif tools.is_array_y(inp_aa) and tools.is_array_x(inp_bb):
-                key = 'YX'
+                key = "YX"
 
             else:
                 raise RuntimeError("CHIME feeds not polarized.")
 
-            this_cyl = '%s%s' % (self.get_cyl(inp_aa.cyl),
-                                 self.get_cyl(inp_bb.cyl))
+            this_cyl = "%s%s" % (self.get_cyl(inp_aa.cyl), self.get_cyl(inp_bb.cyl))
             if self.sep_cyl:
-                key = key + '-' + this_cyl
+                key = key + "-" + this_cyl
 
             prod[key].append(pp)
             prodmap[key].append((aa, bb))
@@ -407,8 +419,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         for key in prod.keys():
             prod[key] = np.array(prod[key])
-            prodmap[key] = np.array(prodmap[key], dtype=[
-                                    ('input_a', '<u2'), ('input_b', '<u2')])
+            prodmap[key] = np.array(
+                prodmap[key], dtype=[("input_a", "<u2"), ("input_b", "<u2")]
+            )
             dist[key] = np.array(dist[key])
             conj[key] = np.nonzero(np.ravel(conj[key]))[0]
             cyl[key] = np.array(cyl[key])
@@ -450,8 +463,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
         # Insert row for this file
         cursor = self.data_index.cursor()
-        cursor.execute("INSERT INTO files VALUES (?, ?, ?)",
-                       (dt_start, dt_stop, relpath))
+        cursor.execute(
+            "INSERT INTO files VALUES (?, ?, ?)", (dt_start, dt_stop, relpath)
+        )
 
         self.data_index.commit()
 
@@ -463,7 +477,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         (removed) by dias manager.
         """
         cursor = self.data_index.cursor()
-        query = 'SELECT filename FROM files ORDER BY start'
+        query = "SELECT filename FROM files ORDER BY start"
         all_files = list(cursor.execute(query))
 
         for result in all_files:
@@ -473,13 +487,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                cursor.execute('DELETE FROM files WHERE filename = ?',
-                               (filename,))
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info("Removed %s from data index database." %
-                                 filename)
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""
-        self.logger.info('Shutting down.')
+        self.logger.info("Shutting down.")
         self.data_index.close()

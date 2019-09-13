@@ -41,9 +41,8 @@ def _prometheus_client(barrier, logger, port):
     """
     # Create the WSGI HTTP app
     app = make_wsgi_app()
-    httpd = make_server('', port, app)
-    logger.info(
-            'Starting prometheus client on port {}.'.format(httpd.server_port))
+    httpd = make_server("", port, app)
+    logger.info("Starting prometheus client on port {}.".format(httpd.server_port))
 
     # Signal we're ready
     barrier.wait()
@@ -81,16 +80,20 @@ class Scheduler:
             `prometheus_client_port`.
         """
         self.metric_timeout = Counter(
-            'timeouts', 'Counter for task timeouts. Incremented if a task is '
-                        'still running when rescheduled.', labelnames=['task'],
-            namespace='dias', unit='total')
+            "timeouts",
+            "Counter for task timeouts. Incremented if a task is "
+            "still running when rescheduled.",
+            labelnames=["task"],
+            namespace="dias",
+            unit="total",
+        )
 
         self.config = config
         self.jobs = list()
 
         # Set the module logger.
-        self.logger = logging.getLogger('dias')
-        self.logger.setLevel(config['log_level'])
+        self.logger = logging.getLogger("dias")
+        self.logger.setLevel(config["log_level"])
 
         # Synchronization barrier
         barrier = threading.Barrier(2)
@@ -98,7 +101,8 @@ class Scheduler:
         # Create the prometheus client thread
         self.prom_client = threading.Thread(
             target=_prometheus_client,
-            args=(barrier, self.logger, config['prometheus_client_port']))
+            args=(barrier, self.logger, config["prometheus_client_port"]),
+        )
         self.prom_client.daemon = True
         self.prom_client.start()
 
@@ -115,9 +119,10 @@ class Scheduler:
         # Get all the tasks ready
         for task in self.config.tasks:
             task.prepare(
-                    reference_time,
-                    log_level_override=self.config['log_level_override'],
-                    start_now=self.config['start_now'])
+                reference_time,
+                log_level_override=self.config["log_level_override"],
+                start_now=self.config["start_now"],
+            )
 
             # Increment counter metric with 0 for it to start existing.
             self.metric_timeout.labels(task=task.name).inc(0)
@@ -129,10 +134,13 @@ class Scheduler:
         del self.config.tasks
 
         self.logger.info("Initialised {0} tasks".format(len(self.queue)))
-        if self.config['log_level'] == 'DEBUG':
+        if self.config["log_level"] == "DEBUG":
             for i in range(len(self.queue)):
-                self.logger.debug("  {0}: {1} @ {2}".format(
-                    i, self.queue[i].name, self.queue[i].start_time))
+                self.logger.debug(
+                    "  {0}: {1} @ {2}".format(
+                        i, self.queue[i].name, self.queue[i].start_time
+                    )
+                )
 
     def next_task(self):
         """
@@ -163,8 +171,8 @@ class Scheduler:
             self.jobs.append(job)
         except DiasConcurrencyError:
             self.logger.warning(
-                    "Job running long.  "
-                    "Skipping execution of task {0}".format(task.name))
+                "Job running long.  " "Skipping execution of task {0}".format(task.name)
+            )
             self.metric_timeout.labels(task=task.name).inc()
 
         # Re-schedule the task for next time
@@ -189,8 +197,10 @@ class Scheduler:
         while True:
             task_next = self.queue.next_task()
             self.logger.debug(
-                    "Next task scheduled is: {0} at {1} UTC".format(
-                        task_next.name, timestamp2str(task_next.start_time)))
+                "Next task scheduled is: {0} at {1} UTC".format(
+                    task_next.name, timestamp2str(task_next.start_time)
+                )
+            )
 
             # If it's time to execute the next task, do so
             if time.time() >= task_next.start_time:

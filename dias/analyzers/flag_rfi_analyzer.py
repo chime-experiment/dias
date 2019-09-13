@@ -28,22 +28,23 @@ import gc
 import numpy as np
 import h5py
 
-from ch_util import tools, ephemeris, andata, data_index, rfi
+from chimedb import data_index
+from ch_util import tools, ephemeris, andata, rfi
 from caput import config
 
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
 from dias import __version__ as dias_version_tag
 
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 DB_FILE = "data_index.db"
-CREATE_DB_TABLE = '''CREATE TABLE IF NOT EXISTS files(
+CREATE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
                      start TIMESTAMP, stop TIMESTAMP,
-                     filename TEXT UNIQUE ON CONFLICT REPLACE)'''
+                     filename TEXT UNIQUE ON CONFLICT REPLACE)"""
 
-CYL_MAP = {xx: chr(63+xx) for xx in range(2, 6)}
-POL_MAP = {'S': 'X', 'E': 'Y'}
+CYL_MAP = {xx: chr(63 + xx) for xx in range(2, 6)}
+POL_MAP = {"S": "X", "E": "Y"}
 
 ###################################################
 # auxiliary functions
@@ -53,7 +54,7 @@ POL_MAP = {'S': 'X', 'E': 'Y'}
 def _chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
-        yield l[i:i + n]
+        yield l[i : i + n]
 
 
 def _fraction_flagged(mask, axis=None, logical_not=False):
@@ -63,13 +64,15 @@ def _fraction_flagged(mask, axis=None, logical_not=False):
     else:
         axis = np.atleast_1d(axis)
 
-    frac = (np.sum(mask, axis=tuple(axis), dtype=np.float32) /
-            float(np.prod([mask.shape[ax] for ax in axis])))
+    frac = np.sum(mask, axis=tuple(axis), dtype=np.float32) / float(
+        np.prod([mask.shape[ax] for ax in axis])
+    )
 
     if logical_not:
         frac = 1.0 - frac
 
     return frac
+
 
 ###################################################
 # main analyzer task
@@ -211,14 +214,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     """
 
     # Config parameters related to scheduling
-    offset = config.Property(proptype=str2timedelta, default='2h')
+    offset = config.Property(proptype=str2timedelta, default="2h")
 
     # Config parameters defining data file selection
-    instrument = config.Property(proptype=str, default='chimestack')
+    instrument = config.Property(proptype=str, default="chimestack")
     max_num_file = config.Property(proptype=int, default=1)
 
     # Config parameters defining output data product
-    output_suffix = config.Property(proptype=str, default='rfimask')
+    output_suffix = config.Property(proptype=str, default="rfimask")
 
     # Config parameters defining frequency selection
     freq_low = config.Property(proptype=float, default=400.0)
@@ -234,8 +237,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
     def setup(self):
         """Initialize data index database and Prometheus metrics."""
-        self.logger.info('Starting up. My name is %s and I am of type %s.' %
-                         (self.name, __name__))
+        self.logger.info(
+            "Starting up. My name is %s and I am of type %s." % (self.name, __name__)
+        )
 
         # Open connection to data index database
         # and create table if it does not exist
@@ -245,67 +249,71 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # This analyzer does not serialize use of the connection.
         # Don't schedule multiple tasks at the same time.
         # At the moment dias doesn't support that anyways.
-        self.data_index = sqlite3.connect(db_file, detect_types=db_types,
-                                          check_same_thread=False)
+        self.data_index = sqlite3.connect(
+            db_file, detect_types=db_types, check_same_thread=False
+        )
 
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
         self.data_index.commit()
 
         # Add task metrics
-        self.run_timer = self.add_task_metric("run_time",
-                                              "Time to process single run.",
-                                              unit="seconds")
+        self.run_timer = self.add_task_metric(
+            "run_time", "Time to process single run.", unit="seconds"
+        )
 
-        self.file_counter = self.add_task_metric("files",
-                                                 "Number of files processed.",
-                                                 unit="total")
+        self.file_counter = self.add_task_metric(
+            "files", "Number of files processed.", unit="total"
+        )
 
-        self.file_timer = self.add_task_metric("file_time",
-                                               "Time to process single file.",
-                                               unit="seconds")
+        self.file_timer = self.add_task_metric(
+            "file_time", "Time to process single file.", unit="seconds"
+        )
 
         # Add data metrics
         self.masked_missing = self.add_data_metric(
-                                                "masked_missing",
-                                                "Fraction of data that is " +
-                                                "missing (e.g., dropped " +
-                                                "packets or down GPU nodes).",
-                                                labelnames=['stack'],
-                                                unit="ratio")
+            "masked_missing",
+            "Fraction of data that is "
+            + "missing (e.g., dropped "
+            + "packets or down GPU nodes).",
+            labelnames=["stack"],
+            unit="ratio",
+        )
 
         self.masked_before = self.add_data_metric(
-                                                "masked_before",
-                                                "Fraction of data " +
-                                                "considered bad before " +
-                                                "applying MAD threshold.  " +
-                                                "Includes missing data and " +
-                                                "static frequency mask.",
-                                                labelnames=['stack'],
-                                                unit="ratio")
+            "masked_before",
+            "Fraction of data "
+            + "considered bad before "
+            + "applying MAD threshold.  "
+            + "Includes missing data and "
+            + "static frequency mask.",
+            labelnames=["stack"],
+            unit="ratio",
+        )
 
         self.masked_after = self.add_data_metric(
-                                                "masked_after",
-                                                "Fraction of data " +
-                                                "considered bad after " +
-                                                "applying MAD threshold.  " +
-                                                "Includes missing data, " +
-                                                "static frequency mask, " +
-                                                "and MAD threshold mask.",
-                                                labelnames=['stack'],
-                                                unit="ratio")
+            "masked_after",
+            "Fraction of data "
+            + "considered bad after "
+            + "applying MAD threshold.  "
+            + "Includes missing data, "
+            + "static frequency mask, "
+            + "and MAD threshold mask.",
+            labelnames=["stack"],
+            unit="ratio",
+        )
 
         # Determine default achive attributes
         host = subprocess.check_output(["hostname"]).strip()
         user = subprocess.check_output(["id", "-u", "-n"]).strip()
 
         self.output_attrs = {}
-        self.output_attrs['type'] = str(type(self))
-        self.output_attrs['git_version_tag'] = dias_version_tag
-        self.output_attrs['collection_server'] = host
-        self.output_attrs['system_user'] = user
-        self.output_attrs['instrument_name'] = self.instrument
-        self.output_attrs['version'] = __version__
+        self.output_attrs["type"] = str(type(self))
+        self.output_attrs["git_version_tag"] = dias_version_tag
+        self.output_attrs["collection_server"] = host
+        self.output_attrs["system_user"] = user
+        self.output_attrs["instrument_name"] = self.instrument
+        self.output_attrs["version"] = __version__
 
     def run(self):
         """Run the task.
@@ -323,12 +331,15 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         end_time = datetime.datetime.utcnow() - self.offset
 
         cursor = self.data_index.cursor()
-        query = 'SELECT stop FROM files ORDER BY stop DESC LIMIT 1'
+        query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
         results = list(cursor.execute(query))
         start_time = results[0][0] if results else end_time - self.period
 
-        self.logger.info('Analyzing data between {} and {}.'.format(
-                         datetime2str(start_time),  datetime2str(end_time)))
+        self.logger.info(
+            "Analyzing data between {} and {}.".format(
+                datetime2str(start_time), datetime2str(end_time)
+            )
+        )
 
         # Use Finder to get the files to analyze
         finder = self.Finder()
@@ -351,12 +362,13 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 if nfiles == 0:
                     continue
 
-                self.logger.info("Now processing acquisition %s (%d files)" %
-                                 (acq.name, nfiles))
+                self.logger.info(
+                    "Now processing acquisition %s (%d files)" % (acq.name, nfiles)
+                )
 
                 # Determine the output acquisition name and make directory
-                epos = acq.name.find(self.instrument)+len(self.instrument)
-                output_acq = '_'.join([acq.name[:epos], self.output_suffix])
+                epos = acq.name.find(self.instrument) + len(self.instrument)
+                output_acq = "_".join([acq.name[:epos], self.output_suffix])
                 output_dir = os.path.join(self.write_dir, output_acq)
 
                 try:
@@ -366,13 +378,13 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         raise
 
                 acq_start = ephemeris.datetime_to_unix(
-                                ephemeris.timestr_to_datetime(
-                                    output_acq.split('_')[0]))
+                    ephemeris.timestr_to_datetime(output_acq.split("_")[0])
+                )
 
                 # Get the correlator inputs active during this acquisition
                 inputmap = tools.get_correlator_inputs(
-                                ephemeris.unix_to_datetime(tstart),
-                                correlator='chime')
+                    ephemeris.unix_to_datetime(tstart), correlator="chime"
+                )
 
                 # Determine number of files to process at once
                 if self.max_num_file is None:
@@ -383,68 +395,80 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 # Loop over chunks of files
                 for chnk, files in enumerate(_chunks(all_files, chunk_size)):
 
-                    self.logger.info("Now processing chunk %d (%d files)" %
-                                     (chnk, len(files)))
+                    self.logger.info(
+                        "Now processing chunk %d (%d files)" % (chnk, len(files))
+                    )
 
                     self.file_start_time = time.time()
 
                     # Deteremine selections along the various axes
                     rdr = andata.CorrData.from_acq_h5(files, datasets=())
 
-                    within_range = np.flatnonzero((rdr.freq >= self.freq_low) &
-                                                  (rdr.freq <= self.freq_high))
-                    freq_sel = slice(within_range[0], within_range[-1]+1)
+                    within_range = np.flatnonzero(
+                        (rdr.freq >= self.freq_low) & (rdr.freq <= self.freq_high)
+                    )
+                    freq_sel = slice(within_range[0], within_range[-1] + 1)
 
-                    stack_sel = [ii for ii, pp in
-                                 enumerate(rdr.prod[rdr.stack['prod']])
-                                 if pp[0] == pp[1]]
+                    stack_sel = [
+                        ii
+                        for ii, pp in enumerate(rdr.prod[rdr.stack["prod"]])
+                        if pp[0] == pp[1]
+                    ]
 
                     # Load autocorrelations
                     t0 = time.time()
 
                     data = andata.CorrData.from_acq_h5(
-                                        files,
-                                        datasets=['vis', 'flags/vis_weight'],
-                                        freq_sel=freq_sel, stack_sel=stack_sel,
-                                        apply_gain=False, renormalize=False)
+                        files,
+                        datasets=["vis", "flags/vis_weight"],
+                        freq_sel=freq_sel,
+                        stack_sel=stack_sel,
+                        apply_gain=False,
+                        renormalize=False,
+                    )
 
                     tspan = (time.time() - t0,)
-                    self.logger.info("Took %0.1f seconds " % tspan +
-                                     "to load autocorrelations.")
+                    self.logger.info(
+                        "Took %0.1f seconds " % tspan + "to load autocorrelations."
+                    )
                     t0 = time.time()
 
                     # Construct RFI mask for stacked incoherent beam
                     index, auto, ndev = rfi.number_deviations(
-                                    data,
-                                    stack=True,
-                                    apply_static_mask=self.apply_static_mask,
-                                    freq_width=self.freq_width,
-                                    time_width=self.time_width,
-                                    rolling=self.rolling)
+                        data,
+                        stack=True,
+                        apply_static_mask=self.apply_static_mask,
+                        freq_width=self.freq_width,
+                        time_width=self.time_width,
+                        rolling=self.rolling,
+                    )
 
-                    stack = ['ALL']
+                    stack = ["ALL"]
 
                     # Construct RFI mask for each cylinder/polarisation
                     if self.separate_cyl_pol:
 
                         cyl_index, cyl_auto, cyl_ndev = rfi.number_deviations(
-                                    data,
-                                    stack=False,
-                                    apply_static_mask=self.apply_static_mask,
-                                    freq_width=self.freq_width,
-                                    time_width=self.time_width,
-                                    rolling=self.rolling)
+                            data,
+                            stack=False,
+                            apply_static_mask=self.apply_static_mask,
+                            freq_width=self.freq_width,
+                            time_width=self.time_width,
+                            rolling=self.rolling,
+                        )
 
-                        stack += [POL_MAP[inputmap[ii].pol] + '-' +
-                                  CYL_MAP[inputmap[ii].cyl]
-                                  for ii in cyl_index]
+                        stack += [
+                            POL_MAP[inputmap[ii].pol] + "-" + CYL_MAP[inputmap[ii].cyl]
+                            for ii in cyl_index
+                        ]
 
                         auto = np.concatenate((auto, cyl_auto), axis=1)
                         ndev = np.concatenate((ndev, cyl_ndev), axis=1)
 
                     tspan = (time.time() - t0,)
-                    self.logger.info("Took %0.1f seconds " % tspan +
-                                     "to generate mask.")
+                    self.logger.info(
+                        "Took %0.1f seconds " % tspan + "to generate mask."
+                    )
 
                     # Construct various masks
                     mask_missing = auto > 0.0
@@ -456,68 +480,65 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # the filename, rather than the center of the first
                     # integration, so that the file names are consistent
                     # between the rfimask and corr data.
-                    seconds_elapsed = (data.index_map['time']['ctime'][0] -
-                                       acq_start)
+                    seconds_elapsed = data.index_map["time"]["ctime"][0] - acq_start
 
-                    output_file = os.path.join(output_dir,
-                                               "%08d.h5" % seconds_elapsed)
+                    output_file = os.path.join(output_dir, "%08d.h5" % seconds_elapsed)
 
                     self.logger.info("Writing RFI mask to: %s" % output_file)
 
                     # Write to output file
-                    with h5py.File(output_file, 'w') as handler:
+                    with h5py.File(output_file, "w") as handler:
 
                         # Set the default archive attributes
-                        handler.attrs['acquisition_name'] = output_acq
+                        handler.attrs["acquisition_name"] = output_acq
                         for key, val in self.output_attrs.items():
                             handler.attrs[key] = val
 
                         # Create an index map
-                        index_map = handler.create_group('index_map')
-                        index_map.create_dataset('freq',
-                                                 data=data.index_map['freq'])
-                        index_map.create_dataset('stack',
-                                                 data=np.string_(stack))
-                        index_map.create_dataset('time',
-                                                 data=data.time)
+                        index_map = handler.create_group("index_map")
+                        index_map.create_dataset("freq", data=data.index_map["freq"])
+                        index_map.create_dataset("stack", data=np.string_(stack))
+                        index_map.create_dataset("time", data=data.time)
 
                         # Write 2D arrays containing snapshots of each jump
-                        ax = np.string_(['freq', 'stack', 'time'])
+                        ax = np.string_(["freq", "stack", "time"])
 
-                        dset = handler.create_dataset('mask', data=mask_after)
-                        dset.attrs['axis'] = ax
-                        dset.attrs['threshold'] = self.threshold_mad
+                        dset = handler.create_dataset("mask", data=mask_after)
+                        dset.attrs["axis"] = ax
+                        dset.attrs["threshold"] = self.threshold_mad
 
-                        dset = handler.create_dataset('auto', data=auto)
-                        dset.attrs['axis'] = ax
+                        dset = handler.create_dataset("auto", data=auto)
+                        dset.attrs["axis"] = ax
 
-                        dset = handler.create_dataset('ndev', data=ndev)
-                        dset.attrs['axis'] = ax
+                        dset = handler.create_dataset("ndev", data=ndev)
+                        dset.attrs["axis"] = ax
 
                     # Update data index database
-                    self.update_data_index(data.time[0], data.time[-1],
-                                           filename=output_file)
+                    self.update_data_index(
+                        data.time[0], data.time[-1], filename=output_file
+                    )
 
                     # Update prometheus metrics
                     ndf = len(files)
                     self.file_counter.inc(ndf)
 
-                    time_per_file = int((time.time() - self.file_start_time) /
-                                        float(ndf))
+                    time_per_file = int(
+                        (time.time() - self.file_start_time) / float(ndf)
+                    )
                     self.file_timer.set(time_per_file)
 
                     for ss, lbl in enumerate(stack):
                         self.masked_missing.labels(stack=lbl).set(
-                                    _fraction_flagged(mask_missing[:, ss, :],
-                                                      logical_not=True))
+                            _fraction_flagged(mask_missing[:, ss, :], logical_not=True)
+                        )
 
                         self.masked_before.labels(stack=lbl).set(
-                                    _fraction_flagged(mask_before[:, ss, :],
-                                                      logical_not=True))
+                            _fraction_flagged(mask_before[:, ss, :], logical_not=True)
+                        )
 
                         self.masked_after.labels(stack=lbl).set(
-                                    _fraction_flagged(mask_after[:, ss, :],
-                                                      logical_not=True))
+                            _fraction_flagged(mask_after[:, ss, :], logical_not=True)
+                        )
 
                     # Garbage collect
                     del data
@@ -552,8 +573,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Insert row for this file
         cursor = self.data_index.cursor()
-        cursor.execute("INSERT INTO files VALUES (?, ?, ?)",
-                       (dt_start, dt_stop, relpath))
+        cursor.execute(
+            "INSERT INTO files VALUES (?, ?, ?)", (dt_start, dt_stop, relpath)
+        )
 
         self.data_index.commit()
 
@@ -565,7 +587,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         (removed) by dias manager.
         """
         cursor = self.data_index.cursor()
-        query = 'SELECT filename FROM files ORDER BY start'
+        query = "SELECT filename FROM files ORDER BY start"
         all_files = list(cursor.execute(query))
 
         for result in all_files:
@@ -575,13 +597,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                cursor.execute('DELETE FROM files WHERE filename = ?',
-                               (filename,))
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info("Removed %s from data index database." %
-                                 filename)
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""
-        self.logger.info('Shutting down.')
+        self.logger.info("Shutting down.")
         self.data_index.close()
