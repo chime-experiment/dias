@@ -33,7 +33,8 @@ import numpy as np
 import h5py
 from scipy.optimize import curve_fit
 
-from ch_util import data_index, ephemeris, fluxcat, andata
+from chimedb import data_index
+from ch_util import ephemeris, fluxcat, andata
 
 from dias import CHIMEAnalyzer
 
