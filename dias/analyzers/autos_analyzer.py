@@ -281,11 +281,9 @@ class AutosAnalyzer(CHIMEAnalyzer):
         times = data.index_map["time"]["ctime"]
         freq = data.index_map["freq"]["centre"]
         input_list = data.index_map["input"]["chan_id"]
-        self.freq_width = data.index_map["freq"]["width"]
+        freq_width = data.index_map["freq"]["width"]
 
-        self.transit_time = ephemeris.transit_times(
-            self.sel_source, times[0], times[-1]
-        )[0]
+        transit_time = ephemeris.transit_times(self.sel_source, times[0], times[-1])[0]
 
         local_time = np.array(
             [
@@ -293,14 +291,14 @@ class AutosAnalyzer(CHIMEAnalyzer):
                 for tt in times
             ]
         )
-        local_ttrans = ephemeris.unix_to_datetime(
-            self.transit_time
-        ) - datetime.timedelta(hours=8)
+        local_ttrans = ephemeris.unix_to_datetime(transit_time) - datetime.timedelta(
+            hours=8
+        )
 
-        flag_window = get_flag_window(self.transit_time, self.transit_window, times)
+        flag_window = get_flag_window(transit_time, self.transit_window, times)
         timestamp = times[flag_window]
-        self.t0 = timestamp[0]
-        self.tau = np.median(np.diff(timestamp))
+        t0 = timestamp[0]
+        tau = np.median(np.diff(timestamp))
 
         # get expected flux from catalog
         fluxes = fluxcat.FluxCatalog[self.source].predict_flux(freq)
@@ -376,16 +374,14 @@ class AutosAnalyzer(CHIMEAnalyzer):
         n = len(timestamp)
 
         # first fit a Gaussian
-        mean = self.transit_time - self.t0
+        mean = transit_time - t0
         sigma = self.transit_window
-        popt, pcov = curve_fit(
-            gauss, (timestamp - self.t0), vis, p0=[max(vis), mean, sigma]
-        )
+        popt, pcov = curve_fit(gauss, (timestamp - t0), vis, p0=[max(vis), mean, sigma])
         # background fit to 3rd degree polynomial
         popt2, pcov2 = curve_fit(
             poly3,
-            (timestamp - self.t0),
-            (vis + offset - gauss(timestamp - self.t0, *popt)),
+            (timestamp - t0),
+            (vis + offset - gauss(timestamp - t0, *popt)),
             p0=[0, 0, 0, np.median(auto_vec)],
         )
 
@@ -394,15 +390,15 @@ class AutosAnalyzer(CHIMEAnalyzer):
             return bl
 
         def best_fit(tt):
-            fit = gauss(tt - self.t0, *popt) + baseline(tt - self.t0)
+            fit = gauss(tt - t0, *popt) + baseline(tt - t0)
             return fit
 
         height = popt[0]  # in ADC units
         gain = flux / (height)  # Jy per AC unit
         width = 2.0 * np.sqrt(2 * np.log(2)) * popt[2]  # seconds
-        centroid_wander = popt[1] + self.t0 - self.transit_time  # unix seconds
+        centroid_wander = popt[1] + t0 - transit_time  # unix seconds
 
-        radiometer_rms = gain * popt2[-1] / np.sqrt(self.tau * self.freq_width)
+        radiometer_rms = gain * popt2[-1] / np.sqrt(tau * freq_width)
 
         sefd = gain * baseline(popt[1])
 
