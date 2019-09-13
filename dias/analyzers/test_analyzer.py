@@ -36,7 +36,7 @@ class TestAnalyzer(Analyzer):
 
     def setup(self):
         """Set up the analyzer."""
-        self.logger.info('Task awake.')
+        self.logger.info("Task awake.")
 
     def run(self):
         """
@@ -46,6 +46,6 @@ class TestAnalyzer(Analyzer):
         """
         seconds = self.wait_time.total_seconds()
 
-        self.logger.info('Task running for {0} seconds.'.format(seconds))
+        self.logger.info("Task running for {0} seconds.".format(seconds))
         sleep(seconds)
-        self.logger.info('Task exiting.')
+        self.logger.info("Task exiting.")

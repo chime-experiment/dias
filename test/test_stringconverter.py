@@ -35,8 +35,8 @@ class TestStringConverter(unittest.TestCase):
 
     def test_bytes2str(self):
         """Test bytes2str method."""
-        assert bytes2str(0) == '0.0 B'
-        assert bytes2str(1) == '1.0 B'
-        assert bytes2str(1100) == '1.1 kB'
-        assert bytes2str(9919999) == '9.9 MB'
-        assert bytes2str(9999999) == '10.0 MB'
+        assert bytes2str(0) == "0.0 B"
+        assert bytes2str(1) == "1.0 B"
+        assert bytes2str(1100) == "1.1 kB"
+        assert bytes2str(9919999) == "9.9 MB"
+        assert bytes2str(9999999) == "10.0 MB"

@@ -1,9 +1,11 @@
 # Stub ch_util for readthedocs & travisCI
--e git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
+ch_util @ git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
 
-# From requirements.txt
--e git+https://github.com/radiocosmology/caput#egg=caput
+# From install_requires
+chimedb.data_index @ git+https://github.com/chime-experiment/chimedb_di.git
+caput @ git+https://github.com/radiocosmology/caput.git
 prometheus_client>=0.5.0
+bitshuffle
 pyyaml
 scipy
 numpy
