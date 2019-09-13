@@ -14,6 +14,7 @@ from ch_util import ephemeris as ephem
 from bitshuffle import h5
 
 TIME_DTYPE = np.dtype([("fpga_count", "<u8"), ("ctime", "<f8")])
+POL_LABELS = ['XX', 'XY', 'YX', 'YY']
 
 
 class DailyRingmapAnalyzer(CHIMEAnalyzer):
@@ -71,7 +72,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
             raise DiasDataError("Failed to retrieve ringmap axes from server.")
         try:
             freq = data["freq"]
-            pol = data["pol"]
+            pol = np.array([POL_LABELS[p] for p in data["pol"]], dtype="S2")
         except KeyError:
             raise DiasDataError("Ringmap axes missing expected freq and pol values.")
 
