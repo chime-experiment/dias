@@ -27,7 +27,7 @@ install:
 
 script:
     # Run black on all .py files in all subfolders
-    - find . -name \*.py -exec black --check {} +
+    - black --check .
 
     # Run pydocstyle on all .py files
     - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy {} +
