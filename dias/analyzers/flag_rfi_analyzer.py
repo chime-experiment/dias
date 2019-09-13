@@ -238,8 +238,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     def setup(self):
         """Initialize data index database and Prometheus metrics."""
         self.logger.info(
-            "Starting up. My name is %s and I am of type %s."
-            % (self.name, __name__)
+            "Starting up. My name is %s and I am of type %s." % (self.name, __name__)
         )
 
         # Open connection to data index database
@@ -364,8 +363,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     continue
 
                 self.logger.info(
-                    "Now processing acquisition %s (%d files)"
-                    % (acq.name, nfiles)
+                    "Now processing acquisition %s (%d files)" % (acq.name, nfiles)
                 )
 
                 # Determine the output acquisition name and make directory
@@ -398,8 +396,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 for chnk, files in enumerate(_chunks(all_files, chunk_size)):
 
                     self.logger.info(
-                        "Now processing chunk %d (%d files)"
-                        % (chnk, len(files))
+                        "Now processing chunk %d (%d files)" % (chnk, len(files))
                     )
 
                     self.file_start_time = time.time()
@@ -408,8 +405,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     rdr = andata.CorrData.from_acq_h5(files, datasets=())
 
                     within_range = np.flatnonzero(
-                        (rdr.freq >= self.freq_low)
-                        & (rdr.freq <= self.freq_high)
+                        (rdr.freq >= self.freq_low) & (rdr.freq <= self.freq_high)
                     )
                     freq_sel = slice(within_range[0], within_range[-1] + 1)
 
@@ -433,8 +429,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     tspan = (time.time() - t0,)
                     self.logger.info(
-                        "Took %0.1f seconds " % tspan
-                        + "to load autocorrelations."
+                        "Took %0.1f seconds " % tspan + "to load autocorrelations."
                     )
                     t0 = time.time()
 
@@ -463,9 +458,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         )
 
                         stack += [
-                            POL_MAP[inputmap[ii].pol]
-                            + "-"
-                            + CYL_MAP[inputmap[ii].cyl]
+                            POL_MAP[inputmap[ii].pol] + "-" + CYL_MAP[inputmap[ii].cyl]
                             for ii in cyl_index
                         ]
 
@@ -487,13 +480,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # the filename, rather than the center of the first
                     # integration, so that the file names are consistent
                     # between the rfimask and corr data.
-                    seconds_elapsed = (
-                        data.index_map["time"]["ctime"][0] - acq_start
-                    )
+                    seconds_elapsed = data.index_map["time"]["ctime"][0] - acq_start
 
-                    output_file = os.path.join(
-                        output_dir, "%08d.h5" % seconds_elapsed
-                    )
+                    output_file = os.path.join(output_dir, "%08d.h5" % seconds_elapsed)
 
                     self.logger.info("Writing RFI mask to: %s" % output_file)
 
@@ -507,12 +496,8 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                         # Create an index map
                         index_map = handler.create_group("index_map")
-                        index_map.create_dataset(
-                            "freq", data=data.index_map["freq"]
-                        )
-                        index_map.create_dataset(
-                            "stack", data=np.string_(stack)
-                        )
+                        index_map.create_dataset("freq", data=data.index_map["freq"])
+                        index_map.create_dataset("stack", data=np.string_(stack))
                         index_map.create_dataset("time", data=data.time)
 
                         # Write 2D arrays containing snapshots of each jump
@@ -544,21 +529,15 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     for ss, lbl in enumerate(stack):
                         self.masked_missing.labels(stack=lbl).set(
-                            _fraction_flagged(
-                                mask_missing[:, ss, :], logical_not=True
-                            )
+                            _fraction_flagged(mask_missing[:, ss, :], logical_not=True)
                         )
 
                         self.masked_before.labels(stack=lbl).set(
-                            _fraction_flagged(
-                                mask_before[:, ss, :], logical_not=True
-                            )
+                            _fraction_flagged(mask_before[:, ss, :], logical_not=True)
                         )
 
                         self.masked_after.labels(stack=lbl).set(
-                            _fraction_flagged(
-                                mask_after[:, ss, :], logical_not=True
-                            )
+                            _fraction_flagged(mask_after[:, ss, :], logical_not=True)
                         )
 
                     # Garbage collect
@@ -618,13 +597,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                cursor.execute(
-                    "DELETE FROM files WHERE filename = ?", (filename,)
-                )
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info(
-                    "Removed %s from data index database." % filename
-                )
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""

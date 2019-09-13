@@ -42,9 +42,7 @@ def _prometheus_client(barrier, logger, port):
     # Create the WSGI HTTP app
     app = make_wsgi_app()
     httpd = make_server("", port, app)
-    logger.info(
-        "Starting prometheus client on port {}.".format(httpd.server_port)
-    )
+    logger.info("Starting prometheus client on port {}.".format(httpd.server_port))
 
     # Signal we're ready
     barrier.wait()
@@ -173,8 +171,7 @@ class Scheduler:
             self.jobs.append(job)
         except DiasConcurrencyError:
             self.logger.warning(
-                "Job running long.  "
-                "Skipping execution of task {0}".format(task.name)
+                "Job running long.  " "Skipping execution of task {0}".format(task.name)
             )
             self.metric_timeout.labels(task=task.name).inc()
 

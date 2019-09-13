@@ -202,8 +202,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             raise exception.DiasDataError(err_msg)
 
         self.logger.info(
-            "Calculating sensitivity from %s to %s"
-            % (str(start_time), str(stop_time))
+            "Calculating sensitivity from %s to %s" % (str(start_time), str(stop_time))
         )
 
         # Get Unix time for the start time for timestamp
@@ -255,14 +254,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             npol = polstr.size
 
             # Calculate counts
-            cnt = np.zeros(
-                (data.index_map["stack"].size, ntime), dtype=np.float32
-            )
+            cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
 
             if np.any(flag_ind[:]):
                 for pp, ss in zip(
-                    data.index_map["prod"][:],
-                    data.reverse_map["stack"]["stack"][:],
+                    data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
                 ):
                     cnt[ss, :] += flag_ind[pp[0], :] * flag_ind[pp[1], :]
             else:
@@ -309,9 +305,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     var[freq_sel, ii, :] += np.sum(
                         (pscale * pcnt) ** 2 * pflag * pvar, axis=1
                     )
-                    counter[freq_sel, ii, :] += np.sum(
-                        pscale * pcnt * pflag, axis=1
-                    )
+                    counter[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag, axis=1)
 
                 del bdata
                 gc.collect()
@@ -322,12 +316,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Compute metric to be exported
             self.sens.labels(pol="EW").set(
-                1.0e6
-                * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 0, :])))
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 0, :])))
             )
             self.sens.labels(pol="NS").set(
-                1.0e6
-                * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 1, :])))
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 1, :])))
             )
 
             # Write to file
@@ -335,9 +327,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 self.write_dir, "%d_%s.h5" % (timestamp[0], self.output_suffix)
             )
             self.logger.info("Writing output file...")
-            self.update_data_index(
-                data.time[0], data.time[-1], filename=output_file
-            )
+            self.update_data_index(data.time[0], data.time[-1], filename=output_file)
 
             with h5py.File(output_file, "w") as handler:
 
@@ -347,16 +337,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 index_map.create_dataset("time", data=data.time)
 
                 dset = handler.create_dataset("rms", data=np.sqrt(var))
-                dset.attrs["axis"] = np.array(
-                    ["freq", "pol", "time"], dtype="S"
-                )
+                dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
-                dset = handler.create_dataset(
-                    "count", data=counter.astype(np.int)
-                )
-                dset.attrs["axis"] = np.array(
-                    ["freq", "pol", "time"], dtype="S"
-                )
+                dset = handler.create_dataset("count", data=counter.astype(np.int))
+                dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
                 handler.attrs["instrument_name"] = self.correlator
                 handler.attrs["collection_server"] = subprocess.check_output(
@@ -418,10 +402,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             else:
                 raise RuntimeError("CHIME feeds not polarized.")
 
-            this_cyl = "%s%s" % (
-                self.get_cyl(inp_aa.cyl),
-                self.get_cyl(inp_bb.cyl),
-            )
+            this_cyl = "%s%s" % (self.get_cyl(inp_aa.cyl), self.get_cyl(inp_bb.cyl))
             if self.sep_cyl:
                 key = key + "-" + this_cyl
 
@@ -506,13 +487,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                cursor.execute(
-                    "DELETE FROM files WHERE filename = ?", (filename,)
-                )
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info(
-                    "Removed %s from data index database." % filename
-                )
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""

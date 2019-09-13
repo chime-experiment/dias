@@ -87,9 +87,7 @@ class Analyzer(config.Reader):
 
         self.logger.setLevel(self.log_level)
 
-    def add_task_metric(
-        self, metric_name, description="", labelnames=[], unit=""
-    ):
+    def add_task_metric(self, metric_name, description="", labelnames=[], unit=""):
         """
         Add a gauge metric.
 

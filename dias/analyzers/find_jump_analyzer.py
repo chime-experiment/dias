@@ -73,9 +73,7 @@ def _flag_transit(name, timestamp, window=900.0):
     flag = np.zeros(timestamp.size, dtype=np.bool)
 
     if name.lower() == "sun":
-        ttrans = ephemeris.solar_transit(
-            timestamp[0] - extend, timestamp[-1] + extend
-        )
+        ttrans = ephemeris.solar_transit(timestamp[0] - extend, timestamp[-1] + extend)
     else:
         ttrans = ephemeris.transit_times(
             ephemeris.source_dictionary[name],
@@ -150,9 +148,7 @@ def mod_max_finder(scale, coeff, search_span=0.5, threshold=None):
 
         slc = slice(srch, ntime - srch)
 
-        flg_mod_max[ss, slc] = np.all(
-            mod[ss, slc, np.newaxis] >= slide_mod, axis=-1
-        )
+        flg_mod_max[ss, slc] = np.all(mod[ss, slc, np.newaxis] >= slide_mod, axis=-1)
 
     # If requested, place threshold on modulus maxima
     if threshold is not None:
@@ -257,9 +253,7 @@ def finger_finder(scale, flag, mod_max, istart=3, do_fill=False):
         iremain = np.flatnonzero(candidates[ss, :] >= 0)
 
         if iremain.size > 0:
-            isort = iremain[
-                np.argsort(mod_max[ss, candidates[ss, iremain]])[::-1]
-            ]
+            isort = iremain[np.argsort(mod_max[ss, candidates[ss, iremain]])[::-1]]
         else:
             keep_iter = False
 
@@ -555,8 +549,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         database.  Initialize Prometheus metrics.
         """
         self.logger.info(
-            "Starting up. My name is %s and I am of type %s."
-            % (self.name, __name__)
+            "Starting up. My name is %s and I am of type %s." % (self.name, __name__)
         )
 
         # Open connection to data index database
@@ -656,9 +649,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 dtype=np.int,
             )
         else:
-            self.scale = np.arange(
-                self.min_scale, self.max_scale + 2, dtype=np.int
-            )
+            self.scale = np.arange(self.min_scale, self.max_scale + 2, dtype=np.int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
         self.nedge = self.edge_buffer * self.max_scale
@@ -705,13 +696,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         query = """SELECT filename, start, stop FROM files
                    WHERE ((stop > ?) AND (start < ?))
                    ORDER BY start"""
-        results = list(
-            cursor.execute(query, (start_time - offset_start, end_time))
-        )
+        results = list(cursor.execute(query, (start_time - offset_start, end_time)))
 
-        acquisitions = sorted(
-            list(set([os.path.dirname(res[0]) for res in results]))
-        )
+        acquisitions = sorted(list(set([os.path.dirname(res[0]) for res in results])))
 
         # Loop over acquisitions
         for aa, acq in enumerate(acquisitions):
@@ -728,9 +715,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             if nfiles == 0:
                 continue
 
-            self.logger.info(
-                "Now processing acquisition %s (%d files)" % (acq, nfiles)
-            )
+            self.logger.info("Now processing acquisition %s (%d files)" % (acq, nfiles))
 
             # Determine the output acquisition name and make directory
             epos = acq.find(self.instrument) + len(self.instrument)
@@ -768,11 +753,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 )
             else:
                 ifeed = np.array(
-                    [
-                        ii
-                        for ii, inp in enumerate(inputmap)
-                        if tools.is_chime(inp)
-                    ]
+                    [ii for ii, inp in enumerate(inputmap) if tools.is_chime(inp)]
                 )
 
             ninp = len(ifeed)
@@ -793,22 +774,16 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     freq_physical = [self.freq_physical]
 
                 freq_sel = np.array(
-                    [
-                        np.argmin(np.abs(all_data.freq - ff))
-                        for ff in freq_physical
-                    ]
+                    [np.argmin(np.abs(all_data.freq - ff)) for ff in freq_physical]
                 )
 
             else:
 
                 in_range = np.flatnonzero(
-                    (all_data.freq > self.freq_low)
-                    & (all_data.freq <= self.freq_high)
+                    (all_data.freq > self.freq_low) & (all_data.freq <= self.freq_high)
                 )
 
-                findex = np.arange(
-                    in_range[0], in_range[-1] + 1, self.freq_step
-                )
+                findex = np.arange(in_range[0], in_range[-1] + 1, self.freq_step)
 
                 freq_sel = [
                     andata._convert_to_slice(find)
@@ -816,8 +791,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 ]
 
                 freq_mask = [
-                    ~rfi.frequency_mask(all_data.freq[find])
-                    for find in freq_sel
+                    ~rfi.frequency_mask(all_data.freq[find]) for find in freq_sel
                 ]
 
             # Determine number of files to process at once
@@ -875,9 +849,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                             renormalize=False,
                         )
 
-                        self.logger.debug(
-                            "Took %0.1f sec." % (time.time() - t1,)
-                        )
+                        self.logger.debug("Took %0.1f sec." % (time.time() - t1,))
 
                         # Save the index map
                         if not ff:
@@ -929,12 +901,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     # Create a frequency axis representative of the average
                     dfreq = np.array(
-                        [
-                            (
-                                np.mean(this_freq["centre"]),
-                                np.sum(this_freq["width"]),
-                            )
-                        ],
+                        [(np.mean(this_freq["centre"]), np.sum(this_freq["width"]))],
                         dtype=this_freq.dtype,
                     )
 
@@ -1031,9 +998,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         signal = autonorm[ff, ii, :]
 
                         # Perform wavelet transform
-                        coef, wv = pywt.cwt(
-                            signal, self.scale, self.wavelet_name
-                        )
+                        coef, wv = pywt.cwt(signal, self.scale, self.wavelet_name)
 
                         if do_print:
                             tspan = time.time() - t2
@@ -1119,9 +1084,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                             temp_var[0:ncut] = True
                             jump_flag.append(temp_var)
 
-                            temp_var = np.zeros(
-                                self.nwin, dtype=this_time.dtype
-                            )
+                            temp_var = np.zeros(self.nwin, dtype=this_time.dtype)
                             temp_var[0:ncut] = this_time[aa:bb].copy()
                             jump_time.append(temp_var)
 
@@ -1134,17 +1097,13 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                 # Create output file
                 seconds_elapsed = tstart - acq_start
-                output_file = os.path.join(
-                    output_dir, "%08d.h5" % seconds_elapsed
-                )
+                output_file = os.path.join(output_dir, "%08d.h5" % seconds_elapsed)
 
                 self.logger.info(
                     "Took %0.1f sec to process autocorr." % (time.time() - t0,)
                 )
 
-                self.logger.info(
-                    "Writing %d jumps to: %s" % (ncandidate, output_file)
-                )
+                self.logger.info("Writing %d jumps to: %s" % (ncandidate, output_file))
 
                 # Write to output file
                 with h5py.File(output_file, "w") as handler:
@@ -1165,9 +1124,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     # Create weather related index map
                     index_map = handler.create_group("index_map")
-                    index_map.create_dataset(
-                        "weather_station_time", data=rain["time"]
-                    )
+                    index_map.create_dataset("weather_station_time", data=rain["time"])
 
                     # Create a dataset with accumulated rain fall
                     ax = np.string_(["weather_station_time"])
@@ -1188,12 +1145,8 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         )
 
                         # Add jump related index maps
-                        index_map.create_dataset(
-                            "jump", data=np.arange(ncandidate)
-                        )
-                        index_map.create_dataset(
-                            "window", data=np.arange(self.nwin)
-                        )
+                        index_map.create_dataset("jump", data=np.arange(ncandidate))
+                        index_map.create_dataset("window", data=np.arange(self.nwin))
 
                         # Write 1D arrays containing info about each jump
                         ax = np.string_(["jump"])
@@ -1204,9 +1157,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         dset = handler.create_dataset("input", data=arr_cinput)
                         dset.attrs["axis"] = ax
 
-                        dset = handler.create_dataset(
-                            "time", data=np.array(ctime)
-                        )
+                        dset = handler.create_dataset("time", data=np.array(ctime))
                         dset.attrs["axis"] = ax
 
                         dset = handler.create_dataset(
@@ -1214,9 +1165,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         )
                         dset.attrs["axis"] = ax
 
-                        dset = handler.create_dataset(
-                            "jump_size", data=np.array(csize)
-                        )
+                        dset = handler.create_dataset("jump_size", data=np.array(csize))
                         dset.attrs["axis"] = ax
 
                         # Write 2D arrays containing snapshots of each jump
@@ -1349,8 +1298,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # Insert row for this file
         cursor = self.data_index.cursor()
         cursor.execute(
-            "INSERT INTO files VALUES (?, ?, ?, ?)",
-            (dt_start, dt_stop, njump, relpath),
+            "INSERT INTO files VALUES (?, ?, ?, ?)", (dt_start, dt_stop, njump, relpath)
         )
         self.data_index.commit()
         self.logger.info("Added %s to data index database." % relpath)
@@ -1380,9 +1328,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 cursor = self.data_index.cursor()
                 cursor.execute(replace_command, (None, filename))
                 self.data_index.commit()
-                self.logger.info(
-                    "Removed %s from data index database." % filename
-                )
+                self.logger.info("Removed %s from data index database." % filename)
 
     def refresh_archive_index(self):
         """Remove expired rows from the archive index database.
@@ -1416,9 +1362,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             else:
                 # File no longer exists on node, remove from database.
                 cursor = self.archive_index.cursor()
-                cursor.execute(
-                    "DELETE FROM files WHERE (filename = ?)", (relpath,)
-                )
+                cursor.execute("DELETE FROM files WHERE (filename = ?)", (relpath,))
                 self.archive_index.commit()
 
         # Add all remaining files to the database

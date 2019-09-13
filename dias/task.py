@@ -183,9 +183,7 @@ class Task:
             )
             os.makedirs(self.write_dir)
         else:
-            self.analyzer.logger.debug(
-                "Write directory: {0}.".format(self.write_dir)
-            )
+            self.analyzer.logger.debug("Write directory: {0}.".format(self.write_dir))
 
         # Create the task's state directory if it doesn't exist
         if not os.path.isdir(self.state_dir):
@@ -240,9 +238,7 @@ class Task:
             self.analyzer.logger.error(traceback.format_exc())
             self.metric_failed_total.labels(task=self.name).inc()
         else:
-            self.analyzer.logger.info(
-                "Shut-down; result: {0}".format(repr(result))
-            )
+            self.analyzer.logger.info("Shut-down; result: {0}".format(repr(result)))
 
         self.runcount -= 1
 
@@ -297,9 +293,7 @@ class Task:
             Total data size before and after cleanup in bytes.
         """
         self.analyzer.logger.debug(
-            "Cleaning up {}: data size maximum: {}".format(
-                dir, bytes2str(max_size)
-            )
+            "Cleaning up {}: data size maximum: {}".format(dir, bytes2str(max_size))
         )
 
         # gather all files their modification times and sizes (recursively)
@@ -328,18 +322,14 @@ class Task:
                         )
                     )
                 else:
-                    self.analyzer.logger.info(
-                        "Deleting file: {}".format(f.absolute())
-                    )
+                    self.analyzer.logger.info("Deleting file: {}".format(f.absolute()))
                     deleted_files.append(f)
                     try:
                         # Remove file or symbolic link
                         f.unlink()
                     except Exception as e:
                         self.analyzer.logger.warning(
-                            "Unable to delete file '{}': {}".format(
-                                f.absolute(), e
-                            )
+                            "Unable to delete file '{}': {}".format(f.absolute(), e)
                         )
                         deleted_files.pop()
                         disk_usage = total_data_size

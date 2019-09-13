@@ -226,14 +226,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         # Check which of these sources transit at night
         for src in self.sel_sources.keys():
             transit = ephemeris.transit_times(
-                self.sel_sources[src],
-                self.start_time_night,
-                self.end_time_night,
+                self.sel_sources[src], self.start_time_night, self.end_time_night
             )
             src_ra, src_dec = ephemeris.object_coords(
-                fluxcat.FluxCatalog[src].skyfield,
-                date=self.start_time_night,
-                deg=True,
+                fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True
             )
             if transit:
                 night_transits.append(src)
@@ -246,9 +242,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         # for each source in night_transits calculate the East-West positions
         for night_source in night_transits:
             self.logger.info(
-                "Processing source "
-                + night_source
-                + " to find feed positions..."
+                "Processing source " + night_source + " to find feed positions..."
             )
             ew_positions, resolution = self.__east_west_positions(night_source)
 
@@ -262,14 +256,9 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
                 ew_offsets[:, i * NCYLPOL : (i + 1) * NCYLPOL] *= np.median(
                     ew_positions[:, i * NCYLPOL : (i + 1) * NCYLPOL], axis=1
                 )[:, np.newaxis]
-                ew_offsets[
-                    :, (i + 1) * NCYLPOL : (i + 2) * NCYLPOL
-                ] *= np.median(
-                    ew_positions[:, (i + 1) * NCYLPOL : (i + 2) * NCYLPOL],
-                    axis=1,
-                )[
-                    :, np.newaxis
-                ]
+                ew_offsets[:, (i + 1) * NCYLPOL : (i + 2) * NCYLPOL] *= np.median(
+                    ew_positions[:, (i + 1) * NCYLPOL : (i + 2) * NCYLPOL], axis=1
+                )[:, np.newaxis]
 
             # Subtract median from East-West positions to get residuals.
             residuals = ew_positions - ew_offsets
@@ -306,19 +295,14 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
             with h5py.File(
                 os.path.join(
-                    self.write_dir,
-                    time_str + "_" + night_source + "_positions.h5",
+                    self.write_dir, time_str + "_" + night_source + "_positions.h5"
                 ),
                 "w",
             ) as f:
-                f.create_dataset(
-                    "east_west_pos", data=ew_positions, dtype=float
-                )
+                f.create_dataset("east_west_pos", data=ew_positions, dtype=float)
                 f.create_dataset("east_west_resid", data=residuals, dtype=float)
                 f.create_dataset("axis/freq", data=freq_sel, dtype=float)
-                f.create_dataset(
-                    "axis/input", data=np.arange(NINPUT), dtype=int
-                )
+                f.create_dataset("axis/input", data=np.arange(NINPUT), dtype=int)
                 f.close()
 
                 self.logger.info(
@@ -354,9 +338,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         results_list = f.get_results()
 
         if not results_list:
-            self.logger.warn(
-                "Did not find any data in the archive for source " + src
-            )
+            self.logger.warn("Did not find any data in the archive for source " + src)
             return (None, None)
 
         reader = results_list[0].as_reader()
@@ -374,9 +356,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
         # not dominated by RFI.
         # Get the source RA and DEC
         ra, dec = ephemeris.object_coords(
-            fluxcat.FluxCatalog[src].skyfield,
-            date=self.start_time_night,
-            deg=True,
+            fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True
         )
         ra_time = ephemeris.lsa(data.time)
         ha = ra_time - ra
@@ -445,9 +425,7 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
 
         # Get the source RA and DEC
         ra, dec = ephemeris.object_coords(
-            fluxcat.FluxCatalog[src].skyfield,
-            date=self.start_time_night,
-            deg=True,
+            fluxcat.FluxCatalog[src].skyfield, date=self.start_time_night, deg=True
         )
 
         # Loop over frequencies and then inputs to get the EW-positions

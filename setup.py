@@ -43,8 +43,7 @@ if task_dst:
     except FileExistsError:
         # Re-raise with an explanation
         raise FileExistsError(
-            "Cannot install task configraution: "
-            "{0} already exists.".format(task_dst)
+            "Cannot install task configraution: " "{0} already exists.".format(task_dst)
         )
 
     # Now copy all the task configuration files

@@ -42,6 +42,4 @@ class CHIMEAnalyzer(Analyzer):
         -------
         An instance of :class:`Finder`.
         """
-        return finder.Finder(
-            acqs=acqs, node_spoof={"gong": self.archive_data_dir}
-        )
+        return finder.Finder(acqs=acqs, node_spoof={"gong": self.archive_data_dir})

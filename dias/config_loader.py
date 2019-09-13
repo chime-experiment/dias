@@ -52,9 +52,7 @@ class ConfigLoader:
         try:
             global_file = open(self.config_path, "r")
         except Exception as exc:
-            raise DiasUsageError(
-                "Failed to open dias config file: {}".format(exc)
-            )
+            raise DiasUsageError("Failed to open dias config file: {}".format(exc))
         self.global_config = yaml.safe_load(global_file)
 
         global_file.close()
@@ -78,9 +76,7 @@ class ConfigLoader:
 
         self._check_config_variable("prometheus_client_port", proptype=int)
         self._check_config_variable(
-            "log_level",
-            default=DEFAULT_LOG_LEVEL,
-            proptype=logging.getLevelName,
+            "log_level", default=DEFAULT_LOG_LEVEL, proptype=logging.getLevelName
         )
         self._check_config_variable(
             "trigger_interval", default="1h", proptype=str2timedelta
@@ -174,9 +170,7 @@ class ConfigLoader:
         for config_file in os.listdir(self["task_config_dir"]):
             # Only accept files ending in .conf as task configs.
             # Task config files starting with an underscore (_) are disabled.
-            if config_file.endswith(".conf") and not config_file.startswith(
-                "_"
-            ):
+            if config_file.endswith(".conf") and not config_file.startswith("_"):
 
                 # Remove .conf from the config file name to get the name of the
                 # task
@@ -203,9 +197,7 @@ class ConfigLoader:
                 self._check_config_variable(
                     "log_level", logging.getLevelName, "INFO", task_config
                 )
-                self._check_config_variable(
-                    "period", str2timedelta, None, task_config
-                )
+                self._check_config_variable("period", str2timedelta, None, task_config)
                 self._check_config_variable(
                     "data_size_max", str2bytes, None, task_config
                 )
@@ -224,9 +216,7 @@ class ConfigLoader:
                 task = Task(task_name, task_config, write_dir, state_dir)
 
                 # Load the analyzer for this task from the task config
-                analyzer_class = self._import_analyzer_class(
-                    task_config["analyzer"]
-                )
+                analyzer_class = self._import_analyzer_class(task_config["analyzer"])
 
                 task.analyzer = analyzer_class(task_name, write_dir, state_dir)
                 task.analyzer.read_config(task_config)
@@ -264,17 +254,13 @@ class ConfigLoader:
             try:
                 class_ = globals()[classname]
             except KeyError:
-                raise ImportError(
-                    "Analyzer class {0} not found".format(classname)
-                )
+                raise ImportError("Analyzer class {0} not found".format(classname))
         else:
             # Try to load the module
             try:
                 ext_module = importlib.import_module(modulename)
             except ImportError:
-                raise ImportError(
-                    "Analyzer module {0} not found".format(modulename)
-                )
+                raise ImportError("Analyzer module {0} not found".format(modulename))
 
             # Now, find the class in the module
             try:

@@ -114,11 +114,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             freq = read.freq["centre"]
             ntimes = len(read.time)
             time_indices = np.linspace(
-                self.checkoffset,
-                ntimes,
-                self.nchecks,
-                endpoint=False,
-                dtype=int,
+                self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
             )
 
             # Determine prod_sel
@@ -128,12 +124,10 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 pidx = np.where(
                     np.logical_or(
                         np.logical_and(
-                            prods["input_a"] == ref_id,
-                            prods["input_b"] == chan_id,
+                            prods["input_a"] == ref_id, prods["input_b"] == chan_id
                         ),
                         np.logical_and(
-                            prods["input_a"] == chan_id,
-                            prods["input_b"] == ref_id,
+                            prods["input_a"] == chan_id, prods["input_b"] == ref_id
                         ),
                     )
                 )[0][0]
