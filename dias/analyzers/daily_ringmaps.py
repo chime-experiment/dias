@@ -81,24 +81,31 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         try:
             for pi, p in enumerate(pol):
                 for fi, f in enumerate(freq):
-                    r = self._check_request(data={"freq_ind": fi, "pol": pi}, return_raw=True)
+                    r = self._check_request(
+                        data={"freq_ind": fi, "pol": pi}, return_raw=True
+                    )
 
                     if r is None:
-                        self.warn("Failed to fetch ringmap for pol {}, freq {}.".format(p, f))
+                        self.warn(
+                            "Failed to fetch ringmap for pol {}, freq {}.".format(p, f)
+                        )
                         continue
 
                     # Unpack data
                     try:
                         data = msgpack.unpackb(r, raw=False)
                     except Exception:
-                        self.logger.warn("Failed to unpack data for pol {}, freq {}.".format(p, f))
+                        self.logger.warn(
+                            "Failed to unpack data for pol {}, freq {}.".format(p, f)
+                        )
                         continue
 
                     # Parse data
                     try:
                         sinza = np.array(data["sinza"], dtype=np.float32)
                         time = np.array(
-                            [(t["fpga_count"], t["ctime"]) for t in data["time"]], dtype=TIME_DTYPE
+                            [(t["fpga_count"], t["ctime"]) for t in data["time"]],
+                            dtype=TIME_DTYPE,
                         )
                         rmap = np.array(data["ringmap"], dtype=np.float32)
                         rmap = rmap.reshape(rmap.shape[0] // len(sinza), len(sinza)).T
@@ -150,7 +157,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
             return None
 
         if not r.ok:
-            self.logger.warn("Bad response from {}: {} {}".format(url, r.status_code, r.reason))
+            self.logger.warn(
+                "Bad response from {}: {} {}".format(url, r.status_code, r.reason)
+            )
             return None
 
         if return_raw:
