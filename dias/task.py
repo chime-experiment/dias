@@ -4,6 +4,7 @@ import random
 import traceback
 
 from dias.utils import str2timestamp, str2total_seconds, bytes2str
+from dias.exception import DiasDataError
 from pathlib import Path
 from prometheus_client import Gauge, Counter
 
@@ -106,16 +107,25 @@ class Task:
                 namespace="dias",
                 unit="total",
             )
+            task_metrics["no_data"] = Counter(
+                "no_data",
+                "Counts how often each task failed because it couldn't find any data.",
+                labelnames=["task"],
+                namespace="dias",
+                unit="total",
+            )
 
         self.data_written_metric = task_metrics["data_written"]
         self.disk_space_metric = task_metrics["disk_space"]
         self.metric_runs_total = task_metrics["runs"]
         self.metric_failed_total = task_metrics["failed"]
+        self.metric_no_data_total = task_metrics["no_data"]
 
         # Initialize counter with zero. prometheus_client does not export a
         # value until the counter is incremented.
         self.metric_runs_total.labels(task=task_name).inc(0)
         self.metric_failed_total.labels(task=task_name).inc(0)
+        self.metric_no_data_total.labels(task=task_name).inc(0)
 
         # Extract important stuff from the task config
         self.period = task_config["period"]
@@ -217,6 +227,11 @@ class Task:
 
         try:
             result = self.analyzer.run()
+        except DiasDataError as e:
+            self.analyzer.logger.error("Task couldn't find data: {}".format(e))
+            result = "Failed"
+            self.analyzer.logger.error(traceback.format_exc())
+            self.metric_no_data_total.labels(task=self.name).inc()
         except Exception as e:
             self.analyzer.logger.error("Task failed: {}".format(e))
             result = "Failed"

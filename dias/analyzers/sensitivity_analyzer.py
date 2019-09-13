@@ -8,7 +8,7 @@ from datetime import datetime
 import calendar
 from caput import config
 from dias.utils.string_converter import str2timedelta
-from ch_util import data_index
+from chimedb import data_index
 import sqlite3
 
 import os
@@ -38,9 +38,18 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
     Analyzer for telescope sensitivity.
 
+    `DocLib 792 <https://bao.chimenet.ca/doc/documents/792>`_ describes this analyzer and the
+    associated theremin graph.
+
     Metrics
     ----------
-    None
+    dias_data_<task name>_average_sensitivity
+    ................................................
+    RMS of thermal noise, averaged over inter-cylinder
+    baselines, all frequencies, and 1.5 hours.
+
+    Labels
+        pol : Polarization of the feeds averaged (EW/NS).
 
     Output Data
     -----------------
@@ -139,11 +148,11 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         """Open connection to data index database.
 
         Creates table if it does not exist.
-
+        Further, it adds the data metric.
         """
         # Check for database
 
-        db_file = os.path.join(self.write_dir, DB_FILE)
+        db_file = os.path.join(self.state_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         self.data_index = sqlite3.connect(
             db_file, detect_types=db_types, check_same_thread=False
@@ -152,6 +161,16 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         cursor = self.data_index.cursor()
         cursor.execute(CREATE_DB_TABLE)
         self.data_index.commit()
+
+        # Add a data metric for sensitivity.
+        self.sens = self.add_data_metric(
+            "average_sensitivity",
+            """Thermal noise estimate averaged over
+            all frequencies, inter-cylinder baselines, and
+            1.5 hours""",
+            unit="ujy",
+            labelnames=["pol"],
+        )
 
     def run(self):
         """Task stage: analyzes data from the last period."""
@@ -294,6 +313,14 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             # Normalize
             inv_counter = tools.invert_no_zero(counter)
             var *= inv_counter ** 2
+
+            # Compute metric to be exported
+            self.sens.labels(pol="EW").set(
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 0, :])))
+            )
+            self.sens.labels(pol="NS").set(
+                1.0e6 * np.sqrt(1.0 / np.sum(tools.invert_no_zero(var[:, 1, :])))
+            )
 
             # Write to file
             output_file = os.path.join(
@@ -462,7 +489,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 cursor = self.data_index.cursor()
                 cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.log.info("Removed %s from data index database." % filename)
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""

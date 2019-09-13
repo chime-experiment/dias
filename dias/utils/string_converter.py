@@ -211,7 +211,7 @@ def str2path(s):
     Returns
     -------
     str
-        The same path, but `~` or `~user` are replaced by the user’s home
+        The same path, but `~` or `~user` are replaced by the user's home
         directory and substrings of the form `$name` or `${name}` are replaced
         by the value of environment variable name. Malformed variable names and
         references to non-existing variables are left unchanged.

@@ -309,6 +309,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     See "Singularity Detection and Processing with Wavelets" by
     Stephane Mallat and Wen Liang Hwang for more information.
 
+    `DocLib 788 <https://bao.chimenet.ca/doc/documents/788>`_ describes this analyzer and the
+    associated theremin graph.
+
     Metrics
     -------
     dias_task_<task_name>_run_time_seconds
@@ -1374,8 +1377,14 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 self.logger.info("Could not load %s:  %s" % (filename, ex))
                 continue
 
-            delta_t = np.median(np.abs(np.diff(ftime)))
             ntime = ftime.size
+            if ntime < 2:
+                self.logger.info(
+                    "%s only contains %d samples. Skipping." % (filename, ntime)
+                )
+                continue
+
+            delta_t = np.median(np.abs(np.diff(ftime)))
 
             ftime += 0.5 * delta_t
             time_start = ftime[0]

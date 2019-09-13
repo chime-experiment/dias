@@ -28,7 +28,8 @@ import gc
 import numpy as np
 import h5py
 
-from ch_util import tools, ephemeris, andata, data_index, rfi
+from chimedb import data_index
+from ch_util import tools, ephemeris, andata, rfi
 from caput import config
 
 from dias import chime_analyzer
@@ -84,6 +85,9 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
     Wrapper for `ch_util.rfi.number_deviations`.  Flags data as RFI if the
     stacked autocorrelations are greater than some number of local
     median absolute deviations (MAD) from the local median.
+
+    `DocLib 777 <https://bao.chimenet.ca/doc/documents/777>`_ describes this analyzer and the
+    associated theremin graph.
 
     Metrics
     -------
@@ -595,7 +599,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 cursor = self.data_index.cursor()
                 cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.log.info("Removed %s from data index database." % filename)
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""

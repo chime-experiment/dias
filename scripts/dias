@@ -3,7 +3,7 @@
 import sys
 import os
 import argparse
-from dias import ConfigLoader, DiasUsageError, Scheduler, stop_scheduler
+from dias import ConfigLoader, DiasUsageError, Scheduler, stop_scheduler, __version__
 
 
 def do_configtest(args):
@@ -74,6 +74,10 @@ def do_tryrun(args):
 
 def do_runner(args):
     raise NotImplementedError
+
+
+# Print dias version
+print("dias-{}".format(__version__))
 
 # The default dias.conf path.
 # The default here should be suitable for running dias
