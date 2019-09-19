@@ -132,7 +132,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
         Window (seconds) around which transit fitting is done Default : 600.0.
     freq_sel: list
         List of frequency indices. Allows the processing of a subset of frequencies.
-        Default is the full CHIME band.
+        Default is the full CHIME band (0..1023).
     search_window : integer
         Number of hours to search back from current time. Default : 48.
     source : string
