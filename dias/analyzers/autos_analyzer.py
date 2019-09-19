@@ -129,7 +129,7 @@ class AutosAnalyzer(CHIMEAnalyzer):
     Attributes
     ----------
     transit_window : float
-        Window (seconds) around which transit fitting is done Default : 600.0.
+        Window (seconds) around which transit fitting is done. Default : 600.0.
     freq_sel: list
         List of frequency indices. Allows the processing of a subset of frequencies.
         Default is the full CHIME band (0..1023).
