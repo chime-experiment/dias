@@ -1,5 +1,25 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [0.1.2](https://github.com/chime-experiment/dias/compare/0.1.0...0.1.2) (2019-09-20)
+
+
+### Bug Fixes
+
+* **find_jump_analyzer:** skip files that have a single time sample. ([b8d0367](https://github.com/chime-experiment/dias/commit/b8d0367))
+* **flag_rfi_analyzer:** fixes typo log --> logger. ([#117](https://github.com/chime-experiment/dias/issues/117)) ([569e2ee](https://github.com/chime-experiment/dias/commit/569e2ee))
+* **sensitivity:** export correct value in sensitivity metric ([45d98d3](https://github.com/chime-experiment/dias/commit/45d98d3))
+* **setup.py:** Don't import dias in setup.py ([180573a](https://github.com/chime-experiment/dias/commit/180573a)), closes [#111](https://github.com/chime-experiment/dias/issues/111)
+* **setup.py:** Don't import dias in setup.py ([c0aea76](https://github.com/chime-experiment/dias/commit/c0aea76))
+
+
+### Features
+
+* **script:** print dias version string ([#120](https://github.com/chime-experiment/dias/issues/120)) ([0219d91](https://github.com/chime-experiment/dias/commit/0219d91)), closes [#106](https://github.com/chime-experiment/dias/issues/106)
+
+# Changelog
+
 ## Version 0.1.1 (2019-06-27)
 
 ### New Features
