@@ -12,6 +12,13 @@ listed here.
 
    Analyzer
 
+.. currentmodule:: dias.analyzers.autos_analyzer
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   AutosAnalyzer
 
 .. currentmodule:: dias.analyzers.feedpositions_analyzer
 
