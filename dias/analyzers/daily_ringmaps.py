@@ -135,7 +135,9 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                         rmap = rmap.reshape(rmap.shape[0] // len(sinza), len(sinza)).T
                         wgt = np.array(data["weight"], dtype=np.float32)
                     except KeyError as key_name:
-                        self.logger.warn("Missing key in ringmap response: {}.".format(key_name))
+                        self.logger.warn(
+                            "Missing key in ringmap response: {}.".format(key_name)
+                        )
                         continue
 
                     # reorder so that time is increasing
