@@ -71,6 +71,7 @@ setuptools.setup(
         "bitshuffle",
         "pyyaml",
         "scipy",
+        "msgpack",
         "numpy",
         "h5py",
         "pywavelets",

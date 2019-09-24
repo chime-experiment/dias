@@ -115,7 +115,7 @@ parser.add_argument(
         'all tasks',
         default=None,
         metavar="LEVEL",
-        choices=['critical', 'error', 'warning', 'info', 'debug']
+        choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
         )
 
 # Default values

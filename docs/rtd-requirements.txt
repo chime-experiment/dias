@@ -11,6 +11,8 @@ scipy
 numpy
 h5py
 pywavelets
+msgpack
+bitshuffle
 
 # Documentation
 recommonmark
