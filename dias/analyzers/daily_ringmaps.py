@@ -23,7 +23,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_daily_ringmaps_maps_total
+    dias_task_<task_name>_maps_total
     .....................................
     The number of maps that were saved in the last run.
 
@@ -32,6 +32,29 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
     A file for every day containing ringmaps at all available
     frequencies and polarizations.
 
+    File naming
+    ...........
+    `%Y%m%dT%H%M%SZ.h5`
+        UTC time corresponding to first time sample in ringmap.
+
+    Indexes
+    .......
+    time
+        Time axis.
+    pol
+        Polarization.
+    freq
+        Frequency.
+    sinza
+        Sin of zenith angle.
+
+    Datasets
+    .........
+    ringmap
+        Ringmap.
+    weight
+        Summed inverse variance weights for every time sample.
+
     State Data
     ----------
     None
@@ -39,9 +62,10 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
     Config
     ------
     ringmap_url : str
-        URL of the ringmap server.
+        URL of the ringmap server. (default http://recv1:12048/ringmap)
     use_bitshuffle : bool
         Whether to use bitshuffle to compress the data in the output HDF5 files
+        (default False)
 
     Attributes
     ----------

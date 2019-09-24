@@ -53,6 +53,14 @@ listed here.
 
    SensitivityAnalyzer
 
+.. currentmodule:: dias.analyzers.daily_ringmaps
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   DailyRingmapAnalyzer
+
 .. currentmodule:: dias.analyzers.test_analyzer
 
 .. autosummary::
