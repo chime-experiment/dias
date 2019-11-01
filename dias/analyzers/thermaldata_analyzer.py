@@ -193,10 +193,15 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             phase_fact = 2.0 * np.pi * L / (speed_factor * c)
             step = phase_fact * abs(freq[1] - freq[0]) * thz
         for ii in np.arange(1, n):
+            this_stepdiff = phase[ii] - phase[ii - 1]
+            curr_stt_stepdiff = phase[current_stt_idx + 1] - phase[current_stt_idx]
             bad_step = np.logical_or(
-                abs(phase[ii] - phase[ii - 1]) > step * (1.0 + tol),
-                abs(phase[ii] - phase[ii - 1]) < step * (1.0 - tol),
+                abs(this_stepdiff) > step * (1.0 + tol),
+                abs(this_stepdiff) < step * (1.0 - tol),
             )
+            # Ensure the step is not only the right length but the right direction
+            bad_step = bad_step or (np.sign(this_stepdiff) != np.sign(curr_stt_stepdiff))
+
             if not bad_step:
                 current_length += 1
             else:
