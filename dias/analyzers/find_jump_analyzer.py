@@ -554,7 +554,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Open connection to data index database
         # and create table if it does not exist.
-        db_file = os.path.join(self.write_dir, DB_FILE)
+        db_file = os.path.join(self.state_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         self.data_index = sqlite3.connect(
             db_file, detect_types=db_types, check_same_thread=False
@@ -566,7 +566,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Open connection to archive index database
         # and create table if it does not exist.
-        adb_file = os.path.join(self.write_dir, ARCHIVE_DB_FILE)
+        adb_file = os.path.join(self.state_dir, ARCHIVE_DB_FILE)
         self.archive_index = sqlite3.connect(
             adb_file, detect_types=db_types, check_same_thread=False
         )

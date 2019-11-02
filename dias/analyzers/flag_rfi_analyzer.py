@@ -243,7 +243,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         # Open connection to data index database
         # and create table if it does not exist
-        db_file = os.path.join(self.write_dir, DB_FILE)
+        db_file = os.path.join(self.state_dir, DB_FILE)
         db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         # The connection can only be used by one thread at a time.
         # This analyzer does not serialize use of the connection.
