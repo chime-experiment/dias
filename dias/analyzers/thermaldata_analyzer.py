@@ -200,7 +200,9 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 abs(this_stepdiff) < step * (1.0 - tol),
             )
             # Ensure the step is not only the right length but the right direction
-            bad_step = bad_step or (np.sign(this_stepdiff) != np.sign(curr_stt_stepdiff))
+            bad_step = bad_step or (
+                np.sign(this_stepdiff) != np.sign(curr_stt_stepdiff)
+            )
 
             if not bad_step:
                 current_length += 1
