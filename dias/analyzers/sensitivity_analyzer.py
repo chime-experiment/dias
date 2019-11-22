@@ -185,12 +185,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         start_time = results[0][0] if results else stop_time - self.period
 
         # Find all calibration files
-        f = self.Finder()
-        f.set_time_range(start_time, stop_time)
-        f.accept_all_global_flags()
-        f.only_corr()
-        f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
-        file_list = f.get_results()
+        file_list = self.find_all_staging(data_product=self.acq_suffix)
+        file_list = self.filter_files_by_time(file_list, start_time, stop_time)
         try:
             all_files = file_list[0][0]
             if not all_files:
