@@ -11,6 +11,7 @@ from caput import config
 from dias.utils import str2timedelta
 from dias import exception
 import numpy as np
+from ch_util import andata
 
 # Constant
 SLOPE_TO_SECONDS = 1.0 / 2.0 / np.pi / 1e6  # Convert slope to seconds
@@ -100,16 +101,13 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
         from chimedb import data_index
 
-        f = self.Finder()
-        f.set_time_range(start_time, end_time)
-        f.filter_acqs((data_index.ArchiveInst.name == "chimetiming"))
-        f.accept_all_global_flags()
+        results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
+        results_list = self.filter_files_by_time(file_list, start_time, end_time)
 
-        results_list = f.get_results()
         if len(results_list) > 0:
             # I only use the first acquisition found
             result = results_list[0]
-            read = result.as_reader()
+            read = andata.CorrReader([result])
             prods = read.prod
             freq = read.freq["centre"]
             ntimes = len(read.time)
