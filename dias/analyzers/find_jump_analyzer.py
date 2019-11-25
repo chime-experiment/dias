@@ -1339,7 +1339,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         data is not archived or registered in alpenhorn.
         """
         # Find all files on archive node
-        all_files = self.find_all_archive(self, "_corr")
+        all_files = self.find_all_archive(
+            instrument=self.instrument, data_product="corr"
+        )
 
         # Find all files in database
         cursor = self.archive_index.cursor()

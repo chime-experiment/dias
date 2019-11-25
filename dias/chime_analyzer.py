@@ -50,7 +50,7 @@ class CHIMEAnalyzer(Analyzer):
         """
         return finder.Finder(acqs=acqs, node_spoof={"gong": self.archive_data_dir})
 
-    def find_all_archive(self, data_product="*"):
+    def find_all_archive(self, instrument, data_product="*"):
         """
         Return a list of unlocked files located in archive.
 
@@ -65,9 +65,7 @@ class CHIMEAnalyzer(Analyzer):
             Where each str represents a path to a file.
         """
         glob_str = os.path.join(
-            self.archive_data_dir,
-            "*_{0}{1}".format(self.instrument, data_product),
-            "*.h5",
+            self.archive_data_dir, "*_{0}_{1}".format(instrument, data_product), "*.h5"
         )
         return sorted(glob.glob(glob_str))
 
