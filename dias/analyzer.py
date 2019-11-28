@@ -165,13 +165,13 @@ class Analyzer(config.Reader):
             Where each str represents a path to a file.
         """
         glob_str = os.path.join(
-                self.archive_data_dir, "*_{0}_{1}".format(instrument, data_product), "*.h5"
-                )
+            self.archive_data_dir, "*_{0}_{1}".format(instrument, data_product), "*.h5"
+        )
         return sorted(glob.glob(glob_str))
 
     def filter_files_by_time(
-            self, files=[], start_time=datetime.min, stop_time=datetime.max
-            ):
+        self, files=[], start_time=datetime.min, stop_time=datetime.max
+    ):
         """
         Filter a list of files by time range. Date of file is inferred from the filename.
 
