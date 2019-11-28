@@ -7,3 +7,4 @@ from .find_jump_analyzer import FindJumpAnalyzer
 from .flag_rfi_analyzer import FlagRFIAnalyzer
 from .sensitivity_analyzer import SensitivityAnalyzer
 from .daily_ringmaps import DailyRingmapAnalyzer
+from .rx_temp_analyzer import RxTempAnalyzer
