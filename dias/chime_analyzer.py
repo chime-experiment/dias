@@ -83,6 +83,7 @@ class CHIMEAnalyzer(Analyzer):
         end_time : :class:datetime.datetime
             Inclusive of end_time.
         """
+        file_list = []
         for f in files:
             # obtain file's date from name
             # files have naming structure YYYYmmddT*
