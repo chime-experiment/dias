@@ -102,7 +102,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         from chimedb import data_index
 
         results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
-        results_list = self.filter_files_by_time(file_list, start_time, end_time)
+        results_list = self.filter_files_by_time(results_list, start_time, end_time)
 
         if len(results_list) > 0:
             # I only use the first acquisition found
