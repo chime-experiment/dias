@@ -25,7 +25,6 @@ import os
 import time
 import datetime
 import subprocess
-import glob
 import sqlite3
 import requests
 import gc
@@ -1340,10 +1339,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         data is not archived or registered in alpenhorn.
         """
         # Find all files on archive node
-        glob_str = os.path.join(
-            self.archive_data_dir, "*_%s_corr" % self.instrument, "*.h5"
+        all_files = self.find_all_archive(
+            instrument=self.instrument, data_product="corr"
         )
-        all_files = sorted(glob.glob(glob_str))
 
         # Find all files in database
         cursor = self.archive_index.cursor()

@@ -132,8 +132,9 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
     """
 
     correlator = config.Property(proptype=str, default="chime")
+    instrument = config.Property(proptype=str, default="chimestack")
     output_suffix = config.Property(proptype=str, default="sensitivity")
-    acq_suffix = config.Property(proptype=str, default="stack_corr")
+    acq_suffix = config.Property(proptype=str, default="corr")
 
     nfreq_per_block = config.Property(proptype=int, default=16)
     include_auto = config.Property(proptype=bool, default=False)
@@ -185,19 +186,14 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         start_time = results[0][0] if results else stop_time - self.period
 
         # Find all calibration files
-        f = self.Finder()
-        f.set_time_range(start_time, stop_time)
-        f.accept_all_global_flags()
-        f.only_corr()
-        f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
-        file_list = f.get_results()
-        try:
-            all_files = file_list[0][0]
-            if not all_files:
-                raise IndexError()
-        except IndexError:
-            err_msg = "No {} files found from last {}.".format(
-                self.acq_suffix, self.period
+        file_list = self.find_all_archive(
+            instrument=self.instrument, data_product=self.acq_suffix
+        )
+        file_list = self.filter_files_by_time(file_list, start_time, stop_time)
+
+        if not file_list:
+            err_msg = "No {}_{} files found from last {}.".format(
+                self.instrument, self.acq_suffix, self.period
             )
             raise exception.DiasDataError(err_msg)
 
@@ -216,7 +212,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         )
 
         # Read a sample file for getting index map
-        file_sample = all_files[0]
+        file_sample = file_list[0]
         data = andata.CorrData.from_acq_h5(
             file_sample,
             datasets=["reverse_map", "flags/inputs"],
@@ -229,7 +225,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             data.index_map, inputmap
         )
 
-        for files in all_files:
+        for files in file_list:
 
             # Load index map and reverse map
             data = andata.CorrData.from_acq_h5(
