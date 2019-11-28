@@ -1,11 +1,5 @@
 """CHIME-specifc Analyzer Base Class."""
 
-import os
-import re
-import glob
-
-from datetime import datetime
-
 from caput import config
 from dias import Analyzer
 from ch_util import finder
