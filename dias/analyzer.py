@@ -193,7 +193,7 @@ class Analyzer(config.Reader):
         for f in files:
             # obtain file's date from name
             # files have naming structure YYYYmmddT*
-            file_time = re.search("(\d*)T.*", f).groups[0]
+            file_time = re.search("(\d*)T.*", f).groups()[0]
             file_time = datetime.strptime(file_time, "%Y%m%d")
 
             if (file_time >= start_time) and (file_time <= stop_time):
