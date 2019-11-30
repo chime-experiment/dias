@@ -69,7 +69,6 @@ class RxTempAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         return report
 
-
     def run(self):
         """Run the analyzer.
         """
@@ -78,8 +77,14 @@ class RxTempAnalyzer(chime_analyzer.CHIMEAnalyzer):
         timestamp = report["time"]
         temp = report["temp"]
 
-        temp_psd = PowerSpectralDensity(timestamp, temp, overlap_factor=0.5, tmax=0.1*(timestamp[-1] - timestamp[0]), speedy=True, one_sided=True)
-
+        temp_psd = PowerSpectralDensity(
+            timestamp,
+            temp,
+            overlap_factor=0.5,
+            tmax=0.1 * (timestamp[-1] - timestamp[0]),
+            speedy=True,
+            one_sided=True,
+        )
 
     def finish(self):
         """Close connections."""
