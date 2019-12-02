@@ -5,8 +5,8 @@ import numpy as np
 from caput import config
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta
+from dias.utils.psd import PowerSpectralDensity
 import matplotlib as plt
-from psd import PowerSpectralDensity
 
 __version__ = "0.1.0"
 
