@@ -5,6 +5,7 @@ import re
 import glob
 
 from datetime import datetime
+from datetime import timedelta
 
 from caput import config
 from dias.utils import str2timedelta, str2datetime, str2bytes
@@ -192,9 +193,16 @@ class Analyzer(config.Reader):
         file_list = []
         for f in files:
             # obtain file's date from name
-            # files have naming structure YYYYmmddT*
-            file_time = re.search("(\d*)T.*", f).groups()[0]
-            file_time = datetime.strptime(file_time, "%Y%m%d")
+            # folders have naming structure YYYYmmddT*
+            # files have naming structure *_%.h5
+            # where * is the number of seconds after the folder_datetime that the data was acquired
+            # % is the fraction of a second
+            folder_datetime = re.search("(\d*T\d*)Z.*", f).groups()[0]
+            folder_datetime = datetime.strptime(folder_datetime, "%Y%m%dT%H%M%S")
+            # we are not going to care about the fractions of a second
+            file_seconds = re.search("(\d*)_\d\d\d\d.h5", f).groups()[0]
+
+            file_time = folder_datetime + timedelta(seconds=int(file_seconds))
 
             if (file_time >= start_time) and (file_time <= stop_time):
                 file_list.append(f)
