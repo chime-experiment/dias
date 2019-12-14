@@ -41,6 +41,7 @@ from caput import config
 from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
 from dias import __version__ as dias_version_tag
+from dias.exception import DiasDataError
 
 __version__ = "0.1.0"
 
@@ -686,6 +687,9 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         cursor = self.archive_index.cursor()
         query = "SELECT AVG(ntime), AVG(time_step) FROM files"
         avg_ntime, avg_time_step = list(cursor.execute(query))[0]
+
+        if (avg_ntime is None) or (avg_time_step is None):
+            raise DiasDataError("Jump time step data is not available")
 
         offset_start = datetime.timedelta(seconds=self.nedge * avg_time_step)
         offset_nfile = int(np.ceil(2 * self.nedge / float(avg_ntime)))
