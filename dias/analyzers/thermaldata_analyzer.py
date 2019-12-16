@@ -13,6 +13,8 @@ from dias import exception
 import numpy as np
 from ch_util import andata
 
+import re
+
 # Constant
 SLOPE_TO_SECONDS = 1.0 / 2.0 / np.pi / 1e6  # Convert slope to seconds
 CABLE_LOOP_CHANNEL_IDS = [944, 1314, 2034]
@@ -101,16 +103,32 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
         from chimedb import data_index
 
+        # get the full list of files within that time range
         results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
         results_list = self.filter_files_by_time(results_list, start_time, end_time)
 
         if len(results_list) > 0:
-            # I only use the first acquisition found
-            result = results_list[0]
-            read = andata.CorrReader([result])
-            prods = read.prod
-            freq = read.freq["centre"]
-            ntimes = len(read.time)
+
+            # only use the first acquisition found
+            first_result = results_list[0]
+            first_result_folder_datetime = re.search(
+                "(\d*T\d*)Z", first_result
+            ).groups()[0]
+            first_acquisition = []
+
+            # an acquisition can represent a list of files in the same 'acq' folder
+            for f in results_list:
+                if first_result_folder_datetime in f:
+                    first_acquisition.append(f)
+
+            assert (
+                len(first_acquisition) >= 1
+            ), "At this point, there should be at least 1 result"
+
+            reader = andata.CorrReader(first_acquisition)
+            prods = reader.prod
+            freq = reader.freq["centre"]
+            ntimes = len(reader.time)
             time_indices = np.linspace(
                 self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
             )
@@ -131,8 +149,9 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 )[0][0]
                 prod_sel.append(pidx)
 
-            # Load data
-            data = result.as_loaded_data(prod_sel=np.array(prod_sel))
+            # Load data from first acquisition
+            setattr(reader, "prod_sel", np.array(prod_sel))
+            data = reader.read()
             phases = np.angle(data.vis)
 
             # Perform the fits
