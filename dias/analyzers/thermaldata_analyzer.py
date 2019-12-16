@@ -111,7 +111,9 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
 
             # only use the first acquisition found
             first_result = results_list[0]
-            first_result_folder_datetime = re.search("(\d*T\d*)Z", first_result).groups()[0]
+            first_result_folder_datetime = re.search(
+                "(\d*T\d*)Z", first_result
+            ).groups()[0]
             first_acquisition = []
 
             # an acquisition can represent a list of files in the same 'acq' folder
@@ -119,12 +121,14 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 if first_result_folder_datetime in f:
                     first_acquisition.append(f)
 
-            assert len(first_acquisition) >= 1, "At this point, there should be at least 1 result"
+            assert (
+                len(first_acquisition) >= 1
+            ), "At this point, there should be at least 1 result"
 
-            read = andata.CorrReader(first_acquisition)
-            prods = read.prod
-            freq = read.freq["centre"]
-            ntimes = len(read.time)
+            reader = andata.CorrReader(first_acquisition)
+            prods = reader.prod
+            freq = reader.freq["centre"]
+            ntimes = len(reader.time)
             time_indices = np.linspace(
                 self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
             )
@@ -146,8 +150,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 prod_sel.append(pidx)
 
             # Load data from first acquisition
-            reader = andata.CorrReader(first_acquisition)
-            setattr(reader, 'prod_sel', np.array(prod_sel))
+            setattr(reader, "prod_sel", np.array(prod_sel))
             data = reader.read()
             phases = np.angle(data.vis)
 
