@@ -69,6 +69,7 @@ setuptools.setup(
         "ch_util @ git+ssh://git@bitbucket.org/chime/ch_util.git>=0.3",
         "prometheus_client>=0.5.0",
         "bitshuffle",
+        "skyfield",
         "pyyaml",
         "scipy",
         "msgpack",
