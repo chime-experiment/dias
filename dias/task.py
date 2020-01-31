@@ -192,9 +192,7 @@ class Task:
             )
             os.makedirs(self.state_dir)
         else:
-            self.analyzer.logger.debug(
-                "Set state directory: {}".format(self.state_dir)
-            )
+            self.analyzer.logger.debug("Set state directory: {}".format(self.state_dir))
 
         # Run the setup
         self.analyzer.setup()
