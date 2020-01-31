@@ -183,17 +183,17 @@ class Task:
             )
             os.makedirs(self.write_dir)
         else:
-            self.analyzer.logger.debug("Write directory: {0}.".format(self.write_dir))
+            self.analyzer.logger.debug("Write directory: {0}".format(self.write_dir))
 
         # Create the task's state directory if it doesn't exist
         if not os.path.isdir(self.state_dir):
             self.analyzer.logger.debug(
-                "Creating new state directory: {}.".format(self.state_dir)
+                "Creating new state directory: {}".format(self.state_dir)
             )
             os.makedirs(self.state_dir)
         else:
             self.analyzer.logger.debug(
-                "Set state directory: {}.".format(self.state_dir)
+                "Set state directory: {}".format(self.state_dir)
             )
 
         # Run the setup
