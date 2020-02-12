@@ -33,9 +33,12 @@ def validate_flag_updates(ad, flg, freq_id):
 
     # Find the flagging update_id for each dataset
     states = {
-        id: (ds.Dataset.from_id(bytes(id).decode())
-             .closest_ancestor_of_type("flags")
-             .state.data["data"].encode())
+        id: (
+            ds.Dataset.from_id(bytes(id).decode())
+            .closest_ancestor_of_type("flags")
+            .state.data["data"]
+            .encode()
+        )
         for id in unique_ds
     }
 
@@ -44,7 +47,7 @@ def validate_flag_updates(ad, flg, freq_id):
     for ds_id, update_id in states.items():
 
         # Get all non-missing frames at this frequency
-        present = (ad.flags["frac_lost"][freq_id] < 1.0)
+        present = ad.flags["frac_lost"][freq_id] < 1.0
 
         # Select all present frames with the dataset id we want
         sel = (file_ds[freq_id] == ds_id) & present
@@ -64,27 +67,33 @@ def validate_flag_updates(ad, flg, freq_id):
 
     return ret
 
+
 class DatasetAnalyzer(CHIMEAnalyzer):
+    def setup(self):
+        pass
 
-   def setup(self):
-      pass
+    def run(self):
+        # make chimedb connect
+        core.connect()
 
-   def run(self):
-      # make chimedb connect
-      core.connect()
+        # pre-fetch most stuff to save queries later
+        ds.get.index()
 
-      # pre-fetch most stuff to save queries later
-      ds.get.index()
+        # get chimestack files
+        fn1 = "/mnt/gong/archive/20191217T122901Z_chimestack_corr/00000000_0000.h5"
+        fn2 = "/mnt/gong/archive/20191220T204152Z_chimestack_corr/00000000_0000.h5"
 
-      # get chimestack files
-      fn1 = "/mnt/gong/archive/20191217T122901Z_chimestack_corr/00000000_0000.h5"
-      fn2 = "/mnt/gong/archive/20191220T204152Z_chimestack_corr/00000000_0000.h5"
+        ad1 = andata.CorrData.from_acq_h5(
+            fn1, datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost")
+        )
+        ad2 = andata.CorrData.from_acq_h5(
+            fn2, datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost")
+        )
 
-      ad1 = andata.CorrData.from_acq_h5(fn1, datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost"))
-      ad2 = andata.CorrData.from_acq_h5(fn2, datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost"))
+        flg = andata.FlagInputData.from_acq_h5(
+            "/mnt/gong/staging/20191201T000000Z_chime_flaginput/*.h5"
+        )
 
-      flg = andata.FlagInputData.from_acq_h5("/mnt/gong/staging/20191201T000000Z_chime_flaginput/*.h5")
+        self.logger.info(validate_flag_updates(ad1, flg, 10))
 
-      self.logger.info(validate_flag_updates(ad1, flg, 10))
-
-      self.logger.info(validate_flag_updates(ad2, flg, 10))
+        self.logger.info(validate_flag_updates(ad2, flg, 10))
