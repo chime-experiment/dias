@@ -8,12 +8,14 @@ from chimedb import core
 from chimedb import dataset as ds
 
 
-def validate_flag_updates(ad, dsindex, flg, freq_id):
+def validate_flag_updates(ad, flg, freq_id):
 
+    # fmt: off
     extra_bad = [
       # These are non-CHIME feeds we want to exclude (26m, noise source channels, etc.)
         46,  142,  688,  944,  960, 1058, 1166, 1225, 1314, 1521, 2032, 2034,
-      # Below are the last eight feeds on each cylinder, masked out because their beams are very different
+      # Below are the last eight feeds on each cylinder, masked out because their beams are very
+      # different
          0,    1,    2,    3,    4,    5,    6,    7,  248,  249,  250,  251,  252,  253,  254,  255,
        256,  257,  258,  259,  260,  261,  262,  263,  504,  505,  506,  507,  508,  509,  510,  511,
        512,  513,  514,  515,  516,  517,  518,  519,  760,  761,  762,  763,  764,  765,  766,  767,
@@ -23,6 +25,7 @@ def validate_flag_updates(ad, dsindex, flg, freq_id):
       1536, 1537, 1538, 1539, 1540, 1541, 1542, 1543, 1784, 1785, 1786, 1787, 1788, 1789, 1790, 1791,
       1792, 1793, 1794, 1795, 1796, 1797, 1798, 1799, 2040, 2041, 2042, 2043, 2044, 2045, 2046, 2047
     ]
+    # fmt: on
 
     # Get the unique dataset_ids in each file
     file_ds = ad.flags["dataset_id"][:]
@@ -30,7 +33,7 @@ def validate_flag_updates(ad, dsindex, flg, freq_id):
 
     # Find the flagging update_id for each dataset
     states = {
-        id: (dsindex[bytes(id).decode()]
+        id: (ds.Dataset.from_id(bytes(id).decode())
              .closest_ancestor_of_type("flags")
              .state.data["data"].encode())
         for id in unique_ds
@@ -64,18 +67,16 @@ def validate_flag_updates(ad, dsindex, flg, freq_id):
 class DatasetAnalyzer(CHIMEAnalyzer):
 
    def setup(self):
-      self.logger.info(self.name + " setup")
+      pass
 
    def run(self):
-      self.logger.info(self.name + " running")
-
       # make chimedb connect
       core.connect()
 
       # pre-fetch most stuff to save queries later
-      dsind = ds.get.index()
+      ds.get.index()
 
-
+      # get chimestack files
       fn1 = "/mnt/gong/archive/20191217T122901Z_chimestack_corr/00000000_0000.h5"
       fn2 = "/mnt/gong/archive/20191220T204152Z_chimestack_corr/00000000_0000.h5"
 
@@ -84,6 +85,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
       flg = andata.FlagInputData.from_acq_h5("/mnt/gong/staging/20191201T000000Z_chime_flaginput/*.h5")
 
-      self.logger.info(validate_flag_updates(ad1, dsind, flg, 10))
+      self.logger.info(validate_flag_updates(ad1, flg, 10))
 
-      self.logger.info(validate_flag_updates(ad2, dsind, flg, 10))
+      self.logger.info(validate_flag_updates(ad2, flg, 10))
