@@ -62,7 +62,7 @@ class FileTracker:
             self._create_cmd += "{} {}, ".format(name, typename)
             self._insert_cmd += "?, "
         self._create_cmd += "filename TEXT UNIQUE ON CONFLICT REPLACE)"
-        self._insert_cmd += +"?)"
+        self._insert_cmd += "?)"
 
         # Open connection to data index database
         # and create table if it does not exist.
@@ -84,16 +84,21 @@ class FileTracker:
     def __del__(self):
         self.data_index.close()
 
-    def get_start_time(self):
+    def get_start_time(self, refresh_db=True):
         """
         Get the next start time.
+
+        Parameters
+        ----------
+        refresh_db : bool
+            Refresh the database before getting the start time (default: True).
 
         Returns
         -------
         UTC date and time of next start time.
         """
-        # Refresh the database
-        self._refresh_data_index()
+        if refresh_db:
+            self._refresh_data_index()
         cursor = self.data_index.cursor()
         query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
         results = list(cursor.execute(query))

@@ -552,6 +552,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         # Open connection to archive index database
         # and create table if it does not exist.
         adb_file = os.path.join(self.state_dir, ARCHIVE_DB_FILE)
+        db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         self.archive_index = sqlite3.connect(
             adb_file, detect_types=db_types, check_same_thread=False
         )
@@ -798,9 +799,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                 self.file_start_time = time.time()
 
-                ccursor = self.data_index.cursor()
-                cquery = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
-                cresults = list(ccursor.execute(cquery))
+                cresults = self.tracker.get_start_time(False)
                 if cresults:
                     valid_start = ephemeris.datetime_to_unix(cresults[0][0])
 
