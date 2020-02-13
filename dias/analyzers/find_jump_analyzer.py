@@ -42,15 +42,10 @@ from dias import chime_analyzer
 from dias.utils.string_converter import str2timedelta, datetime2str
 from dias import __version__ as dias_version_tag
 from dias.exception import DiasDataError
+from dias.outfile_tracking import FileTracker
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
-DB_FILE = "data_index.db"
-CREATE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
-                            start TIMESTAMP,
-                            stop TIMESTAMP,
-                            njump INTEGER,
-                            filename TEXT UNIQUE ON CONFLICT REPLACE)"""
 
 ARCHIVE_DB_FILE = "archive_index.db"
 CREATE_ARCHIVE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
@@ -552,17 +547,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             "Starting up. My name is %s and I am of type %s." % (self.name, __name__)
         )
 
-        # Open connection to data index database
-        # and create table if it does not exist.
-        db_file = os.path.join(self.state_dir, DB_FILE)
-        db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        self.data_index = sqlite3.connect(
-            db_file, detect_types=db_types, check_same_thread=False
-        )
-
-        cursor = self.data_index.cursor()
-        cursor.execute(CREATE_DB_TABLE)
-        self.data_index.commit()
+        self.tracker = FileTracker(self, njumps=0)
 
         # Open connection to archive index database
         # and create table if it does not exist.
@@ -663,17 +648,16 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
         """
         run_start_time = time.time()
 
-        # Refresh the databases
-        self.refresh_data_index()
+        # Refresh the database
         self.refresh_archive_index()
 
         # Determine the range of time to process
         end_time = datetime.datetime.utcnow() - self.offset
 
-        cursor = self.data_index.cursor()
-        query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
-        results = list(cursor.execute(query))
-        start_time = results[0][0] if results else end_time - self.period
+        tracker_start_time = self.tracker.get_start_time()
+        start_time = (
+            tracker_start_time if tracker_start_time else end_time - self.period
+        )
 
         self.logger.info(
             "Analyzing data between {} and {}.".format(
@@ -1193,7 +1177,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         jump_counter = {}
 
                 # Update data index database
-                self.update_data_index(
+                self.tracker.update_data_index(
                     valid_time[0],
                     valid_time[-1],
                     njump=ncandidate,
@@ -1270,69 +1254,6 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
         return output
 
-    def update_data_index(self, start, stop, njump=0, filename=None):
-        """Add row to data index database.
-
-        Update the data index database with a row that
-        contains a span of time, the number of jumps found
-        during that time, and the relative path to the
-        output file that contains information on the jumps found.
-
-        Parameters
-        ----------
-        start : unix time
-            Earliest time processed.
-        stop : unix time
-            Latest time processed.
-        njump : int
-            Number of jumps found between `start` and `stop`.
-        filename : str or None
-            Name of the file containing information on the jumps.
-            If no jumps were found, then this will be set to None.
-        """
-        # Parse arguments
-        dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
-        dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
-
-        relpath = None
-        if filename is not None:
-            relpath = os.path.relpath(filename, self.write_dir)
-
-        # Insert row for this file
-        cursor = self.data_index.cursor()
-        cursor.execute(
-            "INSERT INTO files VALUES (?, ?, ?, ?)", (dt_start, dt_stop, njump, relpath)
-        )
-        self.data_index.commit()
-        self.logger.info("Added %s to data index database." % relpath)
-
-    def refresh_data_index(self):
-        """Remove expired files from the data index database.
-
-        Find rows of the data index database that correspond
-        to files that have been cleaned (removed) by dias manager.
-        Replace the filename with None.
-        """
-        cursor = self.data_index.cursor()
-        query = "SELECT filename FROM files ORDER BY start"
-        all_files = list(cursor.execute(query))
-
-        replace_command = "UPDATE files SET filename = ? WHERE filename = ?"
-
-        for result in all_files:
-
-            filename = result[0]
-
-            if filename is None:
-                continue
-
-            if not os.path.isfile(os.path.join(self.write_dir, filename)):
-
-                cursor = self.data_index.cursor()
-                cursor.execute(replace_command, (None, filename))
-                self.data_index.commit()
-                self.logger.info("Removed %s from data index database." % filename)
-
     def refresh_archive_index(self):
         """Remove expired rows from the archive index database.
 
@@ -1406,5 +1327,5 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
     def finish(self):
         """Close connection to data index and archive index databases."""
         self.logger.info("Shutting down.")
-        self.data_index.close()
+        del self.tracker
         self.archive_index.close()
