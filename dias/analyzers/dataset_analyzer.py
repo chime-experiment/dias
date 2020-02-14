@@ -77,13 +77,22 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 )
 
                 # Use another Finder to get the matching flaginput files
+                self.logger.info(
+                    "Finding flags between {} and {}.".format(
+                        datetime2str(start_time), datetime2str(end_time)
+                    )
+                )
                 flag_finder = self.Finder()
                 flag_finder.accept_all_global_flags()
                 flag_finder.only_flaginput()
                 flag_finder.filter_acqs(
                     data_index.ArchiveInst.name == self.flags_instrument
                 )
-                flag_finder.set_time_range(tstart, tend)
+                flag_finder.set_time_range(start_time, end_time)
+
+                self.logger.info("Found {} acqws in flags files".format(len(flag_finder.acqs)))
+                if len(flag_finder.acqs) < 1:
+                    raise DiasDataError("No flags found for {} files {}.".format(self.instrument, all_files))
 
                 # Loop over acquisitions
                 for flag_aa, flag_acq in enumerate(flag_finder.acqs):
@@ -94,6 +103,13 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     # Loop over contiguous periods within this acquisition
                     flg = list()
                     for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
+                        print("all files: {}, start {} end {}".format(all_flag_files, flag_tstart, flag_tend))
+                        nfiles = len(all_flag_files)
+
+                        if nfiles == 0:
+                            continue
+
+                        self.logger.info("Now processing acquisition %s (%d files)" % (flag_acq.name, nfiles))
                         flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
 
                     self.logger.info(self.validate_flag_updates(ad, flg))
@@ -162,11 +178,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 try:
                     flgind = update_ids.index(dsid)
                 except ValueError as err:
-                    print("Flags not found in file f: {}".format(err))
+                    print("Flags not found in file {}: {}".format(f, err))
                     continue
                 flagsfile = f.flag[flgind]
             if flagsfile is None:
-                raise DiasDataError("Flags for file {} not found.".format(ad))
+                raise DiasDataError("Flag ID for {} files {} not found.".format(self.instrument, ad))
             flagsfile[extra_bad] = False
 
             # Test if all flag entries match the one from the flaginput file
