@@ -25,6 +25,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
     def setup(self):
         self.tracker = FileTracker(self)
+        self.failed_checks = self.add_data_metric("failed_checks", "Number of datasets that failed the check specified by the label 'check'.", ["check"], "total")
 
     def run(self):
         # make chimedb connect
@@ -163,8 +164,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             for id in unique_ds
         }
 
-        ret = {}
-
         for ds_id, update_id in states.items():
 
             # Get all non-missing frames at this frequency
@@ -194,6 +193,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flagsfile[extra_bad] = False
 
             # Test if all flag entries match the one from the flaginput file
-            ret[ds_id] = (flags == flagsfile[:, np.newaxis]).all()
-
-        return ret
+            if (flags == flagsfile[:, np.newaxis]).all():
+                self.failed_checks.labels("check", "flags").inc()
+                self.logger.warn("'{}' file '{}' and '{}' file '{}': Flags don't match for dataset {}.".format(self.instrument, ad, self.flags_instrument, f))
