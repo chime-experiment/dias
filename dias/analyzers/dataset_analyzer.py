@@ -71,10 +71,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 self.logger.info(
                     "Now processing acquisition %s (%d files)" % (acq.name, nfiles)
                 )
-                ad = andata.CorrData.from_acq_h5(
-                    all_files,
-                    datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost"),
-                )
 
                 # Use another Finder to get the matching flaginput files
                 self.logger.info(
@@ -88,11 +84,13 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 flag_finder.filter_acqs(
                     data_index.ArchiveInst.name == self.flags_instrument
                 )
-                flag_finder.set_time_range(start_time, end_time)
+                flag_finder.set_time_range(tstart, tend)
 
-                self.logger.info("Found {} acqws in flags files".format(len(flag_finder.acqs)))
+                self.logger.info(
+                    "Found {} acqws in flags files".format(len(flag_finder.acqs)))
                 if len(flag_finder.acqs) < 1:
-                    raise DiasDataError("No flags found for {} files {}.".format(self.instrument, all_files))
+                    raise DiasDataError(
+                        "No flags found for {} files {}.".format(self.instrument, file))
 
                 # Loop over acquisitions
                 for flag_aa, flag_acq in enumerate(flag_finder.acqs):
@@ -103,16 +101,26 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     # Loop over contiguous periods within this acquisition
                     flg = list()
                     for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
-                        print("all files: {}, start {} end {}".format(all_flag_files, flag_tstart, flag_tend))
+                        print("all files: {}, start {} end {}".format(all_flag_files,
+                                                                      flag_tstart,
+                                                                      flag_tend))
                         nfiles = len(all_flag_files)
 
                         if nfiles == 0:
                             continue
 
-                        self.logger.info("Now processing acquisition %s (%d files)" % (flag_acq.name, nfiles))
+                        self.logger.info("Now processing acquisition %s (%d files)" % (
+                        flag_acq.name, nfiles))
                         flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
 
+                for file in all_files:
+                    ad = andata.CorrData.from_acq_h5(
+                        file,
+                        datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost"),
+                    )
                     self.logger.info(self.validate_flag_updates(ad, flg))
+
+
 
     def validate_flag_updates(self, ad, flg):
 
