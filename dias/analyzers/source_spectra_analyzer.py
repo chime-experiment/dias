@@ -23,8 +23,8 @@ from dias import exception
 from dias import __version__ as dias_version_tag
 
 from ch_util import ephemeris
-from datetime import datetime  
-from ch_util import data_index 
+from datetime import datetime
+from ch_util import data_index
 from ch_util.fluxcat import FluxCatalog
 from scipy.optimize import curve_fit
 import time
@@ -76,7 +76,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
     Datasets
     ...................
     visiblity
-        Fringestopped visibility as a function of frequency and time 
+        Fringestopped visibility as a function of frequency and time
     weight
         Inverse variance, computed from the fast cadence data,
         as a function of frequency and time.
@@ -152,26 +152,26 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
     rot = config.Property(proptype=float, default=-0.088)
     nsigma = config.Property(proptype=float, default=1.0)
-    perform_fit = config.Property(proptype=bool, default=False)    
-        
+    perform_fit = config.Property(proptype=bool, default=False)
+
     def run(self):
-        
+
         lat = np.radians(ephemeris.CHIMELATITUDE)
         # Create transit tracker
-        source_list = [] 
+        source_list = []
         src = 'cyg_a'
         src_body  = FluxCatalog[src].skyfield
 
         self.logger.info("Initializing offline point source processing.")
-        
+
         stop_time = datetime.utcnow() - self.lag
         # Query files from now to period hours back
         start_time = stop_time - self.period
-        
+
         self.logger.info('Searching for transits from %s to %s' %
                          (str(start_time), str(stop_time)))
-        
-        window = self.nsigma * cal_utils.guess_fwhm(400.0, pol='X', dec=src_body.dec.radians, sigma=True) 
+
+        window = self.nsigma * cal_utils.guess_fwhm(400.0, pol='X', dec=src_body.dec.radians, sigma=True)
         #nsigma distance in degree from transit from peak
         time_delta = 2 * (window/360.0) * 24 * 3600.0  #time window around transit in sec
 
@@ -181,11 +181,11 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
         f.accept_all_global_flags()
         f.only_corr()
         f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
-        f.include_transits(src_body, time_delta=time_delta) 
+        f.include_transits(src_body, time_delta=time_delta)
         file_list = f.get_results()
         nfile = len(file_list)
         times = [file_list[ii][1] for ii in range(0,nfile)]
-        
+
         try:
             all_files = file_list[0][0]
             if not all_files:
@@ -194,22 +194,22 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             err_msg = 'No {} files found from last {}.'.format(
                 self.acq_suffix, self.period)
             raise exception.DiasDataError(err_msg)
-            
+
         # Loop over files
         for f_ind, files in enumerate(all_files):
             # Read file time range
             with h5py.File(files, 'r') as handler:
                 timestamp = handler['index_map']['time']['ctime'][:]
-            
+
             csd = int(np.median(ephemeris.csd(timestamp)))
-                
+
             # Compute source coordinates
             timestamp0 = np.median(timestamp)
             src_ra, src_dec = ephemeris.object_coords(src_body, date=timestamp0, deg=False)
-            start_time, stop_time = file_list[f_ind][1] 
+            start_time, stop_time = file_list[f_ind][1]
             start = int(np.argmin(np.abs(timestamp - start_time)))
             stop = int(np.argmin(np.abs(timestamp - stop_time)))
-            
+
             is_daytime = 0.0
             #test if the source is transiting in the daytime
             solar_rise = ephemeris.solar_rising(start_time - 24.0*3600.0, end_time=stop_time)
@@ -226,14 +226,14 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             if is_daytime > 1:
                 self.logger.info('Not processing %s as Sun is in the primary beam' % (src))
                 continue
-        
+
             self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
 
             # Look up inputmap
             timestamp0 = ephemeris.csd_to_unix(csd)
             inputmap = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
                                                    correlator=self.correlator)
-            
+
             # Load index map and reverse map
             data = andata.CorrData.from_acq_h5(files, start=start, stop=stop,
                                                datasets=['reverse_map', 'flags/inputs'],
@@ -241,7 +241,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             # Determine axes
             nfreq = data.nfreq
             nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
-            
+
             timestamp = data.time
             ntime = timestamp.size
 
@@ -251,10 +251,10 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             # Determine groups
             polstr = np.array(sorted(prod.keys()))
             npol = polstr.size
-            
+
             # Calculate counts
             cnt = np.zeros((data.index_map['stack'].size, ntime), dtype=np.float32)
-            
+
             if np.any(data.flags['inputs'][:]):
                 for pp, ss in zip(data.index_map['prod'][:], data.reverse_map['stack']['stack'][:]):
                     cnt[ss, :] += (data.flags['inputs'][pp[0], :] * data.flags['inputs'][pp[1], :])
@@ -275,13 +275,13 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
             # Loop over frequency blocks
             for block_number in range(nblock):
-        
+
                 t0 = time.time()
-        
+
                 fstart = block_number * self.nfreq_per_block
                 fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                 freq_sel = slice(fstart, fstop)
-        
+
                 print("Processing block %d (of %d):  %d - %d" % (block_number, nblock, fstart, fstop))
                 self.logger.info("Processing block %d (of %d):  %d - %d" % (block_number, nblock, fstart, fstop))
 
@@ -292,9 +292,9 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
                 bflag = (bdata.weight[:] > 0.0).astype(np.float32)
                 bvar = tools.invert_no_zero(bdata.weight[:])
-                
+
                 lmbda = scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
-                
+
                 # Loop over polarizations
                 for ii, pol in enumerate(polstr):
 
@@ -305,7 +305,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
                     pflag = bflag[:, prod[pol], :]
                     pcnt = cnt[np.newaxis, prod[pol], :]
                     pscale = scale[pol][np.newaxis, :, np.newaxis]
-                
+
                     fringestop_phase = tools.fringestop_phase(ha, lat, src_dec,
                                                               dist[pol][np.newaxis, :, 0, np.newaxis] / lmbda,
                                                               dist[pol][np.newaxis, :, 1, np.newaxis] / lmbda)
@@ -315,15 +315,15 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
                     counter[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag, axis=1)
 
                 self.logger.info("Took %0.1f seconds to process this block." % (time.time() - t0,))
-                
+
                 del bdata
                 gc.collect()
-            
+
             # Normalize
             inv_counter = tools.invert_no_zero(counter)
             vis *= inv_counter
             var *= inv_counter**2
-            
+
             ra = np.degrees(np.unwrap(ra))
             ha = ra - np.degrees(src_ra)
 
@@ -339,28 +339,28 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
                 parameter, parameter_cov, resid_rms = self.fit_point_source_transit(ha, vis.real, np.sqrt(var),
                                                                                                flag=flag, fwhm=fwhm)
             # Write to file
-            output_file = os.path.join(self.write_dir, "%s_csd_%d_%s.h5" % 
+            output_file = os.path.join(self.write_dir, "%s_csd_%d_%s.h5" %
                                       (src.lower(), csd, self.output_suffix))
             self.logger.info("Writing output files...")
-            
+
             with h5py.File(output_file, 'w') as handler:
-        
+
                 index_map = handler.create_group('index_map')
                 index_map.create_dataset('freq', data=data.index_map['freq'][:])
                 index_map.create_dataset('pol', data=np.string_(polstr))
                 index_map.create_dataset('time', data=data.time)
                 index_map.create_dataset('ra', data=ra)
                 index_map.create_dataset('ha', data=ha)
-        
+
                 dset = handler.create_dataset('vis', data=vis)
                 dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'],dtype='S')
-                
+
                 dset = handler.create_dataset('weight', data=tools.invert_no_zero(var))
                 dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'], dtype='S')
-                
+
                 dset = handler.create_dataset('count', data=counter.astype(np.int))
                 dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'], dtype='S')
-                
+
                 if self.perform_fit:
 
                     index_map.create_dataset('param', data='model_fitting')
@@ -370,10 +370,10 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
                     dset = handler.create_dataset('parameter', data=parameter)
                     dset.attrs['axis'] = np.array(['freq', 'pol', 'param'], dtype='S')
-                
+
                     dset = handler.create_dataset('parameter_cov', data=parameter_cov)
                     dset.attrs['axis'] = np.array(['freq', 'pol', 'param', 'param'], dtype='S')
-                    
+
                 handler.attrs['source'] = src
                 handler.attrs['csd'] = csd
                 handler.attrs['instrument_name'] = self.correlator
@@ -388,7 +388,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
     # auxiliary routines
     ###################################################
 
-    def fit_point_source_transit(self, hour_angle, response, weight, flag=None, 
+    def fit_point_source_transit(self, hour_angle, response, weight, flag=None,
                                  fwhm=None):
         """ Fits the point source response to a model that
             consists of a gaussian in amplitude plus a polynomial background.
@@ -428,7 +428,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
         # parameter covariance.  Initialize to NaN.
         nfreq = response.shape[0]
         npol = response.shape[1]
-        nparam = 6 #magic number!! 
+        nparam = 6 #magic number!!
 
         parameter = np.full((nfreq, npol, nparam), np.nan, dtype=np.float32)
         parameter_cov = np.full((nfreq, npol, nparam, nparam), np.nan, dtype=np.float32)
@@ -440,7 +440,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
         # Iterate over frequency/pol and fit point source transit
         for ff in range(nfreq):
-            
+
             for pp in range(npol):
 
                 this_flag = flag[ff, pp]
@@ -453,7 +453,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
                 # We will fit the complex data.  Break n-element complex array g(ra)
                 # into 2n-element real array [Re{g(ra)}, Im{g(ra)}] for fit.
                 x = hour_angle[this_flag]
-            
+
                 y = response[ff, pp, this_flag]
                 yerr = np.sqrt(tools.invert_no_zero(weight[ff, pp, this_flag]))
 
@@ -468,7 +468,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
                                             p0=p0, sigma=yerr, absolute_sigma=False)
                 except Exception as error:
                     continue
-                
+
                 # Save the results
                 parameter[ff, pp] = popt
                 parameter_cov[ff, pp] = pcov
@@ -481,14 +481,14 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
         # Return the best-fit parameters and parameter covariance
         return parameter, parameter_cov, resid_rms
 
-    def fit_func1(self, x, peak_amplitude, p0): 
+    def fit_func1(self, x, peak_amplitude, p0):
 
         centroid, fwhm, bpoly = p0
         dx = x - centroid
         return func_gauss(dx, peak_amplitude, fwhm) + func_background(dx, bpoly)
 
     def func_gauss(self, dx, peak_amplitude, fwhm):
-            
+
         return peak_amplitude * np.exp(-4.0*np.log(2.0)*(dx/fwhm)**2)
 
     def func_background(self, dx, bck):
@@ -504,7 +504,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
 
     def get_baselines(self, indexmap, inputmap):
-        
+
         prod = defaultdict(list)
         prodmap = defaultdict(list)
         dist = defaultdict(list)
@@ -515,20 +515,20 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
         # Compute feed positions without rotation
         tools.change_chime_location(rotation=self.rot)
         feedpos = tools.get_feed_positions(inputmap)
-        
+
         for pp, (this_prod, this_conj) in enumerate(indexmap['stack']):
 
             if this_conj:
                 bb, aa = indexmap['prod'][this_prod]
             else:
                 aa, bb = indexmap['prod'][this_prod]
-            
+
             inp_aa = inputmap[aa]
             inp_bb = inputmap[bb]
-            
+
             if not tools.is_chime(inp_aa) or not tools.is_chime(inp_bb):
                 continue
-                
+
             if not self.include_auto and (aa == bb):
                 continue
 
@@ -545,7 +545,7 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
             elif not self.include_crosspol:
                 continue
-                
+
             elif tools.is_array_x(inp_aa) and tools.is_array_y(inp_bb):
                 key = 'XY'
 
@@ -574,12 +574,12 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             prod[key] = np.array(prod[key])
             prodmap[key] = np.array(prodmap[key], dtype=[('input_a', '<u2'), ('input_b', '<u2')])
             dist[key] = np.array(dist[key])
-            conj[key] = np.nonzero(np.ravel(conj[key]))[0] 
+            conj[key] = np.nonzero(np.ravel(conj[key]))[0]
             cyl[key] = np.array(cyl[key])
             scale[key] = np.array(scale[key])
-            
+
         tools.change_chime_location(default=True)
-            
+
         return prod, prodmap, dist, conj, cyl, scale
 
     def get_cyl(self, cyl_num):
