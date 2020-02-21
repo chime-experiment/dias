@@ -1,82 +1,98 @@
-from dias import CHIMEAnalyzer
-from datetime import datetime
-import calendar
-from caput import config
-from dias.utils.string_converter import str2timedelta
-from ch_util import data_index
+"""Extracts flux of a given source, as a function of freq, when the source is right at the zenith.
+
+.. currentmodule:: dias.analyzers.source_spectra_analyzer
+
+Classes
+=======
+
+.. autosummary::
+    :toctree: generated/
+
+    SourceSpectraAnalyzer
+
+Functions
+=========
+
+.. autosummary::
+    :toctree: generated/
+
+    fit_point_source_transit
+    fit_func1
+    func_gauss
+    func_background
+    correct_phase_wrap
+
+"""
 
 import os
-import subprocess
 import gc
+import time
+import subprocess
+from datetime import datetime
+from collections import Counter, defaultdict
 
 import h5py
 import numpy as np
-
-from collections import Counter
-from collections import defaultdict
-
-from ch_util import andata
-from ch_util import tools
-from ch_util import ephemeris
-from ch_util import cal_utils
-from dias import exception
-from dias import __version__ as dias_version_tag
-
-from ch_util import ephemeris
-from datetime import datetime
-from ch_util import data_index
-from ch_util.fluxcat import FluxCatalog
-from scipy.optimize import curve_fit
-import time
 import scipy.constants
+from scipy.optimize import curve_fit
 
-class source_spectra_Analyzer(CHIMEAnalyzer):
-    """Source_spectra analyzer.
+from caput import config
+from ch_util.fluxcat import FluxCatalog
+from ch_util import ephemeris, data_index, andata, tools, cal_utils
+from dias import CHIMEAnalyzer, exception
+from dias import __version__ as dias_version_tag
+from dias.utils.string_converter import str2timedelta
+from dias.utils.helpers import get_cyl
 
-    Based on CHIMEAnalyzer class.
-    """
+########################################################
+# main analyzer task
+########################################################
 
-    """SourceSpectraAnalyzer.
 
-    Analyzer for looking at source transits and spectra.
+class SourceSpectraAnalyzer(CHIMEAnalyzer):
+    """Extracts flux of a given source transit, as a function of freq, when the source is right at the zenith.
+
+    If the flux of the source is similar to what we expect from other measurements, our calibration is doing a good job.
 
     Metrics
-    ----------
+    -------
     None
 
     Output Data
-    -----------------
+    -----------
         h5 file, containing fringestopped visibility (Jy),
         averaged over all feeds for each polarization,
         as a function of frequency and time.
         The input file is the chime stacked dataset.
 
     File naming
-    ..........................
+    ...........
         `<src>_<csd>_<output_suffix>.h5`
-        `src` is the source analyzed, `csd` marks the day of transit and
+        `src` is the source analyzed, `csd` (int) marks the day of transit and
         `output_suffix` is the value of the config variable with the same name.
-        Output file is created for each input file read.
+
+        An output file is created for each input file read.
 
     Indexes
-    .............
+    .......
     freq
-        Frequency indexes.
+        1D array of type `float` representing an index of frequencies.
     pol
-        Two polarizations for the feeds,
+        1D array which references the polarization for the feed.
+        There are two polarizations:
         index 0 is E-W polarization and
         index 1 is N-S polarization.
     time
-        Unix time at which data is recorded.
+        1D array of type `float` that contains the Unix timestamps at which data is recorded.
     ra
-        Right Ascension of the source
+        1D array which contains the right ascension of the source.
     ha
-        Hour angle covered in the output file
+        1D array which contains the hour angle covered in the output file.
 
     Datasets
-    ...................
-    visiblity
-        Fringestopped visibility as a function of frequency and time
+    ........
+    vis
+        Fringestopped visibility as a function of frequency and time.
     weight
         Inverse variance, computed from the fast cadence data,
         as a function of frequency and time.
@@ -103,32 +119,34 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
     Attributes
     ----------
+    lag : timedelta
+        Number of hours before time of script execution for searching the files
     correlator : str
         Source of the input data
-    output_suffix : str
-        Suffix for the output file
     acq_suffix : str
         Type of dataset to be read
-    nfreq_per_block : int
-        number of frequency channels to be run in one block
-        loading all frequency channels at the same time leads to memory error
+    source_transits : list of str
+        Source tranits that we want analyses for
+    output_suffix : str
+        Suffix for the output file
+    cyl_start_char : int
+        Starting character for the cylinders (ASCII)
+    cyl_start_num : int
+        Offset for CHIME cylinders
+        (due to inital numbers allotted to pathfinder)
+    sep_cyl : bool
+        option to preserve cylinder pairs
     include_auto : bool
         option to include autocorrelation
     include_intracyl : bool
         option in include intracylinder baselines
     include_crosspol : bool
         option to include crosspol data
-    sep_cyl : bool
-        option to preserve cylinder pairs
-    cyl_start_char : int
-        Starting character for the cylinders (ASCII)
-    cyl_start_num : int
-        Offset for CHIME cylinders
-        (due to inital numbers allotted to pathfinder)
-    lag : timedelta
-        Number of hours before time of script execution for searching the files
     rot : float
         Rotation angle of the cylinder in degrees
+    nfreq_per_block : int
+        number of frequency channels to be run in one block
+        loading all frequency channels at the same time leads to memory error
     nsgima : float
         Span required from the peak of transit
         in terms of sigma
@@ -137,371 +155,338 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
     """
 
-    correlator = config.Property(proptype=str, default='chime')
-    output_suffix = config.Property(proptype=str, default='sensitivity')
-    acq_suffix = config.Property(proptype=str, default='stack_corr')
+    # Config parameters related to scheduling
+    lag = config.Property(proptype=str2timedelta, default="4h")
 
-    nfreq_per_block = config.Property(proptype=int, default=16)
+    # Config parameters defining data file selection
+    correlator = config.Property(proptype=str, default="chime")
+    acq_suffix = config.Property(proptype=str, default="stack_corr")
+    source_transits = config.Property(proptype=list, default=["cyg_a"])
+
+    # Config parameters defining output data product
+    output_suffix = config.Property(proptype=str, default="sensitivity")
+
+    # Config parameters related to cylinders
+    cyl_start_char = config.Property(proptype=int, default=65)
+    cyl_start_num = config.Property(proptype=int, default=2)
+    sep_cyl = config.Property(proptype=bool, default=False)
+    rot = config.Property(proptype=float, default=-0.088)
+
+    # Config parameters related to optional inclusions
     include_auto = config.Property(proptype=bool, default=False)
     include_intracyl = config.Property(proptype=bool, default=False)
     include_crosspol = config.Property(proptype=bool, default=False)
-    sep_cyl = config.Property(proptype=bool, default=False)
-    cyl_start_char = config.Property(proptype=int, default=65)
-    cyl_start_num = config.Property(proptype=int, default=2)
-    lag = config.Property(proptype=str2timedelta, default="4h")
 
-    rot = config.Property(proptype=float, default=-0.088)
+    # Config parameters related to the algorithm
+    nfreq_per_block = config.Property(proptype=int, default=16)
     nsigma = config.Property(proptype=float, default=1.0)
     perform_fit = config.Property(proptype=bool, default=False)
 
     def run(self):
 
         lat = np.radians(ephemeris.CHIMELATITUDE)
+        err_msg = ""
+
         # Create transit tracker
-        source_list = []
-        src = 'cyg_a'
-        src_body  = FluxCatalog[src].skyfield
+        for src in self.source_transits:
+            src_body = FluxCatalog[src].skyfield
 
-        self.logger.info("Initializing offline point source processing.")
+            self.logger.info(
+                "Initializing offline point source processing for %s.".format(src)
+            )
 
-        stop_time = datetime.utcnow() - self.lag
-        # Query files from now to period hours back
-        start_time = stop_time - self.period
+            # Query files from now to period hours back
+            query_stop_time = datetime.utcnow() - self.lag
+            query_start_time = query_stop_time - self.period
 
-        self.logger.info('Searching for transits from %s to %s' %
-                         (str(start_time), str(stop_time)))
+            self.logger.info(
+                "Searching for transits from %s to %s"
+                % (str(query_start_time), str(query_stop_time))
+            )
 
-        window = self.nsigma * cal_utils.guess_fwhm(400.0, pol='X', dec=src_body.dec.radians, sigma=True)
-        #nsigma distance in degree from transit from peak
-        time_delta = 2 * (window/360.0) * 24 * 3600.0  #time window around transit in sec
+            window = self.nsigma * cal_utils.guess_fwhm(
+                400.0, pol="X", dec=src_body.dec.radians, sigma=True
+            )
+            # nsigma distance in degree from transit from peak
+            time_delta = (
+                2 * (window / 360.0) * 24 * 3600.0
+            )  # time window around transit in sec
 
-        # Find all calibration files that have transit of given source
-        f = self.Finder()
-        f.set_time_range(start_time, stop_time)
-        f.accept_all_global_flags()
-        f.only_corr()
-        f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
-        f.include_transits(src_body, time_delta=time_delta)
-        file_list = f.get_results()
-        nfile = len(file_list)
-        times = [file_list[ii][1] for ii in range(0,nfile)]
+            # Find all calibration files that have transit of given source
+            f = self.Finder()
+            f.set_time_range(query_start_time, query_stop_time)
+            f.accept_all_global_flags()
+            f.only_corr()
+            f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
+            f.include_transits(src_body, time_delta=time_delta)
+            file_list = f.get_results()
+            nfile = len(file_list)
+            times = [file_list[ii][1] for ii in range(0, nfile)]
 
-        try:
-            all_files = file_list[0][0]
-            if not all_files:
-                raise IndexError()
-        except IndexError:
-            err_msg = 'No {} files found from last {}.'.format(
-                self.acq_suffix, self.period)
-            raise exception.DiasDataError(err_msg)
-
-        # Loop over files
-        for f_ind, files in enumerate(all_files):
-            # Read file time range
-            with h5py.File(files, 'r') as handler:
-                timestamp = handler['index_map']['time']['ctime'][:]
-
-            csd = int(np.median(ephemeris.csd(timestamp)))
-
-            # Compute source coordinates
-            timestamp0 = np.median(timestamp)
-            src_ra, src_dec = ephemeris.object_coords(src_body, date=timestamp0, deg=False)
-            start_time, stop_time = file_list[f_ind][1]
-            start = int(np.argmin(np.abs(timestamp - start_time)))
-            stop = int(np.argmin(np.abs(timestamp - stop_time)))
-
-            is_daytime = 0.0
-            #test if the source is transiting in the daytime
-            solar_rise = ephemeris.solar_rising(start_time - 24.0*3600.0, end_time=stop_time)
-            for rr in solar_rise:
-                ss = ephemeris.solar_setting(rr)[0]
-                if ((start_time <= ss) and (rr <= stop_time)):
-                    is_daytime += 1
-                    tt = ephemeris.solar_transit(rr)[0]
-                    #if Sun is in the beam
-                    if (start_time <= tt <= stop_time):
-                        is_daytime += 1
-                    break
-
-            if is_daytime > 1:
-                self.logger.info('Not processing %s as Sun is in the primary beam' % (src))
+            try:
+                all_files = file_list[0][0]
+                if not all_files:
+                    raise IndexError()
+            except IndexError:
+                tmp += "No {} files found from last {} for source transit {}.\n".format(
+                    self.acq_suffix, self.period, src
+                )
+                err_msg += tmp
+                self.logger.info(tmp)
                 continue
 
-            self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
+            # Loop over files
+            for file_index, files in enumerate(all_files):
+                # Read file time range
+                with h5py.File(files, "r") as handler:
+                    file_timestamp = handler["index_map"]["time"]["ctime"][:]
 
-            # Look up inputmap
-            timestamp0 = ephemeris.csd_to_unix(csd)
-            inputmap = tools.get_correlator_inputs(ephemeris.unix_to_datetime(timestamp0),
-                                                   correlator=self.correlator)
+                csd = int(np.median(ephemeris.csd(file_timestamp)))
 
-            # Load index map and reverse map
-            data = andata.CorrData.from_acq_h5(files, start=start, stop=stop,
-                                               datasets=['reverse_map', 'flags/inputs'],
-                                               apply_gain=False, renormalize=False)
-            # Determine axes
-            nfreq = data.nfreq
-            nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
+                # Compute source coordinates
+                src_ra, src_dec = ephemeris.object_coords(
+                    src_body, date=np.median(file_timestamp), deg=False
+                )
+                source_start_time, source_stop_time = file_list[file_index][1]
 
-            timestamp = data.time
-            ntime = timestamp.size
+                is_daytime = 0.0
+                # test if the source is transiting in the daytime
+                solar_rise = ephemeris.solar_rising(
+                    source_start_time - 24.0 * 3600.0, end_time=source_stop_time
+                )
+                for rr in solar_rise:
+                    ss = ephemeris.solar_setting(rr)[0]
+                    if (source_start_time <= ss) and (rr <= source_stop_time):
+                        is_daytime += 1
+                        tt = ephemeris.solar_transit(rr)[0]
+                        # if Sun is in the beam
+                        if source_start_time <= tt <= source_stop_time:
+                            is_daytime += 1
+                        break
 
-            # Get baselines
-            prod, prodmap, dist, conj, cyl, scale = self.get_baselines(data.index_map, inputmap)
+                if is_daytime > 1:
+                    self.logger.info(
+                        "Not processing %s as Sun is in the primary beam" % (src)
+                    )
+                    continue
 
-            # Determine groups
-            polstr = np.array(sorted(prod.keys()))
-            npol = polstr.size
+                self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
 
-            # Calculate counts
-            cnt = np.zeros((data.index_map['stack'].size, ntime), dtype=np.float32)
+                # Look up inputmap
+                inputmap = tools.get_correlator_inputs(
+                    ephemeris.unix_to_datetime(ephemeris.csd_to_unix(csd)),
+                    correlator=self.correlator,
+                )
 
-            if np.any(data.flags['inputs'][:]):
-                for pp, ss in zip(data.index_map['prod'][:], data.reverse_map['stack']['stack'][:]):
-                    cnt[ss, :] += (data.flags['inputs'][pp[0], :] * data.flags['inputs'][pp[1], :])
-            else:
-                for ss, val in Counter(data.reverse_map['stack']['stack'][:]).iteritems():
-                    cnt[ss, :] = val
+                # Load index map and reverse map
+                data = andata.CorrData.from_acq_h5(
+                    files,
+                    start=int(np.argmin(np.abs(file_timestamp - source_start_time))),
+                    stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
+                    datasets=["reverse_map", "flags/inputs"],
+                    apply_gain=False,
+                    renormalize=False,
+                )
+                # Determine axes
+                nfreq = data.nfreq
+                nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
 
-            # Calculate hour angle
-            ra = np.radians(ephemeris.lsa(timestamp))
-            ha = ra - src_ra
-            ha = self.correct_phase_wrap(ha, deg=False)
-            ha = ha[np.newaxis, np.newaxis, :]
+                data_timestamp = data.time  # 1D array
+                ntime = data_timestamp.size
 
-            # Initialize arrays
-            vis = np.zeros((nfreq, npol, ntime), dtype=np.complex64)
-            var = np.zeros((nfreq, npol, ntime), dtype=np.float32)
-            counter = np.zeros((nfreq, npol, ntime), dtype=np.float32)
+                # Get baselines
+                prod, _, dist, _, _, scale = self.get_baselines(
+                    data.index_map, inputmap
+                )
 
-            # Loop over frequency blocks
-            for block_number in range(nblock):
+                # Determine groups
+                pols = np.array(sorted(prod.keys()))
+                npols = pols.size
 
-                t0 = time.time()
+                # Calculate counts
+                cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
 
-                fstart = block_number * self.nfreq_per_block
-                fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
-                freq_sel = slice(fstart, fstop)
+                if np.any(data.flags["inputs"][:]):
+                    for pp, ss in zip(
+                        data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
+                    ):
+                        cnt[ss, :] += (
+                            data.flags["inputs"][pp[0], :]
+                            * data.flags["inputs"][pp[1], :]
+                        )
+                else:
+                    for ss, val in Counter(
+                        data.reverse_map["stack"]["stack"][:]
+                    ).iteritems():
+                        cnt[ss, :] = val
 
-                print("Processing block %d (of %d):  %d - %d" % (block_number, nblock, fstart, fstop))
-                self.logger.info("Processing block %d (of %d):  %d - %d" % (block_number, nblock, fstart, fstop))
+                # Calculate hour angle
+                ra = np.radians(ephemeris.lsa(data_timestamp))
+                ha = ra - src_ra
+                ha = correct_phase_wrap(ha, deg=False)
+                ha = ha[np.newaxis, np.newaxis, :]
 
-                bdata = andata.CorrData.from_acq_h5(files, start=start, stop=stop, freq_sel=freq_sel,
-                                                    datasets=['vis', 'flags/vis_weight'],
-                                                    apply_gain=False, renormalize=False)
+                # Initialize arrays
+                vis = np.zeros((nfreq, npols, ntime), dtype=np.complex64)
+                var = np.zeros((nfreq, npols, ntime), dtype=np.float32)
+                counter = np.zeros((nfreq, npols, ntime), dtype=np.float32)
 
+                # Loop over frequency blocks
+                for block_number in range(nblock):
 
-                bflag = (bdata.weight[:] > 0.0).astype(np.float32)
-                bvar = tools.invert_no_zero(bdata.weight[:])
+                    t0 = time.time()
 
-                lmbda = scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
+                    fstart = block_number * self.nfreq_per_block
+                    fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
+                    freq_sel = slice(fstart, fstop)
 
-                # Loop over polarizations
-                for ii, pol in enumerate(polstr):
+                    print(
+                        "Processing block %d (of %d):  %d - %d"
+                        % (block_number, nblock, fstart, fstop)
+                    )
+                    self.logger.info(
+                        "Processing block %d (of %d):  %d - %d"
+                        % (block_number, nblock, fstart, fstop)
+                    )
 
-                    self.logger.info("Processing Pol %s" % pol)
+                    bdata = andata.CorrData.from_acq_h5(
+                        files,
+                        start=int(
+                            np.argmin(np.abs(data_timestamp - source_start_time))
+                        ),
+                        stop=int(np.argmin(np.abs(data_timestamp - source_stop_time))),
+                        freq_sel=freq_sel,
+                        datasets=["vis", "flags/vis_weight"],
+                        apply_gain=False,
+                        renormalize=False,
+                    )
 
-                    pvis = bdata.vis[:, prod[pol], :]
-                    pvar = bvar[:, prod[pol], :]
-                    pflag = bflag[:, prod[pol], :]
-                    pcnt = cnt[np.newaxis, prod[pol], :]
-                    pscale = scale[pol][np.newaxis, :, np.newaxis]
+                    bflag = (bdata.weight[:] > 0.0).astype(np.float32)
+                    bvar = tools.invert_no_zero(bdata.weight[:])
 
-                    fringestop_phase = tools.fringestop_phase(ha, lat, src_dec,
-                                                              dist[pol][np.newaxis, :, 0, np.newaxis] / lmbda,
-                                                              dist[pol][np.newaxis, :, 1, np.newaxis] / lmbda)
+                    lmbda = (
+                        scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
+                    )
 
-                    vis[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag * pvis * fringestop_phase, axis=1)
-                    var[freq_sel, ii, :] += np.sum((pscale * pcnt)**2 * pflag * pvar, axis=1)
-                    counter[freq_sel, ii, :] += np.sum(pscale * pcnt * pflag, axis=1)
+                    # Loop over polarizations
+                    for ii, pol in enumerate(pols):
 
-                self.logger.info("Took %0.1f seconds to process this block." % (time.time() - t0,))
+                        self.logger.info("Processing Pol %s" % pol)
 
-                del bdata
-                gc.collect()
+                        pvis = bdata.vis[:, prod[pol], :]
+                        pvar = bvar[:, prod[pol], :]
+                        pflag = bflag[:, prod[pol], :]
+                        pcnt = cnt[np.newaxis, prod[pol], :]
+                        pscale = scale[pol][np.newaxis, :, np.newaxis]
 
-            # Normalize
-            inv_counter = tools.invert_no_zero(counter)
-            vis *= inv_counter
-            var *= inv_counter**2
+                        fringestop_phase = tools.fringestop_phase(
+                            ha,
+                            lat,
+                            src_dec,
+                            dist[pol][np.newaxis, :, 0, np.newaxis] / lmbda,
+                            dist[pol][np.newaxis, :, 1, np.newaxis] / lmbda,
+                        )
 
-            ra = np.degrees(np.unwrap(ra))
-            ha = ra - np.degrees(src_ra)
+                        vis[freq_sel, ii, :] += np.sum(
+                            pscale * pcnt * pflag * pvis * fringestop_phase, axis=1
+                        )
+                        var[freq_sel, ii, :] += np.sum(
+                            (pscale * pcnt) ** 2 * pflag * pvar, axis=1
+                        )
+                        counter[freq_sel, ii, :] += np.sum(
+                            pscale * pcnt * pflag, axis=1
+                        )
 
-            # Fit response to model
-            if self.perform_fit:
+                    self.logger.info(
+                        "Took %0.1f seconds to process this block."
+                        % (time.time() - t0,)
+                    )
 
-                fwhm = np.zeros((nfreq, npol), dtype=np.float32)
-                for ii in range(npol):
-                    fwhm[:, ii] = cal_utils.guess_fwhm(data.freq, pol=polstr[ii][0], dec=src_dec, sigma=True)
+                    del bdata
+                    gc.collect()
 
-                flag = counter > 0.0
+                # Normalize
+                inv_counter = tools.invert_no_zero(counter)
+                vis *= inv_counter
+                var *= inv_counter ** 2
 
-                parameter, parameter_cov, resid_rms = self.fit_point_source_transit(ha, vis.real, np.sqrt(var),
-                                                                                               flag=flag, fwhm=fwhm)
-            # Write to file
-            output_file = os.path.join(self.write_dir, "%s_csd_%d_%s.h5" %
-                                      (src.lower(), csd, self.output_suffix))
-            self.logger.info("Writing output files...")
+                ra = np.degrees(np.unwrap(ra))
+                ha = ra - np.degrees(src_ra)
 
-            with h5py.File(output_file, 'w') as handler:
-
-                index_map = handler.create_group('index_map')
-                index_map.create_dataset('freq', data=data.index_map['freq'][:])
-                index_map.create_dataset('pol', data=np.string_(polstr))
-                index_map.create_dataset('time', data=data.time)
-                index_map.create_dataset('ra', data=ra)
-                index_map.create_dataset('ha', data=ha)
-
-                dset = handler.create_dataset('vis', data=vis)
-                dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'],dtype='S')
-
-                dset = handler.create_dataset('weight', data=tools.invert_no_zero(var))
-                dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'], dtype='S')
-
-                dset = handler.create_dataset('count', data=counter.astype(np.int))
-                dset.attrs['axis'] = np.array(['freq', 'pol', 'ha'], dtype='S')
-
+                # Fit response to model
                 if self.perform_fit:
 
-                    index_map.create_dataset('param', data='model_fitting')
+                    fwhm = np.zeros((nfreq, npols), dtype=np.float32)
+                    for ii in range(npols):
+                        fwhm[:, ii] = cal_utils.guess_fwhm(
+                            data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
+                        )
 
-                    dset = handler.create_dataset('residual_noise', data=resid_rms)
-                    dset.attrs['axis'] = np.array(['freq', 'pol'], dtype='S')
+                    flag = counter > 0.0
 
-                    dset = handler.create_dataset('parameter', data=parameter)
-                    dset.attrs['axis'] = np.array(['freq', 'pol', 'param'], dtype='S')
+                    parameter, parameter_cov, resid_rms = fit_point_source_transit(
+                        ha, vis.real, np.sqrt(var), flag=flag, fwhm=fwhm
+                    )
+                # Write to file
+                output_file = os.path.join(
+                    self.write_dir,
+                    "%s_csd_%d_%s.h5" % (src.lower(), csd, self.output_suffix),
+                )
+                self.logger.info("Writing output files...")
 
-                    dset = handler.create_dataset('parameter_cov', data=parameter_cov)
-                    dset.attrs['axis'] = np.array(['freq', 'pol', 'param', 'param'], dtype='S')
+                with h5py.File(output_file, "w") as handler:
 
-                handler.attrs['source'] = src
-                handler.attrs['csd'] = csd
-                handler.attrs['instrument_name'] = self.correlator
-                handler.attrs['collection_server'] = subprocess.check_output(
-                    ["hostname"]).strip()
-                handler.attrs['system_user'] = subprocess.check_output(
-                    ["id", "-u", "-n"]).strip()
-                handler.attrs['git_version_tag'] = dias_version_tag
-            self.logger.info('File successfully written out.')
+                    index_map = handler.create_group("index_map")
+                    index_map.create_dataset("freq", data=data.index_map["freq"][:])
+                    index_map.create_dataset("pol", data=np.string_(pols))
+                    index_map.create_dataset("time", data=data.time)
+                    index_map.create_dataset("ra", data=ra)
+                    index_map.create_dataset("ha", data=ha)
 
-    ###################################################
-    # auxiliary routines
-    ###################################################
+                    dset = handler.create_dataset("vis", data=vis)
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-    def fit_point_source_transit(self, hour_angle, response, weight, flag=None,
-                                 fwhm=None):
-        """ Fits the point source response to a model that
-            consists of a gaussian in amplitude plus a polynomial background.
+                    dset = handler.create_dataset(
+                        "weight", data=tools.invert_no_zero(var)
+                    )
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-        .. math::
-            g(hour_angle) = peak_amplitude * \exp{-4 \ln{2} [(hour_angle - centroid)/fwhm]^2} *
-                    \exp{j [phase_intercept + phase_slope * (hour_angle - centroid)]}
+                    dset = handler.create_dataset("count", data=counter.astype(np.int))
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-        Parameters
-        ----------
-        hour_angle : np.ndarray[nha, ]
-            Transit right ascension.
-        response : np.ndarray[nfreq, nra]
-            Complex array that contains point source response.
-        response_error : np.ndarray[nfreq, nra]
-            Real array that contains 1-sigma error on
-            point source response.
-        flag : np.ndarray[nfreq, nra]
-            Boolean array that indicates which data points to fit.
+                    if self.perform_fit:
 
-        Returns
-        -------
-        parameter : np.ndarray[nfreq, nparam]
-            Best-fit parameters for each frequency and input:
-            [peak_amplitude, centroid, fwhm, phase_intercept, phase_slope].
-        parameter_cov: np.ndarray[nfreq, nparam, nparam]
-            Parameter covariance for each frequency and input.
-        """
+                        index_map.create_dataset("param", data="model_fitting")
 
-        # Check if boolean flag was input
-        if flag is None:
-            flag = np.ones(response.shape, dtype=np.bool)
-        elif flag.dtype != np.bool:
-            flag = flag.astype(np.bool)
+                        dset = handler.create_dataset("residual_noise", data=resid_rms)
+                        dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
-        # Create arrays to hold best-fit parameters and
-        # parameter covariance.  Initialize to NaN.
-        nfreq = response.shape[0]
-        npol = response.shape[1]
-        nparam = 6 #magic number!!
+                        dset = handler.create_dataset("parameter", data=parameter)
+                        dset.attrs["axis"] = np.array(
+                            ["freq", "pol", "param"], dtype="S"
+                        )
 
-        parameter = np.full((nfreq, npol, nparam), np.nan, dtype=np.float32)
-        parameter_cov = np.full((nfreq, npol, nparam, nparam), np.nan, dtype=np.float32)
-        resid_rms = np.full((nfreq, npol), np.nan, dtype=np.float32)
+                        dset = handler.create_dataset(
+                            "parameter_cov", data=parameter_cov
+                        )
+                        dset.attrs["axis"] = np.array(
+                            ["freq", "pol", "param", "param"], dtype="S"
+                        )
 
-        # Create initial guess at FWHM if one was not input
-        if fwhm is None:
-            fwhm = np.full((nfreq, npol), 3.0, dtype=np.float32)
+                    handler.attrs["source"] = src
+                    handler.attrs["csd"] = csd
+                    handler.attrs["instrument_name"] = self.correlator
+                    handler.attrs["collection_server"] = subprocess.check_output(
+                        ["hostname"]
+                    ).strip()
+                    handler.attrs["system_user"] = subprocess.check_output(
+                        ["id", "-u", "-n"]
+                    ).strip()
+                    handler.attrs["git_version_tag"] = dias_version_tag
+                self.logger.info("File for {} successfully written out.".format(src))
 
-        # Iterate over frequency/pol and fit point source transit
-        for ff in range(nfreq):
-
-            for pp in range(npol):
-
-                this_flag = flag[ff, pp]
-
-                # Only perform fit if there is enough data.
-                # Otherwise, leave parameter values as NaN.
-                if np.sum(this_flag) <= nparam:
-                    continue
-
-                # We will fit the complex data.  Break n-element complex array g(ra)
-                # into 2n-element real array [Re{g(ra)}, Im{g(ra)}] for fit.
-                x = hour_angle[this_flag]
-
-                y = response[ff, pp, this_flag]
-                yerr = np.sqrt(tools.invert_no_zero(weight[ff, pp, this_flag]))
-
-                # Initial estimate of parameter values
-                p0 = np.array([np.max(y) - np.median(y), np.median(x), fwhm[ff, pp],
-                               np.asarray([np.median(y), 0.0, 0.0])])
-
-                # Perform the fit.  If there is an error,
-                # then we leave parameter values as NaN.
-                try:
-                    popt, pcov = curve_fit(fit_func1, x, y,
-                                            p0=p0, sigma=yerr, absolute_sigma=False)
-                except Exception as error:
-                    continue
-
-                # Save the results
-                parameter[ff, pp] = popt
-                parameter_cov[ff, pp] = pcov
-
-                # Compute scatter in residuals
-                resid = y - fit_func1(x, *popt)
-
-                resid_rms[ff, pp] = np.std(resid_dict)
-
-        # Return the best-fit parameters and parameter covariance
-        return parameter, parameter_cov, resid_rms
-
-    def fit_func1(self, x, peak_amplitude, p0):
-
-        centroid, fwhm, bpoly = p0
-        dx = x - centroid
-        return func_gauss(dx, peak_amplitude, fwhm) + func_background(dx, bpoly)
-
-    def func_gauss(self, dx, peak_amplitude, fwhm):
-
-        return peak_amplitude * np.exp(-4.0*np.log(2.0)*(dx/fwhm)**2)
-
-    def func_background(self, dx, bck):
-
-        model = np.polyval(bck, dx)
-        return  model
-
-    def correct_phase_wrap(self, phi, deg=False):
-
-        if deg:
-            return ((phi + 180.0) % 360.0) - 180.0
-        else:
-            return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
+        if err_msg:
+            raise exception.DiasDataError(err_msg)
 
     def get_baselines(self, indexmap, inputmap):
 
@@ -516,12 +501,12 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
         tools.change_chime_location(rotation=self.rot)
         feedpos = tools.get_feed_positions(inputmap)
 
-        for pp, (this_prod, this_conj) in enumerate(indexmap['stack']):
+        for pp, (this_prod, this_conj) in enumerate(indexmap["stack"]):
 
             if this_conj:
-                bb, aa = indexmap['prod'][this_prod]
+                bb, aa = indexmap["prod"][this_prod]
             else:
-                aa, bb = indexmap['prod'][this_prod]
+                aa, bb = indexmap["prod"][this_prod]
 
             inp_aa = inputmap[aa]
             inp_bb = inputmap[bb]
@@ -538,26 +523,29 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             this_dist = list(feedpos[aa, :] - feedpos[bb, :])
 
             if tools.is_array_x(inp_aa) and tools.is_array_x(inp_bb):
-                key = 'XX'
+                key = "XX"
 
             elif tools.is_array_y(inp_aa) and tools.is_array_y(inp_bb):
-                key = 'YY'
+                key = "YY"
 
             elif not self.include_crosspol:
                 continue
 
             elif tools.is_array_x(inp_aa) and tools.is_array_y(inp_bb):
-                key = 'XY'
+                key = "XY"
 
             elif tools.is_array_y(inp_aa) and tools.is_array_x(inp_bb):
-                key = 'YX'
+                key = "YX"
 
             else:
                 raise RuntimeError("CHIME feeds not polarized.")
 
-            this_cyl = '%s%s' % (self.get_cyl(inp_aa.cyl), self.get_cyl(inp_bb.cyl))
+            this_cyl = "%s%s" % (
+                get_cyl(inp_aa.cyl, self.cyl_start_num, self.cyl_start_char),
+                get_cyl(inp_bb.cyl, self.cyl_start_num, self.cyl_start_char),
+            )
             if self.sep_cyl:
-                key = key + '-' + this_cyl
+                key = key + "-" + this_cyl
 
             prod[key].append(pp)
             prodmap[key].append((aa, bb))
@@ -566,13 +554,15 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
             cyl[key].append(this_cyl)
 
             if aa == bb:
-                scale[key].append( 0.5 )
+                scale[key].append(0.5)
             else:
-                scale[key].append( 1.0 )
+                scale[key].append(1.0)
 
         for key in prod.keys():
             prod[key] = np.array(prod[key])
-            prodmap[key] = np.array(prodmap[key], dtype=[('input_a', '<u2'), ('input_b', '<u2')])
+            prodmap[key] = np.array(
+                prodmap[key], dtype=[("input_a", "<u2"), ("input_b", "<u2")]
+            )
             dist[key] = np.array(dist[key])
             conj[key] = np.nonzero(np.ravel(conj[key]))[0]
             cyl[key] = np.array(cyl[key])
@@ -582,6 +572,133 @@ class source_spectra_Analyzer(CHIMEAnalyzer):
 
         return prod, prodmap, dist, conj, cyl, scale
 
-    def get_cyl(self, cyl_num):
-        """Return the cylinfer ID (char)."""
-        return chr(cyl_num - self.cyl_start_num + self.cyl_start_char)
+
+###################################################
+# auxiliary routines
+###################################################
+
+
+def fit_point_source_transit(hour_angle, response, weight, flag=None, fwhm=None):
+    """ Fits the point source response to a model that
+        consists of a gaussian in amplitude plus a polynomial background.
+
+    .. math::
+        g(hour_angle) = peak_amplitude * \exp{-4 \ln{2} [(hour_angle - centroid)/fwhm]^2} *
+                \exp{j [phase_intercept + phase_slope * (hour_angle - centroid)]}
+
+    Parameters
+    ----------
+    hour_angle : np.ndarray[nha, ]
+        Transit right ascension.
+    response : np.ndarray[nfreq, nra]
+        Complex array that contains point source response.
+    response_error : np.ndarray[nfreq, nra]
+        Real array that contains 1-sigma error on
+        point source response.
+    flag : np.ndarray[nfreq, nra]
+        Boolean array that indicates which data points to fit.
+
+    Returns
+    -------
+    parameter : np.ndarray[nfreq, nparam]
+        Best-fit parameters for each frequency and input:
+        [peak_amplitude, centroid, fwhm, phase_intercept, phase_slope].
+    parameter_cov: np.ndarray[nfreq, nparam, nparam]
+        Parameter covariance for each frequency and input.
+    """
+
+    # Check if boolean flag was input
+    if flag is None:
+        flag = np.ones(response.shape, dtype=np.bool)
+    elif flag.dtype != np.bool:
+        flag = flag.astype(np.bool)
+
+    # Create arrays to hold best-fit parameters and
+    # parameter covariance.  Initialize to NaN.
+    nfreq = response.shape[0]
+    npol = response.shape[1]
+    nparam = 6  # magic number!!
+
+    parameter = np.full((nfreq, npol, nparam), np.nan, dtype=np.float32)
+    parameter_cov = np.full((nfreq, npol, nparam, nparam), np.nan, dtype=np.float32)
+    resid_rms = np.full((nfreq, npol), np.nan, dtype=np.float32)
+
+    # Create initial guess at FWHM if one was not input
+    if fwhm is None:
+        fwhm = np.full((nfreq, npol), 3.0, dtype=np.float32)
+
+    # Iterate over frequency/pol and fit point source transit
+    for ff in range(nfreq):
+
+        for pp in range(npol):
+
+            this_flag = flag[ff, pp]
+
+            # Only perform fit if there is enough data.
+            # Otherwise, leave parameter values as NaN.
+            if np.sum(this_flag) <= nparam:
+                continue
+
+            # We will fit the complex data.  Break n-element complex array g(ra)
+            # into 2n-element real array [Re{g(ra)}, Im{g(ra)}] for fit.
+            x = hour_angle[this_flag]
+
+            y = response[ff, pp, this_flag]
+            yerr = np.sqrt(tools.invert_no_zero(weight[ff, pp, this_flag]))
+
+            # Initial estimate of parameter values
+            p0 = np.array(
+                [
+                    np.max(y) - np.median(y),
+                    np.median(x),
+                    fwhm[ff, pp],
+                    np.asarray([np.median(y), 0.0, 0.0]),
+                ]
+            )
+
+            # Perform the fit.  If there is an error,
+            # then we leave parameter values as NaN.
+            try:
+                popt, pcov = curve_fit(
+                    fit_func1, x, y, p0=p0, sigma=yerr, absolute_sigma=False
+                )
+            except Exception as error:
+                continue
+
+            # Save the results
+            parameter[ff, pp] = popt
+            parameter_cov[ff, pp] = pcov
+
+            # Compute scatter in residuals
+            resid = y - fit_func1(x, *popt)
+
+            resid_rms[ff, pp] = np.std(resid_dict)
+
+    # Return the best-fit parameters and parameter covariance
+    return parameter, parameter_cov, resid_rms
+
+
+def fit_func1(x, peak_amplitude, p0):
+
+    centroid, fwhm, bpoly = p0
+    dx = x - centroid
+    return func_gauss(dx, peak_amplitude, fwhm) + func_background(dx, bpoly)
+
+
+def func_gauss(dx, peak_amplitude, fwhm):
+
+    return peak_amplitude * np.exp(-4.0 * np.log(2.0) * (dx / fwhm) ** 2)
+
+
+def func_background(dx, bck):
+
+    model = np.polyval(bck, dx)
+    return model
+
+
+def correct_phase_wrap(phi, deg=False):
+
+    if deg:
+        return ((phi + 180.0) % 360.0) - 180.0
+    else:
+        return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
