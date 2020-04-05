@@ -52,12 +52,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_<task_name>_source_analyzer_run_total
-    ...............................................
-    Counter for total number of task runs with each specific source
-
-    Labels
-        source : Source transit name.
 
     Output Data
     -----------
@@ -153,6 +147,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         in terms of sigma
     perform_fit : boolean
         Performs a Gaussian fit to transit
+    process_daytime: int
+        0 would only process sources that transit at night
+        1 would process all sources that transit when the sun is outside of the primary beam
+        2 would process all sources
 
     """
 
@@ -162,10 +160,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     # Config parameters defining data file selection
     correlator = config.Property(proptype=str, default="chime")
     acq_suffix = config.Property(proptype=str, default="stack_corr")
-    source_transits = config.Property(proptype=list, default=["cyg_a"])
+    source_transits = config.Property(proptype=list, default=["CYG_A","CAS_A","TAU_A","VIR_A","HERCULES_A","3C_353","HYDRA_A","3C_123"])
 
     # Config parameters defining output data product
-    output_suffix = config.Property(proptype=str, default="sensitivity")
+    output_suffix = config.Property(proptype=str, default="spectrum")
 
     # Config parameters related to cylinders
     cyl_start_char = config.Property(proptype=int, default=65)
@@ -177,11 +175,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     include_auto = config.Property(proptype=bool, default=False)
     include_intracyl = config.Property(proptype=bool, default=False)
     include_crosspol = config.Property(proptype=bool, default=False)
+    process_daytime = config.Property(proptype=int, default=1)
 
     # Config parameters related to the algorithm
     nfreq_per_block = config.Property(proptype=int, default=16)
     nsigma = config.Property(proptype=float, default=1.0)
-    perform_fit = config.Property(proptype=bool, default=False)
+    poly_deg_phi = config.Property(proptype=int, default=3)
+    peak_type = config.Property(proptype=str, default='max_amp')
 
     def setup(self):
         """
@@ -195,15 +195,17 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             labelnames=["source"],
             unit="total",
         )
+            
+	# initalise run metric
+        self.run_metric.labels(source=src).set(0)
 
         self.logger.info("Sources: {}".format(self.source_transits))
 
     def run(self):
         """Run the analyzer.
 
-        Load autocorrelations for a given source transit.
-        Extract flux of a given source, as a function of freq,
-        when the source is right at the zenith.
+	 "Load stacked visibilities and beam form to the
+	  location of the brightest sources."
 
         Write fluxes for a given time and frequency to disk.
         """
@@ -216,9 +218,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 src_body = fluxcat.FluxCatalog[src].skyfield
             except KeyError as e:
                 raise DiasConfigError("Invalid source: {}".format(e))
-
-            # initalise run metric
-            self.run_metric.labels(source=src).set(0)
 
             self.logger.info(
                 "Initializing offline point source processing for %s.".format(src)
@@ -233,13 +232,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 % (str(query_start_time), str(query_stop_time))
             )
 
-            window = self.nsigma * cal_utils.guess_fwhm(
-                400.0, pol="X", dec=src_body.dec.radians, sigma=True
-            )
             # nsigma distance in degree from transit from peak
-            time_delta = (
-                2 * (window / 360.0) * 24 * 3600.0
-            )  # time window around transit in sec
+            time_delta = 2*self.nsigma * cal_utils.guess_fwhm(
+                400.0, pol="X", dec=src_body.dec.radians, sigma=True,
+            seconds=True)
 
             # Find all calibration files that have transit of given source
             f = self.Finder()
@@ -293,9 +289,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                             is_daytime += 1
                         break
 
-                if is_daytime > 1:
+                if self.process_daytime < is_daytime:
                     self.logger.info(
-                        "Not processing %s as Sun is in the primary beam" % (src)
+                        "Not processing %s as it does not meet daytime processing conditions" % (src)
                     )
                     continue
 
@@ -325,7 +321,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 # Get baselines
                 prod, _, dist, _, _, scale = self.get_baselines(
-                    data.index_map, inputmap
+                    data.index_map, inputmap, data.reverse_map["stack"]
                 )
 
                 # Determine groups
@@ -369,10 +365,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                     freq_sel = slice(fstart, fstop)
 
-                    print(
-                        "Processing block %d (of %d):  %d - %d"
-                        % (block_number, nblock, fstart, fstop)
-                    )
                     self.logger.info(
                         "Processing block %d (of %d):  %d - %d"
                         % (block_number, nblock, fstart, fstop)
@@ -443,19 +435,28 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 ha = ra - np.degrees(src_ra)
 
                 # Fit response to model
-                if self.perform_fit:
-
-                    fwhm = np.zeros((nfreq, npol), dtype=np.float32)
-                    for ii in range(npol):
-                        fwhm[:, ii] = cal_utils.guess_fwhm(
-                            data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
-                        )
-
-                    flag = counter > 0.0
-
-                    parameter, parameter_cov, resid_rms = fit_point_source_transit(
-                        ha, vis.real, np.sqrt(var), flag=flag, fwhm=fwhm
+                fwhm = np.zeros((nfreq, npol), dtype=np.float32)
+                for ii in range(npol):
+                    fwhm[:, ii] = cal_utils.guess_fwhm(
+                        data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
                     )
+
+                flag = counter > 0.0
+
+                fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
+                fitter.fit(ha, vis.real, np.sqrt(var), width=fwhm, absolute_sigma=True)
+                resid = vis.real - fitter.predict(ha)
+                resid_rms = np.std(resid, axis=-1)
+                
+                if self.peak_type == 'max_amp':
+                    ha_max = np.nanmedian(fitter.peak()) #To have one slice in time
+                elif self.peak_type == 'zero_ha':
+                    ha_max = 0.0
+                else:
+                    raise ValueError("Peak type not recognized")
+
+                peak_flux = fitter.predict(ha_max) 
+
                 # Write to file
                 output_file = os.path.join(
                     self.write_dir,
@@ -474,6 +475,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                     dset = handler.create_dataset("vis", data=vis)
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
+                    
+                    dset = handler.create_dataset("peak_vis", data=peak_flux)
+                    dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
                     dset = handler.create_dataset(
                         "weight", data=tools.invert_no_zero(var)
@@ -490,13 +494,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         dset = handler.create_dataset("residual_noise", data=resid_rms)
                         dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
-                        dset = handler.create_dataset("parameter", data=parameter)
+                        dset = handler.create_dataset("parameter", data=fitter.param)
                         dset.attrs["axis"] = np.array(
                             ["freq", "pol", "param"], dtype="S"
                         )
 
                         dset = handler.create_dataset(
-                            "parameter_cov", data=parameter_cov
+                            "parameter_cov", data=fitter.param_cov
                         )
                         dset.attrs["axis"] = np.array(
                             ["freq", "pol", "param", "param"], dtype="S"
@@ -504,6 +508,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                     handler.attrs["source"] = src
                     handler.attrs["csd"] = csd
+                    handler.attrs["chisq"] = fitter.chisq
+		    handler.attrs["dof"] = fitter.dof
+        	    handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
+        	    handler.attrs["model_class"] = ".".join(
+            	    [getattr(cal_utils.FitGaussAmpPolyPhase, key) for key in ["__module__", "__name__"]]
+        	    )
+                    handler.attrs["is_daytime"] = is_daytime
                     handler.attrs["instrument_name"] = self.correlator
                     handler.attrs["collection_server"] = subprocess.check_output(
                         ["hostname"]
@@ -519,7 +530,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         if err_msg:
             raise exception.DiasDataError(err_msg)
 
-    def get_baselines(self, indexmap, inputmap):
+    def get_baselines(self, indexmap, inputmap, reverse_stack):
         """Return baseline indices for averaging."""
         prod = defaultdict(list)
         prodmap = defaultdict(list)
@@ -528,11 +539,20 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         cyl = defaultdict(list)
         scale = defaultdict(list)
 
-        # Compute feed positions without rotation
+        # Compute feed positions with rotation
         tools.change_chime_location(rotation=self.rot)
         feedpos = tools.get_feed_positions(inputmap)
 
-        for pp, (this_prod, this_conj) in enumerate(indexmap["stack"]):
+	stack, stack_flag = tools.redefine_stack_index_map(
+	inputmap, index_map["prod"], index_map["stack"], reverse_stack)
+	
+	if not np.all(stack_flag):
+    		self.logger.warning(
+                "There are %d stacked baselines that are masked "
+                "by the inputmap." % np.sum(~stack_flag)
+            )
+
+        for pp, (this_prod, this_conj) in enumerate(stack):
 
             if this_conj:
                 bb, aa = indexmap["prod"][this_prod]
@@ -607,123 +627,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 ###################################################
 # auxiliary routines
 ###################################################
-
-
-def fit_point_source_transit(hour_angle, response, weight, flag=None, fwhm=None):
-    r"""Fit the point source response to a model that consists of a gaussian in amplitude plus a polynomial background.
-
-    .. math::
-        g(hour_angle) = peak_amplitude * \exp{-4 \ln{2} [(hour_angle - centroid)/fwhm]^2} *
-                \exp{j [phase_intercept + phase_slope * (hour_angle - centroid)]}
-
-    Parameters
-    ----------
-    hour_angle : np.ndarray[nha, ]
-        Transit right ascension.
-    response : np.ndarray[nfreq, nra]
-        Complex array that contains point source response.
-    response_error : np.ndarray[nfreq, nra]
-        Real array that contains 1-sigma error on
-        point source response.
-    flag : np.ndarray[nfreq, nra]
-        Boolean array that indicates which data points to fit.
-
-    Returns
-    -------
-    parameter : np.ndarray[nfreq, nparam]
-        Best-fit parameters for each frequency and input:
-        [peak_amplitude, centroid, fwhm, phase_intercept, phase_slope].
-    parameter_cov: np.ndarray[nfreq, nparam, nparam]
-        Parameter covariance for each frequency and input.
-    """
-    # Check if boolean flag was input
-    if flag is None:
-        flag = np.ones(response.shape, dtype=np.bool)
-    elif flag.dtype != np.bool:
-        flag = flag.astype(np.bool)
-
-    # Create arrays to hold best-fit parameters and
-    # parameter covariance.  Initialize to NaN.
-    nfreq = response.shape[0]
-    npol = response.shape[1]
-    nparam = 6  # magic number!!
-
-    parameter = np.full((nfreq, npol, nparam), np.nan, dtype=np.float32)
-    parameter_cov = np.full((nfreq, npol, nparam, nparam), np.nan, dtype=np.float32)
-    resid_rms = np.full((nfreq, npol), np.nan, dtype=np.float32)
-
-    # Create initial guess at FWHM if one was not input
-    if fwhm is None:
-        fwhm = np.full((nfreq, npol), 3.0, dtype=np.float32)
-
-    # Iterate over frequency/pol and fit point source transit
-    for ff in range(nfreq):
-
-        for pp in range(npol):
-
-            this_flag = flag[ff, pp]
-
-            # Only perform fit if there is enough data.
-            # Otherwise, leave parameter values as NaN.
-            if np.sum(this_flag) <= nparam:
-                continue
-
-            # We will fit the complex data.  Break n-element complex array g(ra)
-            # into 2n-element real array [Re{g(ra)}, Im{g(ra)}] for fit.
-            x = hour_angle[this_flag]
-
-            y = response[ff, pp, this_flag]
-            yerr = np.sqrt(tools.invert_no_zero(weight[ff, pp, this_flag]))
-
-            # Initial estimate of parameter values
-            p0 = np.array(
-                [
-                    np.max(y) - np.median(y),
-                    np.median(x),
-                    fwhm[ff, pp],
-                    np.asarray([np.median(y), 0.0, 0.0]),
-                ]
-            )
-
-            # Perform the fit.  If there is an error,
-            # then we leave parameter values as NaN.
-            try:
-                popt, pcov = curve_fit(
-                    _fit_func1, x, y, p0=p0, sigma=yerr, absolute_sigma=False
-                )
-            except Exception as error:
-                continue
-
-            # Save the results
-            parameter[ff, pp] = popt
-            parameter_cov[ff, pp] = pcov
-
-            # Compute scatter in residuals
-            resid = y - _fit_func1(x, *popt)
-
-            resid_rms[ff, pp] = np.std(resid_dict)
-
-    # Return the best-fit parameters and parameter covariance
-    return parameter, parameter_cov, resid_rms
-
-
-def _fit_func1(x, peak_amplitude, p0):
-
-    centroid, fwhm, bpoly = p0
-    dx = x - centroid
-    return _func_gauss(dx, peak_amplitude, fwhm) + _func_background(dx, bpoly)
-
-
-def _func_gauss(dx, peak_amplitude, fwhm):
-
-    return peak_amplitude * np.exp(-4.0 * np.log(2.0) * (dx / fwhm) ** 2)
-
-
-def _func_background(dx, bck):
-
-    model = np.polyval(bck, dx)
-    return model
-
 
 def _correct_phase_wrap(phi, deg=False):
 
