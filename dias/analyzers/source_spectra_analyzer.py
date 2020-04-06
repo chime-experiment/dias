@@ -145,8 +145,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     nsgima : float
         Span required from the peak of transit
         in terms of sigma
-    perform_fit : boolean
-        Performs a Gaussian fit to transit
     process_daytime: int
         0 would only process sources that transit at night
         1 would process all sources that transit when the sun is outside of the primary beam
