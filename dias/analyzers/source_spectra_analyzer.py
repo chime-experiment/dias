@@ -187,17 +187,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         Creates metrics.
         """
-        self.run_metric = self.add_task_metric(
-            "source_analyzer_run_total",
-            "task run counter for specific sources",
-            labelnames=["source"],
-            unit="total",
-        )
             
 	# initalise run metric
-        self.run_metric.labels(source=src).set(0)
+        #self.run_metric.labels(source=src).set(0)
 
-        self.logger.info("Sources: {}".format(self.source_transits))
+        #self.logger.info("Sources: {}".format(self.source_transits))
 
     def run(self):
         """Run the analyzer.
@@ -218,7 +212,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 raise DiasConfigError("Invalid source: {}".format(e))
 
             self.logger.info(
-                "Initializing offline point source processing for %s.".format(src)
+                "Initializing offline point source processing for {}.".format(src)
             )
 
             # Query files from now to period hours back
@@ -251,7 +245,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 if not all_files:
                     raise IndexError()
             except IndexError:
-                tmp += "No {} files found from last {} for source transit {}.\n".format(
+                tmp = "No {} files found from last {} for source transit {}.\n".format(
                     self.acq_suffix, self.period, src
                 )
                 err_msg += tmp
@@ -507,23 +501,20 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     handler.attrs["source"] = src
                     handler.attrs["csd"] = csd
                     handler.attrs["chisq"] = fitter.chisq
-		    handler.attrs["dof"] = fitter.dof
-        	    handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
-        	    handler.attrs["model_class"] = ".".join(
-            	    [getattr(cal_utils.FitGaussAmpPolyPhase, key) for key in ["__module__", "__name__"]]
-        	    )
+                    handler.attrs["dof"] = fitter.dof
+                    handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
+                    handler.attrs["model_class"] = ".".join(
+                            [getattr(cal_utils.FitGaussAmpPolyPhase, key) for key in ["__module__", "__name__"]]
+                            )
                     handler.attrs["is_daytime"] = is_daytime
                     handler.attrs["instrument_name"] = self.correlator
                     handler.attrs["collection_server"] = subprocess.check_output(
-                        ["hostname"]
-                    ).strip()
+                            ["hostname"]).strip()
                     handler.attrs["system_user"] = subprocess.check_output(
-                        ["id", "-u", "-n"]
-                    ).strip()
+                            ["id", "-u", "-n"]).strip()
                     handler.attrs["git_version_tag"] = dias_version_tag
-
-                self.logger.info("File for {} successfully written out.".format(src))
-                self.run_metric.labels(source=src).inc()
+                    self.logger.info("File for {} successfully written out.".format(src))
+                    self.run_metric.labels(source=src).inc()
 
         if err_msg:
             raise exception.DiasDataError(err_msg)
@@ -540,15 +531,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         # Compute feed positions with rotation
         tools.change_chime_location(rotation=self.rot)
         feedpos = tools.get_feed_positions(inputmap)
-
-	stack, stack_flag = tools.redefine_stack_index_map(
-	inputmap, index_map["prod"], index_map["stack"], reverse_stack)
+        stack, stack_flag = tools.redefine_stack_index_map(
+                inputmap, index_map["prod"], index_map["stack"], reverse_stack)
 	
-	if not np.all(stack_flag):
-    		self.logger.warning(
-                "There are %d stacked baselines that are masked "
-                "by the inputmap." % np.sum(~stack_flag)
-            )
+        if not np.all(stack_flag):
+            self.logger.warning(
+                    "There are %d stacked baselines that are masked "
+                    "by the inputmap." % np.sum(~stack_flag))
 
         for pp, (this_prod, this_conj) in enumerate(stack):
 
