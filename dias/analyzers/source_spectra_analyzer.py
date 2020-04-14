@@ -441,7 +441,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                # flag = counter > 0.0
 
-                fitter = cal_utils.FitGaussAmpPolyPhase(fit_poly_deg_phi=self.poly_deg_phi)
+                fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
                 fitter.fit(ha, vis.real, np.sqrt(var), width=fwhm, absolute_sigma=True)
                 resid = vis.real - fitter.predict(ha)
                 resid_rms = np.std(resid, axis=-1)
