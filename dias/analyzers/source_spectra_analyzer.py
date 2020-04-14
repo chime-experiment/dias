@@ -295,151 +295,151 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
 
-           #     # Look up inputmap
-           #     inputmap = tools.get_correlator_inputs(
-           #         ephemeris.unix_to_datetime(ephemeris.csd_to_unix(csd)),
-           #         correlator=self.correlator,
-           #     )
+                # Look up inputmap
+                inputmap = tools.get_correlator_inputs(
+                    ephemeris.unix_to_datetime(ephemeris.csd_to_unix(csd)),
+                    correlator=self.correlator,
+                )
 
-           #     # Load index map and reverse map
-           #     data = andata.CorrData.from_acq_h5(
-           #         files,
-           #         start=int(np.argmin(np.abs(file_timestamp - source_start_time))),
-           #         stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
-           #         datasets=["reverse_map", "flags/inputs"],
-           #         apply_gain=False,
-           #         renormalize=False,
-           #     )
-           #     # Determine axes
-           #     nfreq = data.nfreq
-           #     nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
+                # Load index map and reverse map
+                data = andata.CorrData.from_acq_h5(
+                    files,
+                    start=int(np.argmin(np.abs(file_timestamp - source_start_time))),
+                    stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
+                    datasets=["reverse_map", "flags/inputs"],
+                    apply_gain=False,
+                    renormalize=False,
+                )
+                # Determine axes
+                nfreq = data.nfreq
+                nblock = int(np.ceil(nfreq / float(self.nfreq_per_block)))
 
-           #     data_timestamp = data.time  # 1D array
-           #     ntime = data_timestamp.size
+                data_timestamp = data.time  # 1D array
+                ntime = data_timestamp.size
 
-           #     # Get baselines
-           #     prod, _, dist, _, _, scale = self.get_baselines(
-           #         data.index_map, inputmap, data.reverse_map["stack"]
-           #     )
+                # Get baselines
+                prod, _, dist, _, _, scale = self.get_baselines(
+                    data.index_map, inputmap, data.reverse_map["stack"]
+                )
 
-           #     # Determine groups
-           #     pols = np.array(sorted(prod.keys()))
-           #     npol = pols.size
+                # Determine groups
+                pols = np.array(sorted(prod.keys()))
+                npol = pols.size
 
-           #    # # Calculate counts
-               # cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
+                # Calculate counts
+                cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
 
-               # if np.any(data.flags["inputs"][:]):
-               #     for pp, ss in zip(
-               #         data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
-               #     ):
-               #         cnt[ss, :] += (
-               #             data.flags["inputs"][pp[0], :]
-               #             * data.flags["inputs"][pp[1], :]
-               #         )
-               # else:
-               #     for ss, val in Counter(
-               #         data.reverse_map["stack"]["stack"][:]
-               #     ).iteritems():
-               #         cnt[ss, :] = val
+                if np.any(data.flags["inputs"][:]):
+                    for pp, ss in zip(
+                        data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
+                    ):
+                        cnt[ss, :] += (
+                            data.flags["inputs"][pp[0], :]
+                            * data.flags["inputs"][pp[1], :]
+                        )
+                else:
+                    for ss, val in Counter(
+                        data.reverse_map["stack"]["stack"][:]
+                    ).iteritems():
+                        cnt[ss, :] = val
 
-               # # Calculate hour angle
-               # ra = np.radians(ephemeris.lsa(data_timestamp))
-               # ha = ra - src_ra
-               # ha = _correct_phase_wrap(ha, deg=False)
-               # ha = ha[np.newaxis, np.newaxis, :]
+                # Calculate hour angle
+                ra = np.radians(ephemeris.lsa(data_timestamp))
+                ha = ra - src_ra
+                ha = _correct_phase_wrap(ha, deg=False)
+                ha = ha[np.newaxis, np.newaxis, :]
 
-               # # Initialize arrays
-               # vis = np.zeros((nfreq, npol, ntime), dtype=np.complex64)
-               # var = np.zeros((nfreq, npol, ntime), dtype=np.float32)
-               # counter = np.zeros((nfreq, npol, ntime), dtype=np.float32)
+                # Initialize arrays
+                vis = np.zeros((nfreq, npol, ntime), dtype=np.complex64)
+                var = np.zeros((nfreq, npol, ntime), dtype=np.float32)
+                counter = np.zeros((nfreq, npol, ntime), dtype=np.float32)
 
-               # # Loop over frequency blocks
-               # for block_number in range(nblock):
+                # Loop over frequency blocks
+                for block_number in range(nblock):
 
-               #     t0 = time.time()
+                    t0 = time.time()
 
-               #     fstart = block_number * self.nfreq_per_block
-               #     fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
-               #     freq_sel = slice(fstart, fstop)
+                    fstart = block_number * self.nfreq_per_block
+                    fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
+                    freq_sel = slice(fstart, fstop)
 
-               #     self.logger.info(
-               #         "Processing block %d (of %d):  %d - %d"
-               #         % (block_number, nblock, fstart, fstop)
-               #     )
+                    self.logger.info(
+                        "Processing block %d (of %d):  %d - %d"
+                        % (block_number, nblock, fstart, fstop)
+                    )
 
-               #     bdata = andata.CorrData.from_acq_h5(
-               #         files,
-               #         start=int(
-               #             np.argmin(np.abs(file_timestamp - source_start_time))
-               #         ),
-               #         stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
-               #         freq_sel=freq_sel,
-               #         datasets=["vis", "flags/vis_weight"],
-               #         apply_gain=False,
-               #         renormalize=False,
-               #     )
+                    bdata = andata.CorrData.from_acq_h5(
+                        files,
+                        start=int(
+                            np.argmin(np.abs(file_timestamp - source_start_time))
+                        ),
+                        stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
+                        freq_sel=freq_sel,
+                        datasets=["vis", "flags/vis_weight"],
+                        apply_gain=False,
+                        renormalize=False,
+                    )
 
-               #     bflag = (bdata.weight[:] > 0.0).astype(np.float32)
-               #     bvar = tools.invert_no_zero(bdata.weight[:])
+                    bflag = (bdata.weight[:] > 0.0).astype(np.float32)
+                    bvar = tools.invert_no_zero(bdata.weight[:])
 
-               #     lmbda = (
-               #         scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
-               #     )
+                    lmbda = (
+                        scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
+                    )
 
-               #     # Loop over polarizations
-               #     for ii, pol in enumerate(pols):
+                    # Loop over polarizations
+                    for ii, pol in enumerate(pols):
 
-               #         self.logger.info("Processing Pol %s" % pol)
+                        self.logger.info("Processing Pol %s" % pol)
 
-               #         pvis = bdata.vis[:, prod[pol], :]
-               #         pvar = bvar[:, prod[pol], :]
-               #         pflag = bflag[:, prod[pol], :]
-               #         pcnt = cnt[np.newaxis, prod[pol], :]
-               #         pscale = scale[pol][np.newaxis, :, np.newaxis]
+                        pvis = bdata.vis[:, prod[pol], :]
+                        pvar = bvar[:, prod[pol], :]
+                        pflag = bflag[:, prod[pol], :]
+                        pcnt = cnt[np.newaxis, prod[pol], :]
+                        pscale = scale[pol][np.newaxis, :, np.newaxis]
 
-               #         fringestop_phase = tools.fringestop_phase(
-               #             ha,
-               #             lat,
-               #             src_dec,
-               #             dist[pol][np.newaxis, :, 0, np.newaxis] / lmbda,
-               #             dist[pol][np.newaxis, :, 1, np.newaxis] / lmbda,
-               #         )
+                        fringestop_phase = tools.fringestop_phase(
+                            ha,
+                            lat,
+                            src_dec,
+                            dist[pol][np.newaxis, :, 0, np.newaxis] / lmbda,
+                            dist[pol][np.newaxis, :, 1, np.newaxis] / lmbda,
+                        )
 
-               #         vis[freq_sel, ii, :] += np.sum(
-               #             pscale * pcnt * pflag * pvis * fringestop_phase, axis=1
-               #         )
-               #         var[freq_sel, ii, :] += np.sum(
-               #             (pscale * pcnt) ** 2 * pflag * pvar, axis=1
-               #         )
-               #         counter[freq_sel, ii, :] += np.sum(
-               #             pscale * pcnt * pflag, axis=1
-               #         )
+                        vis[freq_sel, ii, :] += np.sum(
+                            pscale * pcnt * pflag * pvis * fringestop_phase, axis=1
+                        )
+                        var[freq_sel, ii, :] += np.sum(
+                            (pscale * pcnt) ** 2 * pflag * pvar, axis=1
+                        )
+                        counter[freq_sel, ii, :] += np.sum(
+                            pscale * pcnt * pflag, axis=1
+                        )
 
-               #     self.logger.info(
-               #         "Took %0.1f seconds to process this block."
-               #         % (time.time() - t0,)
-               #     )
+                    self.logger.info(
+                        "Took %0.1f seconds to process this block."
+                        % (time.time() - t0,)
+                    )
 
-               #     del bdata
-               #     gc.collect()
+                    del bdata
+                    gc.collect()
 
-               # # Normalize
-               # inv_counter = tools.invert_no_zero(counter)
-               # vis *= inv_counter
-               # var *= inv_counter ** 2
+                # Normalize
+                inv_counter = tools.invert_no_zero(counter)
+                vis *= inv_counter
+                var *= inv_counter ** 2
 
-               # ra = np.degrees(np.unwrap(ra))
-               # ha = ra - np.degrees(src_ra)
+                ra = np.degrees(np.unwrap(ra))
+                ha = ra - np.degrees(src_ra)
 
-               # # Fit response to model
-               # fwhm = np.zeros((nfreq, npol), dtype=np.float32)
-               # for ii in range(npol):
-               #     fwhm[:, ii] = cal_utils.guess_fwhm(
-               #         data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
-               #     )
+                # Fit response to model
+                fwhm = np.zeros((nfreq, npol), dtype=np.float32)
+                for ii in range(npol):
+                    fwhm[:, ii] = cal_utils.guess_fwhm(
+                        data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
+                    )
 
-               # flag = counter > 0.0
+                flag = counter > 0.0
 
                 fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
                 fitter.fit(ha, vis.real, np.sqrt(var), width=fwhm, absolute_sigma=True)
