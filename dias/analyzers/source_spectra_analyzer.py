@@ -161,6 +161,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     correlator = config.Property(proptype=str, default="chime")
     acq_suffix = config.Property(proptype=str, default="stack_corr")
     source_transits = config.Property(proptype=list, default=["CYG_A","CAS_A","TAU_A","VIR_A","HERCULES_A","3C_353","HYDRA_A","3C_123"])
+    N2_freq = config.Property(proptype=list, default=[433.59375,558.203125,665.625,758.203125])
 
     # Config parameters defining output data product
     output_suffix = config.Property(proptype=str, default="spectrum")
@@ -454,6 +455,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     raise ValueError("Peak type not recognized")
 
                 peak_flux = fitter.predict(ha_max) 
+                N2_freq_ind = find_freq(data.freq, N2_freq)
+                N2_flux = peak_flux[N2_freq_ind]
 
                 # Write to file
                 output_file = os.path.join(
@@ -627,3 +630,7 @@ def _correct_phase_wrap(phi, deg=False):
         return ((phi + 180.0) % 360.0) - 180.0
     else:
         return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
+
+def find_freq(freq, freq_sel):
+    ind = [np.argmin(np.abs(freq-freq_i)) for freq_i in freq_sel]
+    return ind
