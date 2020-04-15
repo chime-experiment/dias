@@ -46,6 +46,10 @@ from dias.utils.helpers import get_cyl
 # main analyzer task
 ########################################################
 
+DB_FILE = "data_index_source.db"
+CREATE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
+                     start TIMESTAMP, stop TIMESTAMP,
+                     filename TEXT UNIQUE ON CONFLICT REPLACE)"""
 
 class SourceSpectraAnalyzer(CHIMEAnalyzer):
     """Extracts flux of a given source transit, as a function of freq, when the source is right at the zenith.
@@ -190,7 +194,24 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         Creates metrics.
         """
-            
+        
+        """Open connection to data index database.
+
+        Creates table if it does not exist.
+        Further, it adds the data metric.
+        """
+        # Check for database
+
+        db_file = os.path.join(self.state_dir, DB_FILE)
+        db_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        self.data_index = sqlite3.connect(
+            db_file, detect_types=db_types, check_same_thread=False
+        )
+
+        cursor = self.data_index.cursor()
+        cursor.execute(CREATE_DB_TABLE)
+        self.data_index.commit()
+
 	# initalise run metric
         #self.run_metric.labels(source=src).set(0)
 
@@ -225,6 +246,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             # Query files from now to period hours back
             query_stop_time = datetime.utcnow() - self.lag
             query_start_time = query_stop_time - self.period
+        
+            # Refresh the database
+            self.refresh_data_index()
+
+            cursor = self.data_index.cursor()
+            query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
+            results = list(cursor.execute(query))
+            query_start_time = results[0][0] if results else query_stop_time - self.period
 
             self.logger.info(
                 "Searching for transits from %s to %s"
@@ -464,6 +493,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     "%s_csd_%d_%s.h5" % (src.lower(), csd, self.output_suffix),
                 )
                 self.logger.info("Writing output files...")
+            
+                self.update_data_index(data.time[0], data.time[-1], filename=output_file)
 
                 with h5py.File(output_file, "w") as handler:
 
@@ -634,3 +665,64 @@ def _correct_phase_wrap(phi, deg=False):
 def find_freq(freq, freq_sel):
     ind = [np.argmin(np.abs(freq-freq_i)) for freq_i in freq_sel]
     return ind
+    
+def update_data_index(self, start, stop, filename=None):
+        """Add row to data index database.
+
+        Update the data index database with a row that
+        contains the name of the file and the span of time
+        the file contains.
+
+        Parameters
+        ----------
+        start : unix time
+            Earliest time contained in the file.
+        stop : unix time
+            Latest time contained in the file.
+        filename : str
+            Name of the file.
+
+        """
+        # Parse arguments
+
+        dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
+        dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
+
+        relpath = None
+        if filename is not None:
+            relpath = os.path.relpath(filename, self.write_dir)
+
+        # Insert row for this file
+        cursor = self.data_index.cursor()
+        cursor.execute(
+            "INSERT INTO files VALUES (?, ?, ?)", (dt_start, dt_stop, relpath)
+        )
+
+        self.data_index.commit()
+
+    def refresh_data_index(self):
+        """Remove expired rows from the data index database.
+
+        Remove any rows of the data index database
+        that correspond to files that have been cleaned
+        (removed) by dias manager.
+        """
+        cursor = self.data_index.cursor()
+        query = "SELECT filename FROM files ORDER BY start"
+        all_files = list(cursor.execute(query))
+
+        for result in all_files:
+
+            filename = result[0]
+
+            if not os.path.isfile(os.path.join(self.write_dir, filename)):
+
+                cursor = self.data_index.cursor()
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
+                self.data_index.commit()
+                self.logger.info("Removed %s from data index database." % filename)
+
+    def finish(self):
+        """Close connection to data index database."""
+        self.logger.info("Shutting down.")
+        self.data_index.close()
