@@ -114,12 +114,12 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                         flag_acq.name, nfiles))
                         flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
 
-                for file in all_files:
+                for _file in all_files:
                     ad = andata.CorrData.from_acq_h5(
-                        file,
+                        _file,
                         datasets=("flags/inputs", "flags/dataset_id", "flags/frac_lost"),
                     )
-                    self.logger.info(self.validate_flag_updates(ad, flg))
+                    self.validate_flag_updates(ad, flg)
 
 
 
@@ -185,7 +185,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 try:
                     flgind = update_ids.index(dsid)
                 except ValueError as err:
-                    print("Flags not found in file {}: {}".format(f, err))
+                    self.logger.debug("Flags not found in file {}: {}".format(f, err))
                     continue
                 flagsfile = f.flag[flgind]
             if flagsfile is None:
@@ -193,6 +193,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flagsfile[extra_bad] = False
 
             # Test if all flag entries match the one from the flaginput file
-            if (flags == flagsfile[:, np.newaxis]).all():
-                self.failed_checks.labels("check", "flags").inc()
-                self.logger.warn("'{}' file '{}' and '{}' file '{}': Flags don't match for dataset {}.".format(self.instrument, ad, self.flags_instrument, f))
+            if (flags != flagsfile[:, np.newaxis]).all():
+                self.failed_checks.labels(check="flags").inc()
+                self.logger.warn("'{}' corr file and '{}' flaginput file: Flags don't match for dataset {}.".format(self.instrument, self.flags_instrument, ds_id.decode('UTF-8')))
