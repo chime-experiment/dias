@@ -49,6 +49,7 @@ import os
 import subprocess
 import gc
 import scipy.constants
+import json
 
 import h5py
 import numpy as np
