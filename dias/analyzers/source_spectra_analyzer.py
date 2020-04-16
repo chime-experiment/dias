@@ -161,8 +161,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         option in include intracylinder baselines
     include_crosspol : bool
         option to include crosspol data
-    rot : float
-        Rotation angle of the cylinder in degrees
     nfreq_per_block : int
         number of frequency channels to be run in one block
         loading all frequency channels at the same time leads to memory error
@@ -198,7 +196,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     cyl_start_char = config.Property(proptype=int, default=65)
     cyl_start_num = config.Property(proptype=int, default=2)
     sep_cyl = config.Property(proptype=bool, default=False)
-    rot = config.Property(proptype=float, default=-0.088)
 
     # Config parameters related to optional inclusions
     include_auto = config.Property(proptype=bool, default=False)
@@ -504,8 +501,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 peak_flux = fitter.predict(ha_max) 
                 
-                N2_flux = np.zeros((len(N2_freq), npol))
-                N2_freq_ind = find_freq(data.freq, N2_freq)
+                N2_flux = np.zeros((len(self.N2_freq), npol))
+                N2_freq_ind = find_freq(data.freq, self.N2_freq)
                 N2_flux = peak_flux[N2_freq_ind].real
                 
                 for ii, freq_export in enumerate(data.freq[N2_freq_ind]):
@@ -594,7 +591,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         scale = defaultdict(list)
 
         # Compute feed positions with rotation
-        tools.change_chime_location(rotation=self.rot)
         feedpos = tools.get_feed_positions(inputmap)
         stack, stack_flag = tools.redefine_stack_index_map(
                 inputmap, indexmap["prod"], indexmap["stack"], reverse_stack)
