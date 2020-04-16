@@ -204,7 +204,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     include_auto = config.Property(proptype=bool, default=False)
     include_intracyl = config.Property(proptype=bool, default=False)
     include_crosspol = config.Property(proptype=bool, default=False)
-    process_daytime = config.Property(proptype=int, default=1)
+    process_daytime = config.Property(proptype=int, default=2)
 
     # Config parameters related to the algorithm
     nfreq_per_block = config.Property(proptype=int, default=16)
