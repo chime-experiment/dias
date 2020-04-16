@@ -541,24 +541,23 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     dset = handler.create_dataset("count", data=counter.astype(np.int))
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-                    if self.perform_fit:
 
-                        index_map.create_dataset("param", data="model_fitting")
+                    index_map.create_dataset("param", data="model_fitting")
 
-                        dset = handler.create_dataset("residual_noise", data=resid_rms)
-                        dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
+                    dset = handler.create_dataset("residual_noise", data=resid_rms)
+                    dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
-                        dset = handler.create_dataset("parameter", data=fitter.param)
-                        dset.attrs["axis"] = np.array(
-                            ["freq", "pol", "param"], dtype="S"
-                        )
+                    dset = handler.create_dataset("parameter", data=fitter.param)
+                    dset.attrs["axis"] = np.array(
+                        ["freq", "pol", "param"], dtype="S"
+                    )
 
-                        dset = handler.create_dataset(
-                            "parameter_cov", data=fitter.param_cov
-                        )
-                        dset.attrs["axis"] = np.array(
-                            ["freq", "pol", "param", "param"], dtype="S"
-                        )
+                    dset = handler.create_dataset(
+                        "parameter_cov", data=fitter.param_cov
+                    )
+                    dset.attrs["axis"] = np.array(
+                        ["freq", "pol", "param", "param"], dtype="S"
+                    )
 
                     handler.attrs["source"] = src
                     handler.attrs["csd"] = csd
