@@ -24,15 +24,11 @@ import os
 import gc
 import time
 import subprocess
-from datetime import datetime
 from collections import Counter, defaultdict
 
 import h5py
 import numpy as np
-import scipy.constants
-from scipy.optimize import curve_fit
 
-import ch_util
 from caput import config
 from chimedb import data_index
 from ch_util import ephemeris, andata, tools, cal_utils, fluxcat
@@ -40,6 +36,29 @@ from dias import CHIMEAnalyzer, exception
 from dias import __version__ as dias_version_tag
 from dias.utils.string_converter import str2timedelta
 from dias.utils.helpers import get_cyl
+
+from dias import CHIMEAnalyzer
+from datetime import datetime
+from caput import config
+from dias.utils.string_converter import str2timedelta
+from chimedb import data_index
+import sqlite3
+from dias.utils.helpers import get_cyl
+
+import os
+import subprocess
+import gc
+import scipy.constants
+
+import h5py
+import numpy as np
+
+import ch_util
+from ch_util import andata
+from ch_util import tools
+from ch_util import ephemeris
+from dias import exception
+from dias import __version__ as dias_version_tag
 
 
 ########################################################
@@ -213,9 +232,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         self.data_index.commit()
 
 	# initalise run metric
-        #self.run_metric.labels(source=src).set(0)
-
-        #self.logger.info("Sources: {}".format(self.source_transits))
+        self.flux_metric = self.add_data_metric(
+            "flux", labelnames=['frequency', 'source', 'pol'], unit='Jy')
 
     def run(self):
         """Run the analyzer.
@@ -484,8 +502,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     raise ValueError("Peak type not recognized")
 
                 peak_flux = fitter.predict(ha_max) 
+                
+                N2_flux = np.zeros((len(N2_freq), npol))
                 N2_freq_ind = find_freq(data.freq, N2_freq)
-                N2_flux = peak_flux[N2_freq_ind]
+                N2_flux = peak_flux[N2_freq_ind].real
+                
+                for ii, freq_export in enumerate(data.freq[N2_freq_ind]):
+                    for jj in range(npol):
+                        self.flux_metric.labels(frequency=freq_export, source=src, pol=jj).set(N2_flux[ii,jj])
 
                 # Write to file
                 output_file = os.path.join(
