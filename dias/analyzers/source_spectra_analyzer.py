@@ -53,7 +53,6 @@ import scipy.constants
 import h5py
 import numpy as np
 
-import ch_util
 from ch_util import andata
 from ch_util import tools
 from ch_util import ephemeris
@@ -246,10 +245,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         lat = np.radians(ephemeris.CHIMELATITUDE)
         err_msg = ""
             
-        self.logger.info(
-                ch_util.__version__)
-        self.logger.info(os.path.abspath(ch_util.__file__))
-
         # Create transit tracker
         for src in self.source_transits:
             try:
@@ -674,55 +669,39 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         return prod, prodmap, dist, conj, cyl, scale
 
+    def update_data_index(self, start, stop, filename=None):
+            """Add row to data index database.
 
-###################################################
-# auxiliary routines
-###################################################
+            Update the data index database with a row that
+            contains the name of the file and the span of time
+            the file contains.
 
-def _correct_phase_wrap(phi, deg=False):
+            Parameters
+            ----------
+            start : unix time
+                Earliest time contained in the file.
+            stop : unix time
+                Latest time contained in the file.
+            filename : str
+                Name of the file.
 
-    if deg:
-        return ((phi + 180.0) % 360.0) - 180.0
-    else:
-        return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
+            """
+            # Parse arguments
 
-def find_freq(freq, freq_sel):
-    ind = [np.argmin(np.abs(freq-freq_i)) for freq_i in freq_sel]
-    return ind
-    
-def update_data_index(self, start, stop, filename=None):
-        """Add row to data index database.
+            dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
+            dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
 
-        Update the data index database with a row that
-        contains the name of the file and the span of time
-        the file contains.
+            relpath = None
+            if filename is not None:
+                relpath = os.path.relpath(filename, self.write_dir)
 
-        Parameters
-        ----------
-        start : unix time
-            Earliest time contained in the file.
-        stop : unix time
-            Latest time contained in the file.
-        filename : str
-            Name of the file.
+            # Insert row for this file
+            cursor = self.data_index.cursor()
+            cursor.execute(
+                "INSERT INTO files VALUES (?, ?, ?)", (dt_start, dt_stop, relpath)
+            )
 
-        """
-        # Parse arguments
-
-        dt_start = ephemeris.unix_to_datetime(ephemeris.ensure_unix(start))
-        dt_stop = ephemeris.unix_to_datetime(ephemeris.ensure_unix(stop))
-
-        relpath = None
-        if filename is not None:
-            relpath = os.path.relpath(filename, self.write_dir)
-
-        # Insert row for this file
-        cursor = self.data_index.cursor()
-        cursor.execute(
-            "INSERT INTO files VALUES (?, ?, ?)", (dt_start, dt_stop, relpath)
-        )
-
-        self.data_index.commit()
+            self.data_index.commit()
 
     def refresh_data_index(self):
         """Remove expired rows from the data index database.
@@ -750,3 +729,20 @@ def update_data_index(self, start, stop, filename=None):
         """Close connection to data index database."""
         self.logger.info("Shutting down.")
         self.data_index.close()
+
+
+###################################################
+# auxiliary routines
+###################################################
+
+def _correct_phase_wrap(phi, deg=False):
+
+    if deg:
+        return ((phi + 180.0) % 360.0) - 180.0
+    else:
+        return ((phi + np.pi) % (2.0 * np.pi)) - np.pi
+
+def find_freq(freq, freq_sel):
+    ind = [np.argmin(np.abs(freq-freq_i)) for freq_i in freq_sel]
+    return ind
+    
