@@ -173,6 +173,12 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         0 would only process sources that transit at night
         1 would process all sources that transit when the sun is outside of the primary beam
         2 would process all sources
+    N2_freq: array, float
+        List of frequencies to be exported to prometheus
+    poly_deg_phi: int
+        Degree of polynomial for fitting the transit
+    peak_type: str
+        Peak of the transit can be 0 hour angle or maximum flux
 
     """
 
@@ -232,7 +238,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
 	# initalise run metric
         self.flux_metric = self.add_data_metric(
-            "flux", labelnames=['frequency', 'source', 'pol'], unit='Jy')
+            "flux", labelnames=['frequency', 'source', 'pol'], unit='Jansky')
 
     def run(self):
         """Run the analyzer.
