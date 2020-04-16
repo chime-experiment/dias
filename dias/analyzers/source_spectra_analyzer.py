@@ -562,7 +562,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     handler.attrs["source"] = src
                     handler.attrs["csd"] = csd
                     handler.attrs["chisq"] = fitter.chisq
-                    handler.attrs["dof"] = fitter.dof
+                    handler.attrs["ndof"] = fitter.ndof
                     handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
                     handler.attrs["model_class"] = ".".join(
                             [getattr(cal_utils.FitGaussAmpPolyPhase, key) for key in ["__module__", "__name__"]]
