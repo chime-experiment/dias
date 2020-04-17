@@ -1,5 +1,4 @@
-"""Extracts flux of a given source, as a function of freq,
-when the source is right at the zenith.
+"""Extracts flux of a given source at zenith, as a function of freq.
 
 .. currentmodule:: dias.analyzers.source_spectra_analyzer
 
@@ -73,8 +72,7 @@ CREATE_DB_TABLE = """CREATE TABLE IF NOT EXISTS files(
 
 
 class SourceSpectraAnalyzer(CHIMEAnalyzer):
-    """Extracts flux of a given source transit, as a function of freq,
-    when the source is right at the zenith.
+    """Extracts flux of a given source at zenith, as a function of freq.
 
     If the flux of the source is similar to what we expect from other
     measurements, our calibration is doing a good job.
@@ -275,8 +273,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             cursor = self.data_index.cursor()
             query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
             results = list(cursor.execute(query))
-            query_start_time = results[0][0]
-            if results else query_stop_time - self.period
+            if results:
+                query_start_time = results[0][0]
+            else:
+                query_start_time = query_stop_time - self.period
 
             self.logger.info(
                 "Searching for transits from %s to %s"
@@ -304,7 +304,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 if not all_files:
                     raise IndexError()
             except IndexError:
-                tmp = "No {} files found from last {} for
+                tmp = "No {} files found from last {} for \
                 source transit {}.\n".format(
                     self.acq_suffix, self.period, src
                 )
@@ -343,10 +343,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         break
 
                 if self.process_daytime < is_daytime:
-                    self.logger.info("Not processing % s as it does not
+                    self.logger.info("Not processing % s as it does not \
                                      meet daytime processing conditions" % (
-                                         src)
-                                     )
+                        src)
+                    )
                     continue
 
                 self.logger.info(
@@ -604,8 +604,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     )
                     handler.attrs["is_daytime"] = is_daytime
                     handler.attrs["instrument_name"] = self.correlator
-                    handler.attrs["collection_server"] =
-                    subprocess.check_output(
+                    handler.attrs["collection_server"] = \
+                        subprocess.check_output(
                         ["hostname"]).strip()
                     handler.attrs["system_user"] = subprocess.check_output(
                         ["id", "-u", "-n"]).strip()
