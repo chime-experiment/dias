@@ -576,7 +576,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                             ["id", "-u", "-n"]).strip()
                     handler.attrs["git_version_tag"] = dias_version_tag
                     self.logger.info("File for {} successfully written out.".format(src))
-                    self.run_metric.labels(source=src).inc()
 
         if err_msg:
             raise exception.DiasDataError(err_msg)
