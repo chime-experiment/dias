@@ -191,12 +191,22 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     # Config parameters defining data file selection
     correlator = config.Property(proptype=str, default="chime")
     acq_suffix = config.Property(proptype=str, default="stack_corr")
-    source_transits = config.Property(proptype=list, default=[
-                                      "CYG_A", "CAS_A", "TAU_A", "VIR_A",
-                                      "HERCULES_A", "3C_353", "HYDRA_A",
-                                      "3C_123"])
-    N2_freq = config.Property(proptype=list, default=[
-                              433.59375, 558.203125, 665.625, 758.203125])
+    source_transits = config.Property(
+        proptype=list,
+        default=[
+            "CYG_A",
+            "CAS_A",
+            "TAU_A",
+            "VIR_A",
+            "HERCULES_A",
+            "3C_353",
+            "HYDRA_A",
+            "3C_123",
+        ],
+    )
+    N2_freq = config.Property(
+        proptype=list, default=[433.59375, 558.203125, 665.625, 758.203125]
+    )
 
     # Config parameters defining output data product
     output_suffix = config.Property(proptype=str, default="spectrum")
@@ -216,7 +226,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     nfreq_per_block = config.Property(proptype=int, default=16)
     nsigma = config.Property(proptype=float, default=1.0)
     poly_deg_phi = config.Property(proptype=int, default=3)
-    peak_type = config.Property(proptype=str, default='max_amp')
+    peak_type = config.Property(proptype=str, default="max_amp")
 
     def setup(self):
         """Open connection to data index database.
@@ -238,7 +248,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         # initalise run metric
         self.flux_metric = self.add_data_metric(
-            "flux", labelnames=['frequency', 'source', 'pol'], unit='Jansky')
+            "flux", labelnames=["frequency", "source", "pol"], unit="Jansky"
+        )
 
     def run(self):
         """Run the analyzer.
@@ -259,8 +270,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 raise DiasConfigError("Invalid source: {}".format(e))
 
             self.logger.info(
-                "Initializing offline point source processing for {}.".format(
-                    src)
+                "Initializing offline point source processing for {}.".format(src)
             )
 
             # Query files from now to period hours back
@@ -284,9 +294,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             )
 
             # nsigma distance in degree from transit from peak
-            time_delta = 2 * self.nsigma * cal_utils.guess_fwhm(
-                400.0, pol="X", dec=src_body.dec.radians, sigma=True,
-                seconds=True)
+            time_delta = (
+                2
+                * self.nsigma
+                * cal_utils.guess_fwhm(
+                    400.0, pol="X", dec=src_body.dec.radians, sigma=True, seconds=True
+                )
+            )
 
             # Find all calibration files that have transit of given source
             f = self.Finder()
@@ -329,8 +343,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 is_daytime = 0.0
                 # test if the source is transiting in the daytime
                 solar_rise = ephemeris.solar_rising(
-                    source_start_time - 24.0 * 3600.0,
-                    end_time=source_stop_time
+                    source_start_time - 24.0 * 3600.0, end_time=source_stop_time
                 )
                 for rr in solar_rise:
                     ss = ephemeris.solar_setting(rr)[0]
@@ -343,14 +356,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         break
 
                 if self.process_daytime < is_daytime:
-                    self.logger.info("Not processing % s as it does not \
-                                     meet daytime processing conditions" % (
-                        src)
+                    self.logger.info(
+                        "Not processing % s as it does not \
+                                     meet daytime processing conditions"
+                        % (src)
                     )
                     continue
 
-                self.logger.info(
-                    "Now processing %s transit on CSD %d" % (src, csd))
+                self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
 
                 # Look up inputmap
                 inputmap = tools.get_correlator_inputs(
@@ -361,10 +374,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 # Load index map and reverse map
                 data = andata.CorrData.from_acq_h5(
                     files,
-                    start=int(
-                        np.argmin(np.abs(file_timestamp - source_start_time))),
-                    stop=int(
-                        np.argmin(np.abs(file_timestamp - source_stop_time))),
+                    start=int(np.argmin(np.abs(file_timestamp - source_start_time))),
+                    stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
                     datasets=["reverse_map", "flags/inputs"],
                     apply_gain=False,
                     renormalize=False,
@@ -386,13 +397,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 npol = pols.size
 
                 # Calculate counts
-                cnt = np.zeros(
-                    (data.index_map["stack"].size, ntime), dtype=np.float32)
+                cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
 
                 if np.any(data.flags["inputs"][:]):
                     for pp, ss in zip(
-                        data.index_map["prod"][:],
-                        data.reverse_map["stack"]["stack"][:]
+                        data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
                     ):
                         cnt[ss, :] += (
                             data.flags["inputs"][pp[0], :]
@@ -421,8 +430,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     t0 = time.time()
 
                     fstart = block_number * self.nfreq_per_block
-                    fstop = min((block_number + 1) *
-                                self.nfreq_per_block, nfreq)
+                    fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                     freq_sel = slice(fstart, fstop)
 
                     self.logger.info(
@@ -433,12 +441,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     bdata = andata.CorrData.from_acq_h5(
                         files,
                         start=int(
-                            np.argmin(
-                                np.abs(file_timestamp - source_start_time))
+                            np.argmin(np.abs(file_timestamp - source_start_time))
                         ),
-                        stop=int(
-                            np.argmin(np.abs(file_timestamp
-                                             - source_stop_time))),
+                        stop=int(np.argmin(np.abs(file_timestamp - source_stop_time))),
                         freq_sel=freq_sel,
                         datasets=["vis", "flags/vis_weight"],
                         apply_gain=False,
@@ -449,8 +454,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     bvar = tools.invert_no_zero(bdata.weight[:])
 
                     lmbda = (
-                        scipy.constants.c * 1e-6 /
-                        bdata.freq[:, np.newaxis, np.newaxis]
+                        scipy.constants.c * 1e-6 / bdata.freq[:, np.newaxis, np.newaxis]
                     )
 
                     # Loop over polarizations
@@ -473,8 +477,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         )
 
                         vis[freq_sel, ii, :] += np.sum(
-                            pscale * pcnt * pflag * pvis * fringestop_phase,
-                            axis=1
+                            pscale * pcnt * pflag * pvis * fringestop_phase, axis=1
                         )
                         var[freq_sel, ii, :] += np.sum(
                             (pscale * pcnt) ** 2 * pflag * pvar, axis=1
@@ -508,17 +511,15 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 flag = counter > 0.0
 
-                fitter = cal_utils.FitGaussAmpPolyPhase(
-                    poly_deg_phi=self.poly_deg_phi)
-                fitter.fit(ha, vis.real, np.sqrt(var),
-                           width=fwhm, absolute_sigma=True)
+                fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
+                fitter.fit(ha, vis.real, np.sqrt(var), width=fwhm, absolute_sigma=True)
                 resid = vis.real - fitter.predict(ha)
                 resid_rms = np.std(resid, axis=-1)
 
-                if self.peak_type == 'max_amp':
+                if self.peak_type == "max_amp":
                     # To have one slice in time
                     ha_max = np.nanmedian(fitter.peak())
-                elif self.peak_type == 'zero_ha':
+                elif self.peak_type == "zero_ha":
                     ha_max = 0.0
                 else:
                     raise ValueError("Peak type not recognized")
@@ -532,8 +533,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 for ii, freq_export in enumerate(data.freq[N2_freq_ind]):
                     for jj in range(npol):
                         self.flux_metric.labels(
-                            frequency=freq_export, source=src,
-                            pol=jj).set(N2_flux[ii, jj])
+                            frequency=freq_export, source=src, pol=jj
+                        ).set(N2_flux[ii, jj])
 
                 # Write to file
                 output_file = os.path.join(
@@ -543,21 +544,20 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 self.logger.info("Writing output files...")
 
                 self.update_data_index(
-                    data.time[0], data.time[-1], filename=output_file)
+                    data.time[0], data.time[-1], filename=output_file
+                )
 
                 with h5py.File(output_file, "w") as handler:
 
                     index_map = handler.create_group("index_map")
-                    index_map.create_dataset(
-                        "freq", data=data.index_map["freq"][:])
+                    index_map.create_dataset("freq", data=data.index_map["freq"][:])
                     index_map.create_dataset("pol", data=np.string_(pols))
                     index_map.create_dataset("time", data=data.time)
                     index_map.create_dataset("ra", data=ra)
                     index_map.create_dataset("ha", data=ha)
 
                     dset = handler.create_dataset("vis", data=vis)
-                    dset.attrs["axis"] = np.array(
-                        ["freq", "pol", "ha"], dtype="S")
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
                     dset = handler.create_dataset("peak_vis", data=peak_flux)
                     dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
@@ -565,25 +565,18 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     dset = handler.create_dataset(
                         "weight", data=tools.invert_no_zero(var)
                     )
-                    dset.attrs["axis"] = np.array(
-                        ["freq", "pol", "ha"], dtype="S")
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-                    dset = handler.create_dataset(
-                        "count", data=counter.astype(np.int))
-                    dset.attrs["axis"] = np.array(
-                        ["freq", "pol", "ha"], dtype="S")
+                    dset = handler.create_dataset("count", data=counter.astype(np.int))
+                    dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
                     index_map.create_dataset("param", data="model_fitting")
 
-                    dset = handler.create_dataset(
-                        "residual_noise", data=resid_rms)
+                    dset = handler.create_dataset("residual_noise", data=resid_rms)
                     dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
-                    dset = handler.create_dataset(
-                        "parameter", data=fitter.param)
-                    dset.attrs["axis"] = np.array(
-                        ["freq", "pol", "param"], dtype="S"
-                    )
+                    dset = handler.create_dataset("parameter", data=fitter.param)
+                    dset.attrs["axis"] = np.array(["freq", "pol", "param"], dtype="S")
 
                     dset = handler.create_dataset(
                         "parameter_cov", data=fitter.param_cov
@@ -596,22 +589,25 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     handler.attrs["csd"] = csd
                     handler.attrs["chisq"] = fitter.chisq
                     handler.attrs["ndof"] = fitter.ndof
-                    handler.attrs["model_kwargs"] = json.dumps(
-                        fitter.model_kwargs)
+                    handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
                     handler.attrs["model_class"] = ".".join(
-                        [getattr(cal_utils.FitGaussAmpPolyPhase, key)
-                         for key in ["__module__", "__name__"]]
+                        [
+                            getattr(cal_utils.FitGaussAmpPolyPhase, key)
+                            for key in ["__module__", "__name__"]
+                        ]
                     )
                     handler.attrs["is_daytime"] = is_daytime
                     handler.attrs["instrument_name"] = self.correlator
-                    handler.attrs["collection_server"] = \
-                        subprocess.check_output(
-                        ["hostname"]).strip()
+                    handler.attrs["collection_server"] = subprocess.check_output(
+                        ["hostname"]
+                    ).strip()
                     handler.attrs["system_user"] = subprocess.check_output(
-                        ["id", "-u", "-n"]).strip()
+                        ["id", "-u", "-n"]
+                    ).strip()
                     handler.attrs["git_version_tag"] = dias_version_tag
                     self.logger.info(
-                        "File for {} successfully written out.".format(src))
+                        "File for {} successfully written out.".format(src)
+                    )
 
         if err_msg:
             raise exception.DiasDataError(err_msg)
@@ -628,12 +624,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         # Compute feed positions with rotation
         feedpos = tools.get_feed_positions(inputmap)
         stack, stack_flag = tools.redefine_stack_index_map(
-            inputmap, indexmap["prod"], indexmap["stack"], reverse_stack)
+            inputmap, indexmap["prod"], indexmap["stack"], reverse_stack
+        )
 
         if not np.all(stack_flag):
             self.logger.warning(
                 "There are %d stacked baselines that are masked "
-                "by the inputmap." % np.sum(~stack_flag))
+                "by the inputmap." % np.sum(~stack_flag)
+            )
 
         for pp, (this_prod, this_conj) in enumerate(stack):
 
@@ -758,11 +756,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             if not os.path.isfile(os.path.join(self.write_dir, filename)):
 
                 cursor = self.data_index.cursor()
-                cursor.execute(
-                    "DELETE FROM files WHERE filename = ?", (filename,))
+                cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info(
-                    "Removed %s from data index database." % filename)
+                self.logger.info("Removed %s from data index database." % filename)
 
     def finish(self):
         """Close connection to data index database."""
@@ -773,6 +769,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 ###################################################
 # auxiliary routines
 ###################################################
+
 
 def _correct_phase_wrap(phi, deg=False):
 
