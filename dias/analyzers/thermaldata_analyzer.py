@@ -109,7 +109,6 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         f.filter_acqs((data_index.ArchiveInst.name == "chimetiming"))
         f.accept_all_global_flags()
 
-
         results_list = f.get_results()
         # only use the first acquisition found
         try:
@@ -123,18 +122,19 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             raise exception.DiasDataError(msg)
 
         read = first_result.as_reader()
-        inputs =list( read.input['chan_id'])
+        inputs = list(read.input["chan_id"])
         prods = read.prod
         freq = read.freq["centre"]
         ntimes = len(read.time)
         time_indices = np.linspace(
-                self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
-                )
+            self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
+        )
 
         # Determine prod_sel
         prod_sel = []
         for ii in range(ncables):
             chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
+            chan_id, ref_id = inputs.index(chan_id), inputs.index(ref_id)
 
             pidx = np.where(
                 np.logical_or(
