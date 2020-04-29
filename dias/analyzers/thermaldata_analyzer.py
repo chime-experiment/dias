@@ -131,6 +131,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         ), "At this point, there should be at least 1 result"
 
         reader = andata.CorrReader(first_acquisition)
+        inputs = list(reader.input["chan_id"])
         prods = reader.prod
         freq = reader.freq["centre"]
         ntimes = len(reader.time)
