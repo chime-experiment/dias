@@ -107,7 +107,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
         results_list = self.filter_files_by_time(results_list, start_time, end_time)
 
-        # only use the first acquisition found
+        # only using the first acquisition found
         try:
             first_result = results_list[0]
         except IndexError:
@@ -131,6 +131,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         ), "At this point, there should be at least 1 result"
 
         reader = andata.CorrReader(first_acquisition)
+        inputs = list(reader.input["chan_id"])
         prods = reader.prod
         freq = reader.freq["centre"]
         ntimes = len(reader.time)
