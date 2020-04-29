@@ -137,6 +137,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             prod_sel = []
             for ii in range(ncables):
                 chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
+                chan_id, ref_id = inputs.index(chan_id), inputs.index(ref_id)
                 pidx = np.where(
                     np.logical_or(
                         np.logical_and(
