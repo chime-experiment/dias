@@ -2,13 +2,11 @@
 import numpy as np
 import requests
 import msgpack
-from datetime import datetime
 from os import path
 import h5py
 
 from dias import CHIMEAnalyzer
 from dias.exception import DiasDataError
-from dias.utils import str2timedelta, datetime2str
 from caput import config
 from ch_util import ephemeris as ephem
 from bitshuffle import h5
