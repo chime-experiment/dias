@@ -105,8 +105,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Loop over contiguous periods within this acquisition
             for all_files, (tstart, tend) in acq_results:
-                print("all files: {}, start {} end {}".format(all_files, tstart, tend))
-
                 nfiles = len(all_files)
 
                 if nfiles == 0:
@@ -147,11 +145,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     # Loop over contiguous periods within this acquisition
                     flg = list()
                     for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
-                        print(
-                            "all files: {}, start {} end {}".format(
-                                all_flag_files, flag_tstart, flag_tend
-                            )
-                        )
                         nfiles = len(all_flag_files)
 
                         if nfiles == 0:
