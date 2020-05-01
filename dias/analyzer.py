@@ -77,7 +77,7 @@ class Analyzer(config.Reader):
         self.write_dir = write_dir
         self.state_dir = state_dir
 
-    def init_logger(self, log_level_override=None):
+    def init_logger(self, log_level_override="NOTSET"):
         """
         Set up the logger.
 
