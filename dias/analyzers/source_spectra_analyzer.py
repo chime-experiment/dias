@@ -108,7 +108,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         1D array which contains the hour angle covered in the output file.
     param
         parameter names describing fit to the transit 
-        
+
 
     Datasets
     ........
@@ -125,18 +125,18 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     ra
         1D array which contains the right ascension of the source.
     peak_vis
-	Flux of the source at peak of the transit
+        Flux of the source at peak of the transit
     residual_noise
-	Residuals when fitting the transit
+        Residuals when fitting the transit
     parameter
-	Best-fit parameters of the transit fitting
+        Best-fit parameters of the transit fitting
     parameter_cov
-	Covariance matrix for best-fit parameters
+        Covariance matrix for best-fit parameters
     ndof
         Number of degrees of freedom
     chisq
         Chisqaure of the transit fits
-	
+
     Attributes for output dataset
     .............................
     instrument_name
