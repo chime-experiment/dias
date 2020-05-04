@@ -37,29 +37,11 @@ from dias import __version__ as dias_version_tag
 from dias.utils.string_converter import str2timedelta
 from dias.utils.helpers import get_cyl
 
-from dias import CHIMEAnalyzer
 from datetime import datetime
-from caput import config
-from dias.utils.string_converter import str2timedelta
-from chimedb import data_index
 import sqlite3
-from dias.utils.helpers import get_cyl
 
-import os
-import subprocess
-import gc
 import scipy.constants
 import json
-
-import h5py
-import numpy as np
-
-from ch_util import andata
-from ch_util import tools
-from ch_util import ephemeris
-from dias import exception
-from dias import __version__ as dias_version_tag
-
 
 ########################################################
 # main analyzer task
