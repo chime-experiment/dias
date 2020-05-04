@@ -343,8 +343,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             f.filter_acqs((data_index.ArchiveInst.name == self.acq_suffix))
             f.include_transits(src_body, time_delta=time_delta)
             file_list = f.get_results()
-            nfile = len(file_list)
-            times = [file_list[ii][1] for ii in range(0, nfile)]
 
             try:
                 all_files = file_list[0][0]
@@ -532,8 +530,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     fwhm[:, ii] = cal_utils.guess_fwhm(
                         data.freq, pol=pols[ii][0], dec=src_dec, sigma=True
                     )
-
-                flag = counter > 0.0
 
                 fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
                 fitter.fit(ha, vis, np.sqrt(var), width=fwhm, absolute_sigma=True)
