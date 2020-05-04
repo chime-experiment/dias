@@ -247,7 +247,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     include_auto = config.Property(proptype=bool, default=False)
     include_intracyl = config.Property(proptype=bool, default=False)
     include_crosspol = config.Property(proptype=bool, default=False)
-    process_daytime = config.enum([0,1,2], default=2)
+    process_daytime = config.enum([0, 1, 2], default=2)
 
     # Config parameters related to the algorithm
     nfreq_per_block = config.Property(proptype=int, default=16)
@@ -278,7 +278,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             "flux", labelnames=["frequency", "source", "pol"], unit="jansky"
         )
 
-
     def run(self):
         """Run the analyzer.
 
@@ -290,11 +289,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         lat = np.radians(ephemeris.CHIMELATITUDE)
         err_msg = ""
         query_inputmap = datetime.utcnow() - self.offset
-                
+
         # Look up inputmap
         inputmap = tools.get_correlator_inputs(
-            ephemeris.unix_to_datetime(query_inputmap),
-            correlator=self.correlator,
+            ephemeris.unix_to_datetime(query_inputmap), correlator=self.correlator,
         )
 
         # Create transit tracker
@@ -354,9 +352,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     raise IndexError()
             except IndexError:
                 tmp = "No {} files found from last {} for "
-                "source transit {}.\n".format(
-                    self.acq_suffix, self.period, src
-                )
+                "source transit {}.\n".format(self.acq_suffix, self.period, src)
                 err_msg += tmp
                 self.logger.info(tmp)
                 continue
@@ -393,13 +389,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 if self.process_daytime < is_daytime:
                     self.logger.info(
                         "Not processing % s as it does not "
-                                     "meet daytime processing conditions"
-                        % (src)
+                        "meet daytime processing conditions" % (src)
                     )
                     continue
 
                 self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
-
 
                 # Load index map and reverse map
                 data = andata.CorrData.from_acq_h5(
@@ -552,7 +546,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 elif self.peak_type == "zero_ha":
                     ha_max = 0.0
                 else:
-                    raise ValueError("Peak type {} not recognized".format(self.peak_type))
+                    raise ValueError(
+                        "Peak type {} not recognized".format(self.peak_type)
+                    )
 
                 peak_flux = fitter.predict(ha_max)
 
@@ -611,7 +607,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                     dset = handler.create_dataset("parameter", data=fitter.param)
                     dset.attrs["axis"] = np.array(["freq", "pol", "param"], dtype="S")
-                    
+
                     dset = handler.create_dataset("chisq", data=fitter.chisq)
                     dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
