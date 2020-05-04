@@ -104,13 +104,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         There are two polarizations:
         index 0 is E-W polarization and
         index 1 is N-S polarization.
-    time
-        1D array of type `float` that contains the Unix timestamps
-        at which data is recorded.
-    ra
-        1D array which contains the right ascension of the source.
     ha
         1D array which contains the hour angle covered in the output file.
+    param
+        parameter names describing fit to the transit 
+        
 
     Datasets
     ........
@@ -121,7 +119,24 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         as a function of frequency and time.
     count
         Normalization to the summed and weighted noise variance.
-
+    time
+        1D array of type `float` that contains the Unix timestamps
+        at which data is recorded.
+    ra
+        1D array which contains the right ascension of the source.
+    peak_vis
+	Flux of the source at peak of the transit
+    residual_noise
+	Residuals when fitting the transit
+    parameter
+	Best-fit parameters of the transit fitting
+    parameter_cov
+	Covariance matrix for best-fit parameters
+    ndof
+        Number of degrees of freedom
+    chisq
+        Chisqaure of the transit fits
+	
     Attributes for output dataset
     .............................
     instrument_name
@@ -132,6 +147,18 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         User account running the script.
     git_version_tag
         Version of code used.
+    is_daytime
+        Decides whether source is transiting
+        during the daytime
+    model_kwargs
+        Settings for transit fitting
+    model_class
+        Class used for transit fitting
+    csd
+        CSD of the transit
+    src
+        Source name
+
 
     State Data
     -----------
@@ -142,8 +169,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
     Attributes
     ----------
-    lag : timedelta
-        Number of hours before time of script execution for searching the files
+    offset : timedelta
+       A time period (e.g. '1h'), before time of script execution for searching the files (default `4h`). 
     correlator : str
         Source of the input data
     acq_suffix : str
@@ -162,7 +189,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     include_auto : bool
         option to include autocorrelation
     include_intracyl : bool
-        option in include intracylinder baselines
+        option to include intracylinder baselines
     include_crosspol : bool
         option to include crosspol data
     nfreq_per_block : int
@@ -186,7 +213,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     """
 
     # Config parameters related to scheduling
-    lag = config.Property(proptype=str2timedelta, default="4h")
+    offset = config.Property(proptype=str2timedelta, default="4h")
 
     # Config parameters defining data file selection
     correlator = config.Property(proptype=str, default="chime")
@@ -220,13 +247,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     include_auto = config.Property(proptype=bool, default=False)
     include_intracyl = config.Property(proptype=bool, default=False)
     include_crosspol = config.Property(proptype=bool, default=False)
-    process_daytime = config.Property(proptype=int, default=2)
+    process_daytime = config.enum([0,1,2], default=2)
 
     # Config parameters related to the algorithm
     nfreq_per_block = config.Property(proptype=int, default=16)
     nsigma = config.Property(proptype=float, default=1.0)
     poly_deg_phi = config.Property(proptype=int, default=3)
-    peak_type = config.Property(proptype=str, default="max_amp")
+    peak_type = config.enum(["max_amp", "zero_ha"], default="max_amp")
 
     def setup(self):
         """Open connection to data index database.
@@ -248,8 +275,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         # initalise run metric
         self.flux_metric = self.add_data_metric(
-            "flux", labelnames=["frequency", "source", "pol"], unit="Jansky"
+            "flux", labelnames=["frequency", "source", "pol"], unit="jansky"
         )
+
 
     def run(self):
         """Run the analyzer.
@@ -261,6 +289,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         """
         lat = np.radians(ephemeris.CHIMELATITUDE)
         err_msg = ""
+        query_inputmap = datetime.utcnow() - self.offset
+                
+        # Look up inputmap
+        inputmap = tools.get_correlator_inputs(
+            ephemeris.unix_to_datetime(query_inputmap),
+            correlator=self.correlator,
+        )
 
         # Create transit tracker
         for src in self.source_transits:
@@ -274,7 +309,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             )
 
             # Query files from now to period hours back
-            query_stop_time = datetime.utcnow() - self.lag
+            query_stop_time = datetime.utcnow() - self.offset
             query_start_time = query_stop_time - self.period
 
             # Refresh the database
@@ -318,8 +353,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 if not all_files:
                     raise IndexError()
             except IndexError:
-                tmp = "No {} files found from last {} for \
-                source transit {}.\n".format(
+                tmp = "No {} files found from last {} for "
+                "source transit {}.\n".format(
                     self.acq_suffix, self.period, src
                 )
                 err_msg += tmp
@@ -340,7 +375,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 )
                 source_start_time, source_stop_time = file_list[file_index][1]
 
-                is_daytime = 0.0
+                is_daytime = 0
                 # test if the source is transiting in the daytime
                 solar_rise = ephemeris.solar_rising(
                     source_start_time - 24.0 * 3600.0, end_time=source_stop_time
@@ -357,19 +392,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 if self.process_daytime < is_daytime:
                     self.logger.info(
-                        "Not processing % s as it does not \
-                                     meet daytime processing conditions"
+                        "Not processing % s as it does not "
+                                     "meet daytime processing conditions"
                         % (src)
                     )
                     continue
 
                 self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
 
-                # Look up inputmap
-                inputmap = tools.get_correlator_inputs(
-                    ephemeris.unix_to_datetime(ephemeris.csd_to_unix(csd)),
-                    correlator=self.correlator,
-                )
 
                 # Load index map and reverse map
                 data = andata.CorrData.from_acq_h5(
@@ -512,7 +542,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 flag = counter > 0.0
 
                 fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
-                fitter.fit(ha, vis.real, np.sqrt(var), width=fwhm, absolute_sigma=True)
+                fitter.fit(ha, vis, np.sqrt(var), width=fwhm, absolute_sigma=True)
                 resid = vis.real - fitter.predict(ha)
                 resid_rms = np.std(resid, axis=-1)
 
@@ -522,7 +552,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 elif self.peak_type == "zero_ha":
                     ha_max = 0.0
                 else:
-                    raise ValueError("Peak type not recognized")
+                    raise ValueError("Peak type {} not recognized".format(self.peak_type))
 
                 peak_flux = fitter.predict(ha_max)
 
@@ -541,7 +571,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     self.write_dir,
                     "%s_csd_%d_%s.h5" % (src.lower(), csd, self.output_suffix),
                 )
-                self.logger.info("Writing output files...")
+                self.logger.info("Writing {}...".format(output_file))
 
                 self.update_data_index(
                     data.time[0], data.time[-1], filename=output_file
@@ -552,9 +582,13 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     index_map = handler.create_group("index_map")
                     index_map.create_dataset("freq", data=data.index_map["freq"][:])
                     index_map.create_dataset("pol", data=np.string_(pols))
-                    index_map.create_dataset("time", data=data.time)
-                    index_map.create_dataset("ra", data=ra)
                     index_map.create_dataset("ha", data=ha)
+
+                    dset = handler.create_dataset("ra", data=ra)
+                    dset.attrs["axis"] = np.array(["ha"], dtype="S")
+
+                    dset = handler.create_dataset("time", data=data.time)
+                    dset.attrs["axis"] = np.array(["ha"], dtype="S")
 
                     dset = handler.create_dataset("vis", data=vis)
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
@@ -570,13 +604,19 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     dset = handler.create_dataset("count", data=counter.astype(np.int))
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-                    index_map.create_dataset("param", data="model_fitting")
+                    index_map.create_dataset("param", data=fitter.parameter_names)
 
                     dset = handler.create_dataset("residual_noise", data=resid_rms)
                     dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
                     dset = handler.create_dataset("parameter", data=fitter.param)
                     dset.attrs["axis"] = np.array(["freq", "pol", "param"], dtype="S")
+                    
+                    dset = handler.create_dataset("chisq", data=fitter.chisq)
+                    dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
+
+                    dset = handler.create_dataset("ndof", data=fitter.ndof)
+                    dset.attrs["axis"] = np.array(["freq", "pol"], dtype="S")
 
                     dset = handler.create_dataset(
                         "parameter_cov", data=fitter.param_cov
