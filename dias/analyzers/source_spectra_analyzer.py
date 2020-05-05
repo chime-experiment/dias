@@ -260,6 +260,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             "flux", labelnames=["frequency", "source", "pol"], unit="jansky"
         )
 
+        # Check if all sources are in Catalog
+        for src in self.source_transits:
+            if src not in fluxcat.FluxCatalog:
+                raise DiasConfigError("Invalid source: {}".format(src))
+
     def run(self):
         """Run the analyzer.
 
@@ -279,10 +284,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         # Create transit tracker
         for src in self.source_transits:
-            try:
-                src_body = fluxcat.FluxCatalog[src].skyfield
-            except KeyError as e:
-                raise DiasConfigError("Invalid source: {}".format(e))
+
+            src_body = fluxcat.FluxCatalog[src].skyfield
 
             self.logger.info(
                 "Initializing offline point source processing for {}.".format(src)
@@ -326,16 +329,14 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             f.include_transits(src_body, time_delta=time_delta)
             file_list = f.get_results()
 
-            try:
-                all_files = file_list[0][0]
-                if not all_files:
-                    raise IndexError()
-            except IndexError:
+            if len(file_list) == 0:
                 tmp = "No {} files found from last {} for "
                 "source transit {}.\n".format(self.acq_suffix, self.period, src)
                 err_msg += tmp
                 self.logger.info(tmp)
                 continue
+
+            all_files = file_list[0][0]
 
             # Loop over files
             for file_index, files in enumerate(all_files):
