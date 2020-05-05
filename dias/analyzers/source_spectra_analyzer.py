@@ -270,7 +270,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         """
         lat = np.radians(ephemeris.CHIMELATITUDE)
         err_msg = ""
-        query_inputmap = datetime.utcnow() - self.offset
+        query_inputmap = datetime.timestamp(datetime.utcnow() - self.offset)
 
         # Look up inputmap
         inputmap = tools.get_correlator_inputs(
