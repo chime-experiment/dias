@@ -281,6 +281,26 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         inputmap = tools.get_correlator_inputs(
             ephemeris.unix_to_datetime(query_inputmap), correlator=self.correlator,
         )
+        
+        # Query files from now to period hours back
+        query_stop_time = datetime.utcnow() - self.offset
+        query_start_time = query_stop_time - self.period
+
+        # Refresh the database
+        self.refresh_data_index()
+
+        cursor = self.data_index.cursor()
+        query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
+        results = list(cursor.execute(query))
+        if results:
+            query_start_time = results[0][0]
+        else:
+            query_start_time = query_stop_time - self.period
+
+        self.logger.info(
+            "Searching for transits from %s to %s"
+            % (str(query_start_time), str(query_stop_time))
+        )
 
         # Create transit tracker
         for src in self.source_transits:
@@ -291,25 +311,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 "Initializing offline point source processing for {}.".format(src)
             )
 
-            # Query files from now to period hours back
-            query_stop_time = datetime.utcnow() - self.offset
-            query_start_time = query_stop_time - self.period
-
-            # Refresh the database
-            self.refresh_data_index()
-
-            cursor = self.data_index.cursor()
-            query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
-            results = list(cursor.execute(query))
-            if results:
-                query_start_time = results[0][0]
-            else:
-                query_start_time = query_stop_time - self.period
-
-            self.logger.info(
-                "Searching for transits from %s to %s"
-                % (str(query_start_time), str(query_stop_time))
-            )
 
             # nsigma distance in degree from transit from peak
             time_delta = (
