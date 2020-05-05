@@ -1117,6 +1117,13 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     for key, val in self.output_attrs.items():
                         handler.attrs[key] = val
 
+                    # h5py cannot write dtype = <U32
+                    # HDF5 has no support for them
+                    this_input = np.array(
+                        this_input,
+                        dtype=[("chan_id", "<u2"), ("correlator_input", "<S32")],
+                    )
+
                     # Create a group that describes the data
                     # that was searched
                     srchd = handler.create_group("searched")
