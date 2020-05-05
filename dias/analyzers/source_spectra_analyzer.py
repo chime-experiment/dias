@@ -281,7 +281,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         inputmap = tools.get_correlator_inputs(
             ephemeris.unix_to_datetime(query_inputmap), correlator=self.correlator,
         )
-        
+
         # Query files from now to period hours back
         query_stop_time = datetime.utcnow() - self.offset
         query_start_time = query_stop_time - self.period
@@ -310,7 +310,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             self.logger.info(
                 "Initializing offline point source processing for {}.".format(src)
             )
-
 
             # nsigma distance in degree from transit from peak
             time_delta = (
