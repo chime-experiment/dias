@@ -516,7 +516,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 fitter = cal_utils.FitGaussAmpPolyPhase(poly_deg_phi=self.poly_deg_phi)
                 fitter.fit(ha, vis, np.sqrt(var), width=fwhm, absolute_sigma=True)
-                resid = vis.real - fitter.predict(ha)
+                resid = vis - fitter.predict(ha)
                 resid_rms = np.std(resid, axis=-1)
 
                 if self.peak_type == "max_amp":
@@ -602,8 +602,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                     handler.attrs["source"] = src
                     handler.attrs["csd"] = csd
-                    handler.attrs["chisq"] = fitter.chisq
-                    handler.attrs["ndof"] = fitter.ndof
                     handler.attrs["model_kwargs"] = json.dumps(fitter.model_kwargs)
                     handler.attrs["model_class"] = ".".join(
                         [
