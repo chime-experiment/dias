@@ -24,24 +24,24 @@ import os
 import gc
 import time
 import subprocess
-from collections import Counter, defaultdict
+import json
+import sqlite3
+from datetime import datetime
+from collections import defaultdict
 
 import h5py
 import numpy as np
+import scipy.constants
 
 from caput import config
 from chimedb import data_index
 from ch_util import ephemeris, andata, tools, cal_utils, fluxcat
+from draco.util import tools as draco_tools
+
 from dias import CHIMEAnalyzer, exception
 from dias import __version__ as dias_version_tag
 from dias.utils.string_converter import str2timedelta
 from dias.utils.helpers import get_cyl
-
-from datetime import datetime
-import sqlite3
-
-import scipy.constants
-import json
 
 ########################################################
 # main analyzer task
@@ -402,21 +402,12 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 npol = pols.size
 
                 # Calculate counts
-                cnt = np.zeros((data.index_map["stack"].size, ntime), dtype=np.float32)
-
-                if np.any(data.flags["inputs"][:]):
-                    for pp, ss in zip(
-                        data.index_map["prod"][:], data.reverse_map["stack"]["stack"][:]
-                    ):
-                        cnt[ss, :] += (
-                            data.flags["inputs"][pp[0], :]
-                            * data.flags["inputs"][pp[1], :]
-                        )
-                else:
-                    for ss, val in Counter(
-                        data.reverse_map["stack"]["stack"][:]
-                    ).iteritems():
-                        cnt[ss, :] = val
+                cnt = draco_tools.calculate_redundancy(
+                    data.input_flags[:],
+                    data.prod[:],
+                    data.reverse_map["stack"]["stack"][:],
+                    data.nstack,
+                )
 
                 # Calculate hour angle
                 ra = np.radians(ephemeris.lsa(data_timestamp))
