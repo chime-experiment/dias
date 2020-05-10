@@ -59,6 +59,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     If the flux of the source is similar to what we expect from other
     measurements, our calibration is doing a good job.
 
+    `DocLib 1073 <https://bao.chimenet.ca/doc/documents/1073>`_ describes this
+    analyzer and the associated theremin graph.
+
     Metrics
     -------
 
