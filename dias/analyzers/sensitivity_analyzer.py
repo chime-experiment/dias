@@ -10,6 +10,7 @@ from caput import config
 from dias.utils.string_converter import str2timedelta
 from chimedb import data_index
 import sqlite3
+from dias.utils.helpers import get_cyl
 
 import os
 import subprocess
@@ -398,7 +399,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             else:
                 raise RuntimeError("CHIME feeds not polarized.")
 
-            this_cyl = "%s%s" % (self.get_cyl(inp_aa.cyl), self.get_cyl(inp_bb.cyl))
+            this_cyl = "%s%s" % (
+                get_cyl(inp_aa.cyl, self.cyl_start_num, self.cyl_start_char),
+                get_cyl(inp_bb.cyl, self.cyl_start_num, self.cyl_start_char),
+            )
             if self.sep_cyl:
                 key = key + "-" + this_cyl
 
@@ -426,10 +430,6 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         tools.change_chime_location(default=True)
 
         return prod, prodmap, dist, conj, cyl, scale
-
-    def get_cyl(self, cyl_num):
-        """Return the cylinfer ID (char)."""
-        return chr(cyl_num - self.cyl_start_num + self.cyl_start_char)
 
     def update_data_index(self, start, stop, filename=None):
         """Add row to data index database.

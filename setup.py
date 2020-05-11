@@ -66,6 +66,7 @@ setuptools.setup(
     install_requires=[
         "chimedb.data_index @ git+https://git@github.com/chime-experiment/chimedb_di.git",
         "caput @ git+https://github.com/radiocosmology/caput.git",
+        "draco @ git+https://github.com/radiocosmology/draco.git",
         "ch_util @ git+ssh://git@github.com/chime-experiment/ch_util.git@master",
         "prometheus_client>=0.5.0",
         "bitshuffle",
