@@ -353,7 +353,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 src_ra, src_dec = ephemeris.object_coords(
                     src_body, date=np.median(file_timestamp), deg=False
                 )
-                source_start_time, source_stop_time = file_list[file_index][1]
+                source_start_time, source_stop_time = (
+                    file_timestamp[0],
+                    file_timestamp[-1],
+                )
 
                 is_daytime = 0
                 # test if the source is transiting in the daytime
