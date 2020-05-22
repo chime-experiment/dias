@@ -1,4 +1,4 @@
-"""Extracts flux of a given source at zenith, as a function of freq.
+"""Extracts flux of a given source at zenith. Does this as a function of freq.
 
 .. currentmodule:: dias.analyzers.source_spectra_analyzer
 
@@ -92,7 +92,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     ha
         1D array which contains the hour angle covered in the output file.
     param
-        parameter names describing fit to the transit 
+        parameter names describing fit to the transit
 
 
     Datasets
@@ -155,7 +155,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
     Attributes
     ----------
     offset : timedelta
-       A time period (e.g. '1h'), before time of script execution for searching the files (default `4h`). 
+       A time period (e.g. '1h'), before time of script execution for searching the files (default `4h`).
     correlator : str
         Source of the input data
     acq_suffix : str
@@ -353,7 +353,10 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 src_ra, src_dec = ephemeris.object_coords(
                     src_body, date=np.median(file_timestamp), deg=False
                 )
-                source_start_time, source_stop_time = file_list[file_index][1]
+                source_start_time, source_stop_time = (
+                    file_timestamp[0],
+                    file_timestamp[-1],
+                )
 
                 is_daytime = 0
                 # test if the source is transiting in the daytime
