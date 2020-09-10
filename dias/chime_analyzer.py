@@ -14,8 +14,9 @@ class CHIMEAnalyzer(Analyzer):
     """
 
     archive_data_dir = config.Property(proptype=str)
+    staging_data_dir = config.Property(proptype=str)
 
-    def __init__(self, name, write_dir, state_dir):
+    def __init__(self, name, write_dir, state_dir, tracker):
         """Construct the CHIME analyzer base class.
 
         Parameters
@@ -26,8 +27,11 @@ class CHIMEAnalyzer(Analyzer):
             The path to write output data to.
         state_dir : String
             The path to write state data to.
+        tracker : :class: dias.tracker.Tracker
+            A file Tracker to associate with the analyzer.
+            Helps the analyzer keep track of which files it has not processed, yet.
         """
-        super().__init__(name, write_dir, state_dir)
+        super().__init__(name, write_dir, state_dir, tracker)
 
     def Finder(self, acqs=()):
         """

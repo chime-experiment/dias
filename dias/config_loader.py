@@ -5,6 +5,7 @@ import yaml
 import os
 from dias.utils import str2timedelta, str2path, str2bytes
 from dias import DiasConfigError, DiasUsageError, Task
+from dias.tracker import Tracker
 import copy
 
 # This is how a log line produced by dias will look like:
@@ -93,6 +94,14 @@ class ConfigLoader:
                 )
             )
             raise AttributeError(msg)
+
+        # initialise all of the trackers
+        self.trackers = {}
+        try:
+            for t in self.global_config["trackers"]:
+                self.trackers[t["name"]] = Tracker(t["path"], t["db_file"])
+        except KeyError:
+            pass
 
         # Load all the analyzers
         self._load_analyzers(limit_task)
@@ -215,10 +224,20 @@ class ConfigLoader:
                 # create the task object
                 task = Task(task_name, task_config, write_dir, state_dir)
 
+                # Load the tracker for the class
+                if ("tracker" in task_config) and (
+                    task_config["tracker"] in self.trackers
+                ):
+                    task_tracker = self.trackers[task_config["tracker"]]
+                else:
+                    task_tracker = None
+
                 # Load the analyzer for this task from the task config
                 analyzer_class = self._import_analyzer_class(task_config["analyzer"])
 
-                task.analyzer = analyzer_class(task_name, write_dir, state_dir)
+                task.analyzer = analyzer_class(
+                    task_name, write_dir, state_dir, task_tracker
+                )
                 task.analyzer.read_config(task_config)
 
                 self.tasks.append(task)
