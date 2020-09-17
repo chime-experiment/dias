@@ -282,7 +282,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         # Look up inputmap
         inputmap = tools.get_correlator_inputs(
-            ephemeris.unix_to_datetime(query_inputmap), correlator=self.correlator,
+            ephemeris.unix_to_datetime(query_inputmap), correlator=self.correlator
         )
 
         # Query files from now to period hours back
