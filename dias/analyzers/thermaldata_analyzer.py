@@ -104,8 +104,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         from chimedb import data_index
 
         # get the full list of files within that time range
-        results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
-        results_list = self.filter_files_by_time(results_list, start_time, end_time)
+        results_list = self.new_files("chimetiming")
 
         # only using the first acquisition found
         try:
@@ -168,6 +167,8 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
                 # First parameter is the slope
                 delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
                 self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+
+        self.register_done(results_list)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
         """Find the longest stretch of frequencies without phase wrapping.
