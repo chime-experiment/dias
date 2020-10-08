@@ -247,7 +247,7 @@ class Tracker:
                         "end_time": source["index_map/time"][-1]["ctime"],
                         "exists": True,
                     }
-                ).execute()
+                ).on_conflict_replace().execute()
 
     def remove_files(self, files):
         """
@@ -366,4 +366,4 @@ class Tracker:
         with db:
             # SQLite limits bulk inserts to 100 at a time
             for batch in chunked(records, 100):
-                Processed.insert_many(batch).on_conflict(action="IGNORE").execute()
+                Processed.insert_many(batch).on_conflict_replace().execute()
