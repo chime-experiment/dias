@@ -1,11 +1,10 @@
-"""Track output files and processed times."""
-
-import copy
-from ch_util import ephemeris
+import ephemeris
+import numpy as np
 import os
 import sqlite3
+import copy
 
-from dias.exception import DiasException
+from .exception import DiasException
 
 
 class FileTracker:
@@ -46,9 +45,7 @@ class FileTracker:
         self._additional_vars = kwargs
 
         # prepare create and insert commands for additional variables
-        self._create_cmd = (
-            "CREATE TABLE IF NOT EXISTS files(start TIMESTAMP, stop TIMESTAMP, "
-        )
+        self._create_cmd = "CREATE TABLE IF NOT EXISTS files(start TIMESTAMP, stop TIMESTAMP, "
         self._insert_cmd = "INSERT INTO files VALUES (?, ?, "
         for name, default in self._additional_vars.items():
             if type(default) is int:
@@ -56,13 +53,11 @@ class FileTracker:
             else:
                 raise DiasException(
                     "Type of additional value {}: {} is not supported (yet).".format(
-                        name, type(default)
-                    )
-                )
+                        name, type(default)))
             self._create_cmd += "{} {}, ".format(name, typename)
             self._insert_cmd += "?, "
         self._create_cmd += "filename TEXT UNIQUE ON CONFLICT REPLACE)"
-        self._insert_cmd += "?)"
+        self._insert_cmd += + "?)"
 
         # Open connection to data index database
         # and create table if it does not exist.
@@ -84,21 +79,9 @@ class FileTracker:
     def __del__(self):
         self.data_index.close()
 
-    def get_start_time(self, refresh_db=True):
-        """
-        Get the next start time.
-
-        Parameters
-        ----------
-        refresh_db : bool
-            Refresh the database before getting the start time (default: True).
-
-        Returns
-        -------
-        UTC date and time of next start time.
-        """
-        if refresh_db:
-            self._refresh_data_index()
+    def get_start_time(self):
+        # Refresh the database
+        self._refresh_data_index()
         cursor = self.data_index.cursor()
         query = "SELECT stop FROM files ORDER BY stop DESC LIMIT 1"
         results = list(cursor.execute(query))
@@ -133,9 +116,7 @@ class FileTracker:
         # check additional variables
         for k in kwargs:
             if k not in self._additional_vars.keys():
-                raise DiasException(
-                    "Found unexpected key in additional variables: {}".format(k)
-                )
+                raise DiasException("Found unexpected key in additional variables: {}".format(k))
         # start with default values and then update given additional values
         additional_vars = copy.copy(self._additional_vars)
         additional_vars.update(kwargs)
@@ -150,7 +131,9 @@ class FileTracker:
 
         # Insert row for this file
         cursor = self.data_index.cursor()
-        cursor.execute(self._insert_command, (dt_start, dt_stop, kwargs, relpath))
+        cursor.execute(
+            self._insert_command, (dt_start, dt_stop, **kwargs, relpath)
+        )
 
         self.data_index.commit()
         self.logger.info("Added %s to data index database." % relpath)
