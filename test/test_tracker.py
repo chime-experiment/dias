@@ -18,7 +18,7 @@ base_path = os.path.expanduser("~/dias_tmp")
 Path(base_path).mkdir(exist_ok=True)
 
 
-@pytest.fixture("session")
+@pytest.fixture(scope="session")
 def staging_dir():
     """Create staging directory for tests."""
     staging = Path(os.path.join(base_path, "staging"))
@@ -58,7 +58,7 @@ def testdata(chimecal_testfolder, chimestack_testfolder):
                 index_map.create_dataset("time", data=arr)
 
 
-@pytest.fixture("function")
+@pytest.fixture(scope="function")
 def reset_file_index():
     """Erase the file tracking index, so each test has a fresh one."""
     try:
@@ -104,3 +104,20 @@ def test_multiple_filetypes(reset_file_index, testdata, file_index):
 
     my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal", "chimestack"])
     assert len(my_todo) == 10
+
+
+def test_time_filter(reset_file_index, testdata, file_index):
+    """Test new_files return of files intersecting within a timerange."""
+    client = Tracker("{0}/staging".format(base_path), file_index)
+
+    my_todo = client.new_files(
+        "test_analyzer_3", filetypes="chimecal", start=1593548300, end=1597551900
+    )
+
+    assert len(my_todo) == 10
+
+    my_todo = client.new_files(
+        "test_analyzer_3", filetypes="chimecal", start=1597551900
+    )
+
+    assert len(my_todo) == 0

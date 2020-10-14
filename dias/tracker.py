@@ -20,10 +20,14 @@ conf : dict
 Example
 -------
 client = dias.tracker.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
-client.add_analyzer_ine('my_analyzer')
 my_todo = client.new_files('my_analyzer', filetypes="chimecal")
 self.do_things(my_todo)
 client.register_done('my_analyzer', my_todo)
+
+or
+
+client = dias.tracker.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
+my_todo = client.new_files('my_analyzer', filetypes=["chimecal", "chimestack"], start=1592304524.2424)
 """
 
 import re
@@ -34,6 +38,7 @@ import yaml
 import logging
 
 from collections import namedtuple
+from datetime import datetime
 
 from ch_util import ephemeris
 from dias import DiasUsageError
@@ -104,9 +109,9 @@ class File(BaseModel):
         Absolute path for file
     file_type_id : Integer
         reference to filetype of that file
-    start_time : datetime.datetime
+    start_time : Float
         timestamp of earliest datapoint in file
-    end_time : datetime.datetime
+    end_time : Float
         timestamp of latest datapoint in file
     exists : Boolean
         does the file still exist at filepath
@@ -295,7 +300,7 @@ class Tracker:
         if not Analyzer.select().where(Analyzer.name == analyzer).exists():
             Analyzer.create(name=analyzer)
 
-    def new_files(self, dias_task_name, filetypes, update=True):
+    def new_files(self, dias_task_name, filetypes, start=None, end=None, update=True):
         """
         Return a list of files unprocessed by dias_task_name, of its filetype of interest.
 
@@ -309,6 +314,12 @@ class Tracker:
             list of filetypes of interest
         update : Boolean
             If true, updates the File Table with the current state of `self.path`.
+        start : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and now. Files will be returned, even if previously processed.
+        end : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and end. Requires a start.
         """
         if update:
             self.update_file_table()
@@ -322,25 +333,50 @@ class Tracker:
 
         dias_task_analyzer = Analyzer.get(Analyzer.name == dias_task_name)
 
-        # Select files processed by analyzer
-        files_processed = (
-            File.select()
-            .join(Processed)
-            .join(Analyzer)
-            .where(Processed.analyzer_id == dias_task_analyzer)
-        )
-
         # SELECT files of analyzer.file_type_id and NOT Processed by Analyzer
-        # TODO Filter by date
-        files_unprocessed = (
-            File.select()
-            .where(File.id.not_in(files_processed))
-            .where(File.file_type_id << filetypes)
-            .where(File.exists)
-            .order_by(File.start_time.asc())
-        )
 
-        return [f.filepath for f in files_unprocessed]
+        if not start:
+            # return all un-processed files
+
+            ## Select files processed by analyzer
+            files_processed = (
+                File.select()
+                .join(Processed)
+                .join(Analyzer)
+                .where(Processed.analyzer_id == dias_task_analyzer)
+            )
+
+            ## Select which are un-processed
+            files_unprocessed = (
+                File.select()
+                .where(File.id.not_in(files_processed))
+                .where(File.file_type_id << filetypes)
+                .where(File.exists)
+                .order_by(File.start_time.asc())
+            )
+
+            return [f.filepath for f in files_unprocessed]
+
+        else:
+            # return all files within timeframe
+            if not end:
+                end = datetime.utcnow().timestamp()
+
+            if isinstance(start, datetime):
+                start = ephemeris.datetime_to_unix(start)
+
+            if isinstance(end, datetime):
+                end = ephemeris.datetime_to_unix(end)
+
+            files = (
+                File.select()
+                .where(File.file_type_id << filetypes)
+                .where(File.exists)
+                .where((File.start_time < end) and (File.end_time > start))
+                .order_by(File.start_time.asc())
+            )
+
+            return [f.filepath for f in files]
 
     def register_done(self, dias_task_name, list_of_files):
         """
