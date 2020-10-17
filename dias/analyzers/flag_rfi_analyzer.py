@@ -401,9 +401,16 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     self.file_start_time = time.time()
 
-                    # Deteremine selections along the various axes
+                    # Read in axes only
                     rdr = andata.CorrData.from_acq_h5(files, datasets=())
 
+                    # Redefine the stack axis so that it only points to prods
+                    # formed from two CHIME inputs
+                    stack_new, stack_flag = tools.redefine_stack_index_map(
+                        inputmap, rdr.prod, rdr.stack, rdr.reverse_map["stack"]
+                    )
+
+                    # Deteremine selections along the various axes
                     within_range = np.flatnonzero(
                         (rdr.freq >= self.freq_low) & (rdr.freq <= self.freq_high)
                     )
@@ -411,9 +418,14 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
 
                     stack_sel = [
                         ii
-                        for ii, pp in enumerate(rdr.prod[rdr.stack["prod"]])
+                        for ii, pp in enumerate(rdr.prod[stack_new["prod"]])
                         if pp[0] == pp[1]
                     ]
+
+                    # Determine the represenative inputs
+                    cyl_index = np.array(
+                        [rdr.prod[ss][0] for ss in stack_new[stack_sel]["prod"]]
+                    )
 
                     # Load autocorrelations
                     t0 = time.time()
@@ -448,7 +460,7 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                     # Construct RFI mask for each cylinder/polarisation
                     if self.separate_cyl_pol:
 
-                        cyl_index, cyl_auto, cyl_ndev = rfi.number_deviations(
+                        _, cyl_auto, cyl_ndev = rfi.number_deviations(
                             data,
                             stack=False,
                             apply_static_mask=self.apply_static_mask,
