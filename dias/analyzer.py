@@ -82,9 +82,6 @@ class Analyzer(config.Reader):
         self.state_dir = state_dir
         self._tracker = tracker
 
-        if self._tracker:
-            self._tracker.add_analyzer_ine(self.name)
-
     def init_logger(self, log_level_override=None):
         """
         Set up the logger.
@@ -286,5 +283,23 @@ class Analyzer(config.Reader):
         """
         if self._tracker is not None:
             self._tracker.register_done(self.name, list_of_files)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured.")
+
+    def add_output_file(self, start, end, filepath):
+        """
+        Register filepath in Output Table, with the timespan it covers.
+
+        Parameters
+        ----------
+        start : float or datetime.datetime
+            Earliest timestamp in output file.
+        end : float or datetime.datetime
+            Latest timestamp in output file.
+        filepath : String
+            absolute path to filepath
+        """
+        if self._tracker is not None:
+            self._tracker.add_output_file(self.name, start, end, filepath)
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured.")
