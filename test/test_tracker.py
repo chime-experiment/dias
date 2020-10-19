@@ -121,3 +121,24 @@ def test_time_filter(reset_file_index, testdata, file_index):
     )
 
     assert len(my_todo) == 0
+
+
+def test_output_files(reset_file_index, file_index):
+    """Test the tracking of output files."""
+    client = Tracker("{0}/staging".format(base_path), file_index)
+
+    for i in range(10):
+        filepath = "{0}/staging/{1}.txt".format(base_path, i)
+        with open(filepath, "w") as f:
+            f.write("test")
+        client.add_output_file(
+            "test_analyzer_4", 1596549345.2508698, 1596551880.0784922, filepath
+        )
+
+    todo = client.get_output_files("test_analyzer_4", start=1593548300, end=1597551900)
+
+    assert len(todo) == 10
+
+    todo = client.get_output_files("test_analyzer_4", start=1597551900)
+
+    assert len(todo) == 0

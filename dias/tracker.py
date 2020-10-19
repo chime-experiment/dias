@@ -164,11 +164,12 @@ class Tracker:
     create_tables
     _get_filetypes
     insert_files
-    add_analyzer_ine
     remove_files
     update_file_table
     new_files
     register_done
+    add_output_file
+    _ensure_time_unix
     """
 
     def __init__(
@@ -216,7 +217,7 @@ class Tracker:
             Key: String - name of filetype
             Value: Model instance referencing row for filetype
         """
-        return {ft: FileType.get(name=ft) for ft in FILETYPES}
+        return {ft: FileType.get(FileType.name == ft) for ft in FILETYPES}
 
     def insert_files(self, files):
         """
@@ -286,19 +287,7 @@ class Tracker:
         ]
 
         self.insert_files([f for f in files_on_disk if f not in files_in_db])
-        self.remove_files([f for f in files_in_db if f not in files_on_disk])
-
-    def add_analyzer_ine(self, analyzer):
-        """
-        Add analyzer to the Analyzer table, if it is not currently part of it.
-
-        Parameters
-        ----------
-        analyzer : String
-            name of the analyzer to add
-        """
-        if not Analyzer.select().where(Analyzer.name == analyzer).exists():
-            Analyzer.create(name=analyzer)
+        self.remove_files([f for f in files_in_db if not os.path.isfile(f)])
 
     def new_files(self, dias_task_name, filetypes, start=None, end=None, update=True):
         """
@@ -324,14 +313,12 @@ class Tracker:
         if update:
             self.update_file_table()
 
-        self.add_analyzer_ine(dias_task_name)
-
         if isinstance(filetypes, str):
             filetypes = [FileType.get(FileType.name == filetypes)]
         elif isinstance(filetypes, (list, tuple)):
             filetypes = list(FileType.select().where(FileType.name << filetypes))
 
-        dias_task_analyzer = Analyzer.get(Analyzer.name == dias_task_name)
+        dias_task_analyzer, _ = Analyzer.get_or_create(name=dias_task_name)
 
         # SELECT files of analyzer.file_type_id and NOT Processed by Analyzer
 
@@ -362,11 +349,8 @@ class Tracker:
             if not end:
                 end = datetime.utcnow().timestamp()
 
-            if isinstance(start, datetime):
-                start = ephemeris.datetime_to_unix(start)
-
-            if isinstance(end, datetime):
-                end = ephemeris.datetime_to_unix(end)
+            start = self._ensure_time_unix(start)
+            end = self._ensure_time_unix(end)
 
             files = (
                 File.select()
@@ -389,11 +373,9 @@ class Tracker:
         list_of_files : List of Strings
             List of filepaths to be registered as processed. They need to already exist in the database File.
         """
-        self.add_analyzer_ine(dias_task_name)
-
         files_processed = File.select().where(File.filepath.in_(list_of_files))
 
-        analyzer_id = Analyzer.get(Analyzer.name == dias_task_name)
+        analyzer_id, _ = Analyzer.get_or_create(name=dias_task_name)
 
         record = namedtuple("record", "file_id analyzer_id")
 
@@ -403,3 +385,97 @@ class Tracker:
             # SQLite limits bulk inserts to 100 at a time
             for batch in chunked(records, 100):
                 Processed.insert_many(batch).on_conflict_replace().execute()
+
+    def add_output_file(self, dias_task_name, start, end, filepath):
+        """Add row to file index table.
+
+        Update the file index table with a row that
+        contains a span of time, the absolute path to the
+        output file and and the span of time the file contains.
+
+        Parameters
+        ----------
+        dias_task_name : String
+            Name of task whose files you wish to track.
+        start : datetime.datetime or Float
+            Earliest time contained in the file.
+        end : datetime.datetime or Float
+            Latest time contained in the file.
+        filepath : str
+            Absolute path to the file
+        """
+        analyzer_id, _ = FileType.get_or_create(name=dias_task_name)
+
+        start = self._ensure_time_unix(start)
+        end = self._ensure_time_unix(end)
+
+        with db:
+            File.insert(
+                {
+                    "file_type_id": analyzer_id,
+                    "filepath": filepath,
+                    "start_time": start,
+                    "end_time": end,
+                    "exists": True,
+                }
+            ).on_conflict_replace().execute()
+
+    def get_output_files(self, dias_task_name, start, end=None, update=True):
+        """Return list of filepaths for dias_task_name that include data between start and end.
+
+        Parameters
+        ----------
+        dias_task_name : String
+            Name of task whose output files you wish.
+        start : datetime.datetime or Float
+            Earliest time contained in the file.
+        end : datetime.datetime or Float (optional)
+            Latest time contained in the file.
+        update : bool
+            If true, update the File table before querying
+        """
+        if update:
+            self.update_file_table
+
+        try:
+            dias_task_analyzer = FileType.get(FileType.name == dias_task_name)
+        except FileType.DoesNotExist:
+            raise DiasUsageError(
+                "{0} is not registered as an analyzer with output files.".format(
+                    dias_task_name
+                )
+            )
+
+        if not end:
+            end = datetime.utcnow().timestamp()
+
+        start = self._ensure_time_unix(start)
+        end = self._ensure_time_unix(end)
+
+        files = (
+            File.select()
+            .where(File.exists)
+            .where(File.file_type_id == dias_task_analyzer)
+            .where((File.start_time < end) and (File.end_time > start))
+            .order_by(File.start_time.asc())
+        )
+
+        return [f.filepath for f in files]
+
+    @staticmethod
+    def _ensure_time_unix(ts):
+        """Convert to ts to unix time, if it is datetime.
+
+        Paramters
+        ----------
+        ts : Float or datetime.datetime
+            timestamp to ensure is in unix time.
+
+        Returns
+        -------
+        Float
+            timestamp, in Unix time.
+        """
+        if isinstance(ts, datetime):
+            return ephemeris.datetime_to_unix(ts)
+        return ts
