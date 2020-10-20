@@ -323,6 +323,8 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                     ["id", "-u", "-n"]
                 ).strip()
                 handler.attrs["git_version_tag"] = dias_version_tag
+
+            self.add_output_file(data.time[0], data.time[-1], output_file)
             self.logger.info("File successfully written out.")
 
         self.register_done(file_list)
