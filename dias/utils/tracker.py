@@ -19,14 +19,14 @@ conf : dict
 
 Example
 -------
-client = dias.utils.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
+client = dias.utils.Tracker('/mnt/gong/staging/', '/mnt/gong/dias/file_index.db')
 my_todo = client.new_files('my_analyzer', filetypes="chimecal")
 self.do_things(my_todo)
 client.register_done('my_analyzer', my_todo)
 
 or
 
-client = dias.utils.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
+client = dias.utils.Tracker('/mnt/gong/staging/', '/mnt/gong/dias/file_index.db')
 my_todo = client.new_files('my_analyzer', filetypes=["chimecal", "chimestack"], start=1592304524.2424)
 """
 
@@ -173,7 +173,7 @@ class Tracker:
     """
 
     def __init__(
-        self, path="/mnt/gong/staging", file_tracking_db="/var/lib/dias/file_index.db"
+        self, path="/mnt/gong/staging", file_tracking_db="/mnt/gong/dias/file_index.db"
     ):
         """Construct the Tracker client, and create SQLite tables, if they do not exist."""
         self.base_path = path
