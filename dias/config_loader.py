@@ -5,7 +5,7 @@ import yaml
 import os
 from dias.utils import str2timedelta, str2path, str2bytes
 from dias import DiasConfigError, DiasUsageError, Task
-from dias.tracker import Tracker
+from dias.utils import Tracker
 import copy
 
 # This is how a log line produced by dias will look like:

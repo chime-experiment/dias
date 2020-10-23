@@ -19,14 +19,14 @@ conf : dict
 
 Example
 -------
-client = dias.tracker.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
+client = dias.utils.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
 my_todo = client.new_files('my_analyzer', filetypes="chimecal")
 self.do_things(my_todo)
 client.register_done('my_analyzer', my_todo)
 
 or
 
-client = dias.tracker.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
+client = dias.utils.Tracker('/mnt/gong/staging/', '/var/lib/dias/file_index.db')
 my_todo = client.new_files('my_analyzer', filetypes=["chimecal", "chimestack"], start=1592304524.2424)
 """
 
