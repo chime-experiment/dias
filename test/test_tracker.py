@@ -1,4 +1,4 @@
-"""Tests for dias.tracker.Tracker.
+"""Tests for dias.utils.Tracker.
 
 Run from dias root with `pytest test/test_tracker.py
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 import shutil
 import yaml
 
-from dias.tracker import Tracker
+from dias.utils import Tracker
 
 base_path = os.path.expanduser("~/dias_tmp")
 Path(base_path).mkdir(exist_ok=True)

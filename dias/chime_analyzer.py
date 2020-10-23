@@ -27,7 +27,7 @@ class CHIMEAnalyzer(Analyzer):
             The path to write output data to.
         state_dir : String
             The path to write state data to.
-        tracker : :class: dias.tracker.Tracker
+        tracker : :class: dias.utils.Tracker
             A file Tracker to associate with the analyzer.
             Helps the analyzer keep track of which files it has not processed, yet.
         """
