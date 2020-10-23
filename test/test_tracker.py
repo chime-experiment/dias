@@ -81,7 +81,7 @@ def file_index():
 
 def test_new_files_and_register_done(reset_file_index, testdata, file_index):
     """Test new_files and register_done for a single filetype."""
-    client = Tracker("{0}/staging".format(base_path), file_index)
+    client = Tracker("{0}/staging".format(base_path), file_index, write=True)
 
     my_todo = client.new_files("test_analyzer_1", filetypes="chimecal")
     assert len(my_todo) == 10
@@ -94,7 +94,7 @@ def test_new_files_and_register_done(reset_file_index, testdata, file_index):
 
 def test_multiple_filetypes(reset_file_index, testdata, file_index):
     """Test new_files and a partial register_done for multiple filetypes."""
-    client = Tracker("{0}/staging".format(base_path), file_index)
+    client = Tracker("{0}/staging".format(base_path), file_index, write=True)
     my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal", "chimestack"])
     assert len(my_todo) == 20
 
@@ -108,7 +108,7 @@ def test_multiple_filetypes(reset_file_index, testdata, file_index):
 
 def test_time_filter(reset_file_index, testdata, file_index):
     """Test new_files return of files intersecting within a timerange."""
-    client = Tracker("{0}/staging".format(base_path), file_index)
+    client = Tracker("{0}/staging".format(base_path), file_index, write=True)
 
     my_todo = client.new_files(
         "test_analyzer_3", filetypes="chimecal", start=1593548300, end=1597551900
@@ -125,7 +125,7 @@ def test_time_filter(reset_file_index, testdata, file_index):
 
 def test_output_files(reset_file_index, file_index):
     """Test the tracking of output files."""
-    client = Tracker("{0}/staging".format(base_path), file_index)
+    client = Tracker("{0}/staging".format(base_path), file_index, write=True)
 
     for i in range(10):
         filepath = "{0}/staging/{1}.txt".format(base_path, i)

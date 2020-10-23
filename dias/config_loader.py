@@ -99,7 +99,7 @@ class ConfigLoader:
         self.trackers = {}
         try:
             for t in self.global_config["trackers"]:
-                self.trackers[t["name"]] = Tracker(t["path"], t["db_file"])
+                self.trackers[t["name"]] = Tracker(t["path"], t["db_file"], write=True)
         except KeyError:
             pass
 

@@ -19,7 +19,7 @@ conf : dict
 
 Example
 -------
-client = dias.utils.Tracker('/mnt/gong/staging/', '/mnt/gong/dias/file_index.db')
+client = dias.utils.Tracker('/mnt/gong/staging/', '/mnt/gong/dias/file_index.db', write=True)
 my_todo = client.new_files('my_analyzer', filetypes="chimecal")
 self.do_things(my_todo)
 client.register_done('my_analyzer', my_todo)
@@ -153,10 +153,14 @@ class Tracker:
     Interfaces with an SQLite database to assess which files have/haven't been already processed by various analyzers.
     Creates the database, if it does not exist, and keeps it up-to-date with the current state of the staging directory.
 
-    Attributes
+    Parameters
     ----------
     path : String
         the location of the staging directory that the user is interested in
+    file_tracking_db : String
+        the location of the file index database that the tracker is referencing
+    write : Boolean
+        flips between read_and_write and read_only mode. False is read_only mode, and is the default
 
     Methods
     -------
@@ -173,10 +177,14 @@ class Tracker:
     """
 
     def __init__(
-        self, path="/mnt/gong/staging", file_tracking_db="/mnt/gong/dias/file_index.db"
+        self,
+        path="/mnt/gong/staging",
+        file_tracking_db="/mnt/gong/dias/file_index.db",
+        write=False,
     ):
         """Construct the Tracker client, and create SQLite tables, if they do not exist."""
         self.base_path = path
+        self.write = write
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel("INFO")
@@ -184,6 +192,12 @@ class Tracker:
         self.file_tracking_db = file_tracking_db
         # create connection to sqlite database
         db.init(os.path.expanduser(self.file_tracking_db))
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         try:
             self.create_tables()
         except OperationalError:
@@ -196,6 +210,12 @@ class Tracker:
     def create_tables(self):
         """Create tables in database if they do not exist."""
         file_types = {}
+
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
 
         with db:
 
@@ -230,6 +250,12 @@ class Tracker:
         files : List of String
             list of filepaths
         """
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         # pattern used to extract filetype of file from its name
         pattern = re.compile(".*Z_(.*)_corr.*")
 
@@ -264,8 +290,14 @@ class Tracker:
         files : List of String
             list of filepaths
         """
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         self.logger.info(
-            "Settings exists = False for {0} in database".format(len(files))
+            "Setting exists = False for {0} in database".format(len(files))
         )
 
         with db:
@@ -276,6 +308,12 @@ class Tracker:
 
     def update_file_table(self):
         """Insert novel files that are in `self.path` into db, and set exists=False for files that are not at `self.path`, anymore."""
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         files_on_disk = []
         for ft in FILETYPES:
             files_on_disk.extend(
@@ -310,7 +348,7 @@ class Tracker:
             Float is expected to be a Unix timestamp.
             If provided, will return a list of files that contain data between start and end. Requires a start.
         """
-        if update:
+        if update and self.write:
             self.update_file_table()
 
         if isinstance(filetypes, str):
@@ -373,6 +411,12 @@ class Tracker:
         list_of_files : List of Strings
             List of filepaths to be registered as processed. They need to already exist in the database File.
         """
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         files_processed = File.select().where(File.filepath.in_(list_of_files))
 
         analyzer_id, _ = Analyzer.get_or_create(name=dias_task_name)
@@ -404,6 +448,12 @@ class Tracker:
         filepath : str
             Absolute path to the file
         """
+        if not self.write:
+            self.logger.info(
+                "Tracker is in read-only mode. You will not be able to update the database."
+            )
+            return
+
         analyzer_id, _ = FileType.get_or_create(name=dias_task_name)
 
         start = self._ensure_time_unix(start)
@@ -434,7 +484,7 @@ class Tracker:
         update : bool
             If true, update the File table before querying
         """
-        if update:
+        if update and self.write:
             self.update_file_table
 
         try:
