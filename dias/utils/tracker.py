@@ -394,7 +394,7 @@ class Tracker:
                 File.select()
                 .where(File.file_type_id << filetypes)
                 .where(File.exists)
-                .where((File.start_time < end) and (File.end_time > start))
+                .where((File.start_time < end), (File.end_time > start))
                 .order_by(File.start_time.asc())
             )
 
@@ -497,7 +497,7 @@ class Tracker:
             )
 
         if not end:
-            end = datetime.utcnow().timestamp()
+            end = datetime.utcnow()
 
         start = self._ensure_time_unix(start)
         end = self._ensure_time_unix(end)
@@ -506,7 +506,7 @@ class Tracker:
             File.select()
             .where(File.exists)
             .where(File.file_type_id == dias_task_analyzer)
-            .where((File.start_time < end) and (File.end_time > start))
+            .where((File.start_time < end), (File.end_time > start))
             .order_by(File.start_time.asc())
         )
 
