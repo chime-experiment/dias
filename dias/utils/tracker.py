@@ -40,7 +40,7 @@ import logging
 from collections import namedtuple
 from datetime import datetime
 
-from ch_util import ephemeris
+from caput import time as ctime
 from dias import DiasUsageError
 from caput import config
 from peewee import (
@@ -527,5 +527,5 @@ class Tracker:
             timestamp, in Unix time.
         """
         if isinstance(ts, datetime):
-            return ephemeris.datetime_to_unix(ts)
+            return ctime.datetime_to_unix(ts)
         return ts
