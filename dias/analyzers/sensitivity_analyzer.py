@@ -327,7 +327,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             self.add_output_file(data.time[0], data.time[-1], output_file)
             self.logger.info("File successfully written out.")
 
-            self.register_done(files)
+            self.register_done([files])
 
     def get_baselines(self, indexmap, inputmap):
         """Return baseline indices for averaging."""
