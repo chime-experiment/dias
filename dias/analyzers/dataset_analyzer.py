@@ -77,7 +77,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         ds.get.index()
 
         # Use the tracker to get the chimestack files to analyze
-        cs_file_list = self.new_files(filetypes=self.instrument)
+        cs_file_list = self.new_files(filetypes=self.instrument + "_corr")
 
         # Determine the range of time being processed
 
@@ -106,7 +106,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 tstart = first_file["index_map/time"][0]["ctime"]
             with h5py.File(all_files[-1], "r") as final_file:
                 tend = final_file["index_map/time"][-1]["ctime"]
-                nfiles = len(all_files)
+            nfiles = len(all_files)
 
             self.logger.info(
                 "Now processing acquisition %s (%d files)"
@@ -114,44 +114,42 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             )
 
             # Use Finder to get the matching flaginput files
-            self.logger.info(
-                "Finding flags between {} and {}.".format(start_time, end_time)
-            )
-            flag_finder = self.Finder()
-            flag_finder.accept_all_global_flags()
-            flag_finder.only_flaginput()
-            flag_finder.filter_acqs(
-                data_index.ArchiveInst.name == self.flags_instrument
-            )
-            flag_finder.set_time_range(tstart, tend)
+            self.logger.info("Finding flags between {} and {}.".format(tstart, tend))
+            flag_files = self.new_files("chime_flaginput", tstart, tend)
+            flag_acqs = self.get_acquisitions(flag_files)
 
             self.logger.info(
-                "Found {} acqws in flags files".format(len(flag_finder.acqs))
+                "Found {} acqws in flags files".format(len(flag_acqs.keys()))
             )
-            if len(flag_finder.acqs) < 1:
+            if len(flag_acqs.keys()) < 1:
                 raise DiasDataError(
                     "No flags found for {} files {}.".format(self.instrument, all_files)
                 )
 
             # Loop over acquisitions
-            for flag_aa, flag_acq in enumerate(flag_finder.acqs):
+            for flag_acq in flag_acqs.keys():
 
                 # Extract finder results within this acquisition
-                flag_acq_results = flag_finder.get_results_acq(flag_aa)
+                all_flag_files = flag_acqs[flag_acq]
 
                 # Loop over contiguous periods within this acquisition
                 flg = list()
-                for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
-                    nfiles = len(all_flag_files)
 
-                    if nfiles == 0:
-                        continue
+                # Determine the range of time being processed
+                with h5py.File(all_flag_files[0], "r") as first_file:
+                    flag_tstart = first_file["index_map/update_time"][0]
+                with h5py.File(all_flag_files[-1], "r") as final_file:
+                    flag_tend = final_file["index_map/update_time"][-1]
 
-                    self.logger.info(
-                        "Now processing acquisition %s (%d files)"
-                        % (flag_acq.name, nfiles)
-                    )
-                    flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
+                nfiles = len(all_flag_files)
+
+                if nfiles == 0:
+                    continue
+
+                self.logger.info(
+                    "Now processing acquisition %s (%d files)" % (flag_acq, nfiles)
+                )
+                flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
 
             for _file in all_files:
                 ad = andata.CorrData.from_acq_h5(
@@ -181,15 +179,18 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         file_ds = ad.flags["dataset_id"][:]
         unique_ds = np.unique(file_ds)
 
+        # Remove the null dataset
+        unique_ds = unique_ds[unique_ds != "00000000000000000000000000000000"]
+
         # Find the freq state for each dataset
         states = {
-            id: (
-                ds.Dataset.from_id(bytes(id).decode())
+            ds_id: (
+                ds.Dataset.from_id(ds_id)
                 .closest_ancestor_of_type("freqs")
                 .dataset_state.data["data"]
                 .encode()
             )
-            for id in unique_ds
+            for ds_id in unique_ds
         }
 
         for ds_id, freq_state in states.items():
@@ -238,15 +239,18 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         file_ds = ad.flags["dataset_id"][:]
         unique_ds = np.unique(file_ds)
 
+        # Remove the null dataset
+        unique_ds = unique_ds[unique_ds != "00000000000000000000000000000000"]
+
         # Find the flagging update_id for each dataset
         states = {
-            id: (
-                ds.Dataset.from_id(bytes(id).decode())
+            ds_id: (
+                ds.Dataset.from_id(ds_id)
                 .closest_ancestor_of_type("flags")
                 .dataset_state.data["data"]
                 .encode()
             )
-            for id in unique_ds
+            for ds_id in unique_ds
         }
 
         for ds_id, update_id in states.items():
