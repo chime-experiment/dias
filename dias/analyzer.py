@@ -303,3 +303,22 @@ class Analyzer(config.Reader):
             self._tracker.add_output_file(self.name, start, end, filepath)
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured.")
+
+    def get_acquisitions(self, file_list):
+        """
+        Group files in file_list by acquisition.
+
+        Parameters
+        ----------
+        file_list : List of strings
+            list of filenames
+
+        Returns
+        -------
+        dict : key acquisition directory : value list of filenames
+            Filenames are grouped by acquisition
+        """
+        if self._tracker is not None:
+            return self._tracker.get_acquisitions(file_list)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured.")

@@ -37,8 +37,9 @@ import h5py
 import yaml
 import logging
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime
+from pathlib import Path
 
 from caput import time as ctime
 from dias import DiasUsageError
@@ -399,6 +400,27 @@ class Tracker:
             )
 
             return [f.filepath for f in files]
+
+    def get_acquisitions(self, file_list):
+        """
+        Group files in file_list by acquisition.
+
+        Paramaters
+        ----------
+        file_list : List of strings
+            list of filenames
+
+        Returns
+        -------
+        dict : key acquisition directory, value list of filenames
+            Filenames are grouped by acquisition
+        """
+        acq_file_list = defaultdict(list)
+
+        for f in file_list:
+            acq_file_list[str(Path(f).parent)].append(f)
+
+        return acq_file_list
 
     def register_done(self, dias_task_name, list_of_files):
         """
