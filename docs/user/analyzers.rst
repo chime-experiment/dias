@@ -61,6 +61,14 @@ listed here.
 
    DailyRingmapAnalyzer
 
+.. currentmodule:: dias.analyzers.source_spectra_analyzer
+
+.. autosummary::
+   :template: analyzer_user.rst
+   :toctree: _autosummary
+
+   SourceSpectraAnalyzer 
+
 .. currentmodule:: dias.analyzers.test_analyzer
 
 .. autosummary::

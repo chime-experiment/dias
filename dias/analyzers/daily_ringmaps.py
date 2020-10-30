@@ -146,6 +146,14 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
                         # create file
                         fh = self._create_file(pol, freq, common_time[sort_t], sinza)
 
+                    ## NOTE
+                    ## ringmap maker doesn't guarantee a fixed-length array
+                    ## until it's been fully filled in
+                    ## if it was restarted recently; you may see failures
+                    ## where arrays differ in size and arrays changed in size
+                    ## this will self-resolve once the ringmap-maker is done
+                    ##
+
                     # determine if some times were updated during requests
                     t_offset = time["ctime"] - common_time["ctime"]
                     if not (t_offset == 0.0).all():

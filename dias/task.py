@@ -78,7 +78,7 @@ class Task:
         # We're only allowed to define these once, so we cache them
         if not task_metrics:
             task_metrics["data_written"] = Gauge(
-                "data_written",
+                "total_data_written",
                 "Total amount of data written, "
                 "including files deleted due to "
                 "disk space overage.",

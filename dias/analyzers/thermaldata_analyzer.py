@@ -104,70 +104,71 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         from chimedb import data_index
 
         # get the full list of files within that time range
-        results_list = self.find_all_archive(instrument="chimetiming", data_product="*")
-        results_list = self.filter_files_by_time(results_list, start_time, end_time)
+        results_list = self.new_files("chimetiming")
 
-        if len(results_list) > 0:
-
-            # only use the first acquisition found
+        # only using the first acquisition found
+        try:
             first_result = results_list[0]
-            first_result_folder_datetime = re.search(
-                "(\d*T\d*)Z", first_result
-            ).groups()[0]
-            first_acquisition = []
-
-            # an acquisition can represent a list of files in the same 'acq' folder
-            for f in results_list:
-                if first_result_folder_datetime in f:
-                    first_acquisition.append(f)
-
-            assert (
-                len(first_acquisition) >= 1
-            ), "At this point, there should be at least 1 result"
-
-            reader = andata.CorrReader(first_acquisition)
-            prods = reader.prod
-            freq = reader.freq["centre"]
-            ntimes = len(reader.time)
-            time_indices = np.linspace(
-                self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
-            )
-
-            # Determine prod_sel
-            prod_sel = []
-            for ii in range(ncables):
-                chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
-                pidx = np.where(
-                    np.logical_or(
-                        np.logical_and(
-                            prods["input_a"] == ref_id, prods["input_b"] == chan_id
-                        ),
-                        np.logical_and(
-                            prods["input_a"] == chan_id, prods["input_b"] == ref_id
-                        ),
-                    )
-                )[0][0]
-                prod_sel.append(pidx)
-
-            # Load data from first acquisition
-            setattr(reader, "prod_sel", np.array(prod_sel))
-            data = reader.read()
-            phases = np.angle(data.vis)
-
-            # Perform the fits
-            for cc in range(ncables):
-                prms = self._get_fits(time_indices, phases[:, cc, :], freq)
-                for tt in range(len(prms)):
-                    # First parameter is the slope
-                    delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
-                    self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
-        else:
+        except IndexError:
             msg = "Could not find any 'chimetiming' data between {0} and {1}"
             msg = msg.format(
                 start_time.strftime("%m/%d/%Y-%H:%M:%S"),
                 end_time.strftime("%m/%d/%Y-%H:%M:%S"),
             )
             raise exception.DiasDataError(msg)
+
+        first_result_folder_datetime = re.search("(\d*T\d*)Z", first_result).groups()[0]
+        first_acquisition = []
+
+        # an acquisition can represent a list of files in the same 'acq' folder
+        for f in results_list:
+            if first_result_folder_datetime in f:
+                first_acquisition.append(f)
+
+        assert (
+            len(first_acquisition) >= 1
+        ), "At this point, there should be at least 1 result"
+
+        reader = andata.CorrReader(first_acquisition)
+        inputs = list(reader.input["chan_id"])
+        prods = reader.prod
+        freq = reader.freq["centre"]
+        ntimes = len(reader.time)
+        time_indices = np.linspace(
+            self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
+        )
+
+        # Determine prod_sel
+        prod_sel = []
+        for ii in range(ncables):
+            chan_id, ref_id = self.loop_ids[ii], self.ref_ids[ii]
+            chan_id, ref_id = inputs.index(chan_id), inputs.index(ref_id)
+            pidx = np.where(
+                np.logical_or(
+                    np.logical_and(
+                        prods["input_a"] == ref_id, prods["input_b"] == chan_id
+                    ),
+                    np.logical_and(
+                        prods["input_a"] == chan_id, prods["input_b"] == ref_id
+                    ),
+                )
+            )[0][0]
+            prod_sel.append(pidx)
+
+        # Load data from first acquisition
+        setattr(reader, "prod_sel", np.array(prod_sel))
+        data = reader.read()
+        phases = np.angle(data.vis)
+
+        # Perform the fits
+        for cc in range(ncables):
+            prms = self._get_fits(time_indices, phases[:, cc, :], freq)
+            for tt in range(len(prms)):
+                # First parameter is the slope
+                delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
+                self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+
+        self.register_done(results_list)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
         """Find the longest stretch of frequencies without phase wrapping.

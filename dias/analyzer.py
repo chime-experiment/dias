@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from caput import config
 from dias.utils import str2timedelta, str2datetime, str2bytes
+from dias import DiasUsageError
 from prometheus_client import Gauge
 
 
@@ -61,7 +62,7 @@ class Analyzer(config.Reader):
     data_size_max = config.Property(proptype=str2bytes)
     state_size_max = config.Property(proptype=str2bytes)
 
-    def __init__(self, name, write_dir, state_dir):
+    def __init__(self, name, write_dir, state_dir, tracker=None):
         """Construct the analyzer base class.
 
         Parameters
@@ -72,10 +73,14 @@ class Analyzer(config.Reader):
             Path to write output data to.
         state_dir : String
             Path to write state data to.
+        tracker : :class: dias.utils.Tracker
+            A file Tracker to associate with the analyzer.
+            Helps the analyzer keep track of which files it has not processed, yet.
         """
         self.name = name
         self.write_dir = write_dir
         self.state_dir = state_dir
+        self._tracker = tracker
 
     def init_logger(self, log_level_override="NOTSET"):
         """
@@ -252,3 +257,49 @@ class Analyzer(config.Reader):
             Files that have been deleted.
         """
         pass
+
+    def new_files(self, filetypes):
+        """
+        Return a list of files unprocessed by dias_task_name, of its filetypes of interest.
+
+        Parameters
+        ----------
+        filetypes : List of String or String
+            list of filetypes of interest.
+        """
+        if self._tracker is not None:
+            return self._tracker.new_files(self.name, filetypes)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured")
+
+    def register_done(self, list_of_files):
+        """
+        Register files in list_of_files as processed by analyzer.
+
+        Parameters
+        ----------
+        list_of_files : List of Strings
+            List of filepaths to be registered as processed. They need to already exist in the database.
+        """
+        if self._tracker is not None:
+            self._tracker.register_done(self.name, list_of_files)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured.")
+
+    def add_output_file(self, start, end, filepath):
+        """
+        Register filepath in Output Table, with the timespan it covers.
+
+        Parameters
+        ----------
+        start : float or datetime.datetime
+            Earliest timestamp in output file.
+        end : float or datetime.datetime
+            Latest timestamp in output file.
+        filepath : String
+            absolute path to filepath
+        """
+        if self._tracker is not None:
+            self._tracker.add_output_file(self.name, start, end, filepath)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured.")
