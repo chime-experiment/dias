@@ -164,7 +164,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         stop_time = datetime.utcnow() - self.lag
 
         # Find all calibration files
-        file_list = self.new_files(filetypes=self.instrument)
+        file_list = self.new_files(filetypes=self.instrument + "_" + self.acq_suffix)
 
         if not file_list:
             err_msg = "No {}_{} files found from last {}.".format(

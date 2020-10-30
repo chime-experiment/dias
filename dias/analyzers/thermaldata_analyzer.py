@@ -104,7 +104,7 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         from chimedb import data_index
 
         # get the full list of files within that time range
-        results_list = self.new_files("chimetiming")
+        results_list = self.new_files("chimetiming_corr")
 
         # only using the first acquisition found
         try:

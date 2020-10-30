@@ -258,7 +258,7 @@ class Analyzer(config.Reader):
         """
         pass
 
-    def new_files(self, filetypes):
+    def new_files(self, filetypes, start=None, end=None):
         """
         Return a list of files unprocessed by dias_task_name, of its filetypes of interest.
 
@@ -268,7 +268,7 @@ class Analyzer(config.Reader):
             list of filetypes of interest.
         """
         if self._tracker is not None:
-            return self._tracker.new_files(self.name, filetypes)
+            return self._tracker.new_files(self.name, filetypes, start, end)
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured")
 
