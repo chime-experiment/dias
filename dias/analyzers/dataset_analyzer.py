@@ -1,13 +1,13 @@
 """Dataset Management Validation."""
 
 from dias import CHIMEAnalyzer
-from dias.outfile_tracking import FileTracker
-from dias.utils.string_converter import datetime2str, str2timedelta
+from dias.utils.string_converter import str2timedelta
 from dias.exception import DiasDataError
 
 from caput import config
 from chimedb import core
 from chimedb import dataset as ds
+import h5py
 from chimedb import data_index
 from ch_util import andata
 
@@ -61,7 +61,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
     def setup(self):
         """Set up analyzer."""
-        self.tracker = FileTracker(self)
         self.failed_checks = self.add_data_metric(
             "failed_checks",
             "Number of datasets that failed the check specified by the label 'check'.",
@@ -77,96 +76,96 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         # pre-fetch most stuff to save queries later
         ds.get.index()
 
-        # Determine the range of time to process
-        end_time = datetime.datetime.utcnow() - self.offset
+        # Use the tracker to get the chimestack files to analyze
+        cs_file_list = self.new_files(filetypes=self.instrument)
 
-        tracker_start_time = self.tracker.get_start_time()
-        start_time = (
-            tracker_start_time if tracker_start_time else end_time - self.period
-        )
+        # Determine the range of time being processed
+
+        if not cs_file_list:
+            raise DiasDataError("No new {} files found.".format(self.instrument))
+
+        with h5py.File(cs_file_list[0], "r") as first_file:
+            start_time = first_file["index_map/time"][0]["ctime"]
+        with h5py.File(cs_file_list[-1], "r") as final_file:
+            end_time = final_file["index_map/time"][-1]["ctime"]
+
         self.logger.info(
-            "Analyzing data between {} and {}.".format(
-                datetime2str(start_time), datetime2str(end_time)
-            )
+            "Analyzing data between {} and {}.".format(start_time, end_time)
         )
 
-        # Use Finder to get the chimestack files to analyze
-        finder = self.Finder()
-        finder.accept_all_global_flags()
-        finder.only_corr()
-        finder.filter_acqs(data_index.ArchiveInst.name == self.instrument)
-        finder.set_time_range(start_time, end_time)
+        cs_acqs = self.get_acquisitions(cs_file_list)
 
         # Loop over acquisitions
-        for aa, acq in enumerate(finder.acqs):
-
-            # Extract finder results within this acquisition
-            acq_results = finder.get_results_acq(aa)
+        for acq in cs_acqs.keys():
 
             # Loop over contiguous periods within this acquisition
-            for all_files, (tstart, tend) in acq_results:
+            all_files = cs_acqs[acq]
+
+            # Determine the range of time being processed
+            with h5py.File(all_files[0], "r") as first_file:
+                tstart = first_file["index_map/time"][0]["ctime"]
+            with h5py.File(all_files[-1], "r") as final_file:
+                tend = final_file["index_map/time"][-1]["ctime"]
                 nfiles = len(all_files)
 
-                if nfiles == 0:
-                    continue
+            self.logger.info(
+                "Now processing acquisition %s (%d files)"
+                % (acq.split("/")[-1], nfiles)
+            )
 
-                self.logger.info(
-                    "Now processing acquisition %s (%d files)" % (acq.name, nfiles)
+            # Use Finder to get the matching flaginput files
+            self.logger.info(
+                "Finding flags between {} and {}.".format(start_time, end_time)
+            )
+            flag_finder = self.Finder()
+            flag_finder.accept_all_global_flags()
+            flag_finder.only_flaginput()
+            flag_finder.filter_acqs(
+                data_index.ArchiveInst.name == self.flags_instrument
+            )
+            flag_finder.set_time_range(tstart, tend)
+
+            self.logger.info(
+                "Found {} acqws in flags files".format(len(flag_finder.acqs))
+            )
+            if len(flag_finder.acqs) < 1:
+                raise DiasDataError(
+                    "No flags found for {} files {}.".format(self.instrument, all_files)
                 )
 
-                # Use another Finder to get the matching flaginput files
-                self.logger.info(
-                    "Finding flags between {} and {}.".format(
-                        datetime2str(start_time), datetime2str(end_time)
+            # Loop over acquisitions
+            for flag_aa, flag_acq in enumerate(flag_finder.acqs):
+
+                # Extract finder results within this acquisition
+                flag_acq_results = flag_finder.get_results_acq(flag_aa)
+
+                # Loop over contiguous periods within this acquisition
+                flg = list()
+                for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
+                    nfiles = len(all_flag_files)
+
+                    if nfiles == 0:
+                        continue
+
+                    self.logger.info(
+                        "Now processing acquisition %s (%d files)"
+                        % (flag_acq.name, nfiles)
                     )
+                    flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
+
+            for _file in all_files:
+                ad = andata.CorrData.from_acq_h5(
+                    _file,
+                    datasets=(
+                        "flags/inputs",
+                        "flags/dataset_id",
+                        "flags/frac_lost",
+                    ),
                 )
-                flag_finder = self.Finder()
-                flag_finder.accept_all_global_flags()
-                flag_finder.only_flaginput()
-                flag_finder.filter_acqs(
-                    data_index.ArchiveInst.name == self.flags_instrument
-                )
-                flag_finder.set_time_range(tstart, tend)
+                self.validate_flag_updates(ad, flg)
+                self.validate_freqs(ad)
 
-                self.logger.info(
-                    "Found {} acqws in flags files".format(len(flag_finder.acqs))
-                )
-                if len(flag_finder.acqs) < 1:
-                    raise DiasDataError(
-                        "No flags found for {} files {}.".format(self.instrument, all_files)
-                    )
-
-                # Loop over acquisitions
-                for flag_aa, flag_acq in enumerate(flag_finder.acqs):
-
-                    # Extract finder results within this acquisition
-                    flag_acq_results = flag_finder.get_results_acq(flag_aa)
-
-                    # Loop over contiguous periods within this acquisition
-                    flg = list()
-                    for all_flag_files, (flag_tstart, flag_tend) in flag_acq_results:
-                        nfiles = len(all_flag_files)
-
-                        if nfiles == 0:
-                            continue
-
-                        self.logger.info(
-                            "Now processing acquisition %s (%d files)"
-                            % (flag_acq.name, nfiles)
-                        )
-                        flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
-
-                for _file in all_files:
-                    ad = andata.CorrData.from_acq_h5(
-                        _file,
-                        datasets=(
-                            "flags/inputs",
-                            "flags/dataset_id",
-                            "flags/frac_lost",
-                        ),
-                    )
-                    self.validate_flag_updates(ad, flg)
-                    self.validate_freqs(ad)
+                self.register_done([_file])
 
     def validate_freqs(self, ad):
         """
@@ -186,9 +185,9 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         states = {
             id: (
                 ds.Dataset.from_id(bytes(id).decode())
-                    .closest_ancestor_of_type("freqs")
-                    .dataset_state.data["data"]
-                    .encode()
+                .closest_ancestor_of_type("freqs")
+                .dataset_state.data["data"]
+                .encode()
             )
             for id in unique_ds
         }
@@ -197,8 +196,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             if len(freq_state) != num_freqs:
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
-                    "Number of frequencies don't match for corr file '{}' and 'freq' state {}."
-                        .format(
+                    "Number of frequencies don't match for corr file '{}' and 'freq' state {}.".format(
                         self.instrument, self.flags_instrument, ds_id.decode("UTF-8")
                     )
                 )
