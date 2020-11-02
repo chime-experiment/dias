@@ -183,15 +183,19 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         unique_ds = unique_ds[unique_ds != "00000000000000000000000000000000"]
 
         # Find the freq state for each dataset
-        states = {
-            ds_id: (
+        states = {}
+        for ds_id in unique_ds:
+            state_id = (
                 ds.Dataset.from_id(ds_id)
-                .closest_ancestor_of_type("freqs")
-                .dataset_state.data["data"]
-                .encode()
+                .closest_ancestor_of_type("frequencies")
+                .dataset_state.id
             )
-            for ds_id in unique_ds
-        }
+            states[ds_id] = (
+                ds.DatasetState.select(ds.DatasetState.data)
+                .where(ds.DatasetState.id == state_id)
+                .get()
+                .data["data"]
+            )
 
         for ds_id, freq_state in states.items():
             if len(freq_state) != num_freqs:
@@ -243,15 +247,19 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         unique_ds = unique_ds[unique_ds != "00000000000000000000000000000000"]
 
         # Find the flagging update_id for each dataset
-        states = {
-            ds_id: (
+        states = {}
+        for ds_id in unique_ds:
+            state_id = (
                 ds.Dataset.from_id(ds_id)
                 .closest_ancestor_of_type("flags")
-                .dataset_state.data["data"]
-                .encode()
+                .dataset_state.id
             )
-            for ds_id in unique_ds
-        }
+            states[ds_id] = (
+                ds.DatasetState.select(ds.DatasetState.data)
+                .where(ds.DatasetState.id == state_id)
+                .get()
+                .data["data"]
+            )
 
         for ds_id, update_id in states.items():
 
