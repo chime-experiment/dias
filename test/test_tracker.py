@@ -83,26 +83,26 @@ def test_new_files_and_register_done(reset_file_index, testdata, file_index):
     """Test new_files and register_done for a single filetype."""
     client = Tracker("{0}/staging".format(base_path), file_index, write=True)
 
-    my_todo = client.new_files("test_analyzer_1", filetypes="chimecal")
+    my_todo = client.new_files("test_analyzer_1", filetypes="chimecal_corr")
     assert len(my_todo) == 10
 
     client.register_done("test_analyzer_1", my_todo)
 
-    my_todo = client.new_files("test_analyzer_1", filetypes="chimecal")
+    my_todo = client.new_files("test_analyzer_1", filetypes="chimecal_corr")
     assert len(my_todo) == 0
 
 
 def test_multiple_filetypes(reset_file_index, testdata, file_index):
     """Test new_files and a partial register_done for multiple filetypes."""
     client = Tracker("{0}/staging".format(base_path), file_index, write=True)
-    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal", "chimestack"])
+    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"])
     assert len(my_todo) == 20
 
     done = [f for f in my_todo if "chimecal" in f]
 
     client.register_done("test_analyzer_2", done)
 
-    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal", "chimestack"])
+    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"])
     assert len(my_todo) == 10
 
 
@@ -111,13 +111,13 @@ def test_time_filter(reset_file_index, testdata, file_index):
     client = Tracker("{0}/staging".format(base_path), file_index, write=True)
 
     my_todo = client.new_files(
-        "test_analyzer_3", filetypes="chimecal", start=1593548300, end=1597551900
+        "test_analyzer_3", filetypes="chimecal_corr", start=1593548300, end=1597551900
     )
 
     assert len(my_todo) == 10
 
     my_todo = client.new_files(
-        "test_analyzer_3", filetypes="chimecal", start=1597551900
+        "test_analyzer_3", filetypes="chimecal_corr", start=1597551900
     )
 
     assert len(my_todo) == 0
