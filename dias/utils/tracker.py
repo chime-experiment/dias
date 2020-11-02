@@ -293,7 +293,6 @@ class Tracker:
                         }
                     ).on_conflict_replace().execute()
 
-
     def remove_files(self, files):
         """
         Set exists = False for files in File.

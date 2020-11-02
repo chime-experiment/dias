@@ -95,14 +95,18 @@ def test_new_files_and_register_done(reset_file_index, testdata, file_index):
 def test_multiple_filetypes(reset_file_index, testdata, file_index):
     """Test new_files and a partial register_done for multiple filetypes."""
     client = Tracker("{0}/staging".format(base_path), file_index, write=True)
-    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"])
+    my_todo = client.new_files(
+        "test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"]
+    )
     assert len(my_todo) == 20
 
     done = [f for f in my_todo if "chimecal" in f]
 
     client.register_done("test_analyzer_2", done)
 
-    my_todo = client.new_files("test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"])
+    my_todo = client.new_files(
+        "test_analyzer_2", filetypes=["chimecal_corr", "chimestack_corr"]
+    )
     assert len(my_todo) == 10
 
 

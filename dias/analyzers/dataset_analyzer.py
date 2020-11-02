@@ -259,6 +259,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 .where(ds.DatasetState.id == state_id)
                 .get()
                 .data["data"]
+                .encode()
             )
 
         for ds_id, update_id in states.items():
