@@ -205,7 +205,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
                     "Number of frequencies don't match for corr file '{}' and 'freq' state {}.".format(
-                        self.instrument, self.flags_instrument, ds_id.decode("UTF-8")
+                        self.instrument, self.flags_instrument, ds_id
                     )
                 )
 
@@ -295,10 +295,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flagsfile[extra_bad] = False
 
             # Test if all flag entries match the one from the flaginput file
-            if (flags != flagsfile[:, np.newaxis]).all():
+            if (flags != flagsfile[:, np.newaxis]).any():
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
                     "'{}' corr file and '{}' flaginput file: Flags don't match for dataset {}.".format(
-                        self.instrument, self.flags_instrument, ds_id.decode("UTF-8")
+                        self.instrument, self.flags_instrument, ds_id
                     )
                 )
