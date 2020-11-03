@@ -423,7 +423,7 @@ class Tracker:
 
         Returns
         -------
-        dict : key acquisition directory, value list of filenames
+        defaultdict : key acquisition directory, value list of filenames
             Filenames are grouped by acquisition
         """
         acq_file_list = defaultdict(list)

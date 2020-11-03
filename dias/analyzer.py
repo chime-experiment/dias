@@ -262,10 +262,19 @@ class Analyzer(config.Reader):
         """
         Return a list of files unprocessed by dias_task_name, of its filetypes of interest.
 
+        If dates are provided, will return all files of type filestypes within the time range,
+        regardless if processed.
+
         Parameters
         ----------
         filetypes : List of String or String
             list of filetypes of interest.
+        start : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and now. Files will be returned, even if previously processed.
+        end : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and end. Requires a start.
         """
         if self._tracker is not None:
             return self._tracker.new_files(self.name, filetypes, start, end)
