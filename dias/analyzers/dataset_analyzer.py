@@ -68,6 +68,9 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             "total",
         )
 
+        # Initialized failed_checks metric
+        self.failed_checks.labels(check="flags").set(0)
+
     def run(self):
         """Run analyzer."""
         # make chimedb connect
