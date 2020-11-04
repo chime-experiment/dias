@@ -22,7 +22,7 @@ before_install:
     - pip install black
     - pip install future
     - pip install pytest
-    -
+
 install:
     - pip install -r docs/rtd-requirements.txt
     - pip install sphinx==2.4.4
@@ -33,7 +33,7 @@ script:
     - black --check .
 
     # Run pydocstyle on all .py files
-    - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy {} +
+    - find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy --add-ignore=D105 {} +
 
     # Run all tests in test folder
     - pytest --ignore dias/analyzers/test_analyzer.py

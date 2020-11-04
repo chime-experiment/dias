@@ -1,4 +1,5 @@
 """Helper functions to convert to and from strings."""
+from dias.exception import DiasException
 
 import os
 import re
@@ -44,6 +45,8 @@ def str2timedelta(time_str):
     for (name, param) in parts.items():
         if param:
             time_params[name] = int(param)
+    if not time_params:
+        raise DiasException("Unable to parse time string: '{}'".format(time_str))
     return timedelta(**time_params)
 
 

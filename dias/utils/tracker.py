@@ -37,8 +37,9 @@ import h5py
 import yaml
 import logging
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime
+from pathlib import Path
 
 from caput import time as ctime
 from dias import DiasUsageError
@@ -59,7 +60,7 @@ from peewee import (
 # Initialize db in Tracker.__init__()
 db = SqliteDatabase(None)
 
-FILETYPES = ["chimestack", "chimecal", "chimetiming"]
+FILETYPES = ["chimestack_corr", "chimecal_corr", "chimetiming_corr", "chime_flaginput"]
 
 
 class BaseModel(Model):
@@ -257,7 +258,7 @@ class Tracker:
             return
 
         # pattern used to extract filetype of file from its name
-        pattern = re.compile(".*Z_(.*)_corr.*")
+        pattern = re.compile(".*Z_(.*)/.*")
 
         file_type_rows = self._get_filetypes()
 
@@ -271,15 +272,26 @@ class Tracker:
         for f in files:
             with h5py.File(f, "r") as source:
                 file_type = pattern.search(f).group(1)
-                File.insert(
-                    {
-                        "filepath": f,
-                        "file_type_id": file_type_rows[file_type],
-                        "start_time": source["index_map/time"][0]["ctime"],
-                        "end_time": source["index_map/time"][-1]["ctime"],
-                        "exists": True,
-                    }
-                ).on_conflict_replace().execute()
+                if not file_type == "chime_flaginput":
+                    File.insert(
+                        {
+                            "filepath": f,
+                            "file_type_id": file_type_rows[file_type],
+                            "start_time": source["index_map/time"][0]["ctime"],
+                            "end_time": source["index_map/time"][-1]["ctime"],
+                            "exists": True,
+                        }
+                    ).on_conflict_replace().execute()
+                else:
+                    File.insert(
+                        {
+                            "filepath": f,
+                            "file_type_id": file_type_rows[file_type],
+                            "start_time": source["index_map/update_time"][0],
+                            "end_time": source["index_map/update_time"][-1],
+                            "exists": True,
+                        }
+                    ).on_conflict_replace().execute()
 
     def remove_files(self, files):
         """
@@ -317,7 +329,7 @@ class Tracker:
         files_on_disk = []
         for ft in FILETYPES:
             files_on_disk.extend(
-                glob.glob(os.path.join(self.base_path, "*_{0}_corr".format(ft), "*.h5"))
+                glob.glob(os.path.join(self.base_path, "*_{0}".format(ft), "*.h5"))
             )
 
         files_in_db = [
@@ -399,6 +411,27 @@ class Tracker:
             )
 
             return [f.filepath for f in files]
+
+    def get_acquisitions(self, file_list):
+        """
+        Group files in file_list by acquisition.
+
+        Paramaters
+        ----------
+        file_list : List of strings
+            list of filenames
+
+        Returns
+        -------
+        defaultdict : key acquisition directory, value list of filenames
+            Filenames are grouped by acquisition
+        """
+        acq_file_list = defaultdict(list)
+
+        for f in file_list:
+            acq_file_list[str(Path(f).parent)].append(f)
+
+        return acq_file_list
 
     def register_done(self, dias_task_name, list_of_files):
         """

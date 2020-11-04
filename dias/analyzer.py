@@ -82,7 +82,7 @@ class Analyzer(config.Reader):
         self.state_dir = state_dir
         self._tracker = tracker
 
-    def init_logger(self, log_level_override=None):
+    def init_logger(self, log_level_override="NOTSET"):
         """
         Set up the logger.
 
@@ -258,17 +258,26 @@ class Analyzer(config.Reader):
         """
         pass
 
-    def new_files(self, filetypes):
+    def new_files(self, filetypes, start=None, end=None):
         """
         Return a list of files unprocessed by dias_task_name, of its filetypes of interest.
+
+        If dates are provided, will return all files of type filestypes within the time range,
+        regardless if processed.
 
         Parameters
         ----------
         filetypes : List of String or String
             list of filetypes of interest.
+        start : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and now. Files will be returned, even if previously processed.
+        end : float, datetime, or None
+            Float is expected to be a Unix timestamp.
+            If provided, will return a list of files that contain data between start and end. Requires a start.
         """
         if self._tracker is not None:
-            return self._tracker.new_files(self.name, filetypes)
+            return self._tracker.new_files(self.name, filetypes, start, end)
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured")
 
@@ -301,5 +310,24 @@ class Analyzer(config.Reader):
         """
         if self._tracker is not None:
             self._tracker.add_output_file(self.name, start, end, filepath)
+        else:
+            raise DiasUsageError("Analyzer does not have a tracker configured.")
+
+    def get_acquisitions(self, file_list):
+        """
+        Group files in file_list by acquisition.
+
+        Parameters
+        ----------
+        file_list : List of strings
+            list of filenames
+
+        Returns
+        -------
+        dict : key acquisition directory : value list of filenames
+            Filenames are grouped by acquisition
+        """
+        if self._tracker is not None:
+            return self._tracker.get_acquisitions(file_list)
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured.")

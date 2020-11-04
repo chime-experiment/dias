@@ -4,7 +4,7 @@ import random
 import traceback
 
 from dias.utils import str2timestamp, str2total_seconds, bytes2str
-from dias.exception import DiasDataError
+from dias.exception import DiasDataError, DiasConfigError
 from pathlib import Path
 from prometheus_client import Gauge, Counter
 
@@ -171,6 +171,10 @@ class Task:
 
         # Convert period to seconds
         self.period = str2total_seconds(self.period)
+        if self.period == 0:
+            raise DiasConfigError(
+                "Config variable 'period' for task '{}' can not be 0.".format(self.name)
+            )
 
         # Advance start time into the non-past:
         while self.start_time <= reference_time:
@@ -183,18 +187,16 @@ class Task:
             )
             os.makedirs(self.write_dir)
         else:
-            self.analyzer.logger.debug("Write directory: {0}.".format(self.write_dir))
+            self.analyzer.logger.debug("Write directory: {0}".format(self.write_dir))
 
         # Create the task's state directory if it doesn't exist
         if not os.path.isdir(self.state_dir):
             self.analyzer.logger.debug(
-                "Creating new state directory: {}.".format(self.state_dir)
+                "Creating new state directory: {}".format(self.state_dir)
             )
             os.makedirs(self.state_dir)
         else:
-            self.analyzer.logger.debug(
-                "Set state directory: {}.".format(self.state_dir)
-            )
+            self.analyzer.logger.debug("Set state directory: {}".format(self.state_dir))
 
         # Run the setup
         self.analyzer.setup()

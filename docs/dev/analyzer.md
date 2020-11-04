@@ -205,7 +205,7 @@ my_other_conf_var: str
 
 ### Testing analyzers
 
-After defining your task by creating the `trivial_task.conf` file, it's time to test it.
+After [defining your task](/user/config) by creating the `trivial_task.conf` file, it's time to test it.
 
 We'll do this without installing dias first, and instead run things in-place.  First make sure python can find dias:
 ```

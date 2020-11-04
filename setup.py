@@ -24,6 +24,7 @@ setuptools.setup(
     scripts=["scripts/dias"],
     install_requires=[
         "chimedb.data_index @ git+https://git@github.com/chime-experiment/chimedb_di.git",
+        "chimedb.dataset @ git+https://git@github.com/chime-experiment/chimedb_dataset.git",
         "caput @ git+https://github.com/radiocosmology/caput.git",
         "draco @ git+https://github.com/radiocosmology/draco.git",
         "ch_util @ git+ssh://git@github.com/chime-experiment/ch_util.git@master",
