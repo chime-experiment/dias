@@ -287,7 +287,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 try:
                     flgind = update_ids.index(update_id)
                 except ValueError as err:
-                    self.logger.info("Flags not found in file {} for update_id {}: {}".format(f, update_id err))
+                    self.logger.info("Flags not found in file {} for update_id {}: {}".format(f, update_id, err))
                     continue
                 flagsfile = f.flag[flgind]
             if flagsfile is None:
