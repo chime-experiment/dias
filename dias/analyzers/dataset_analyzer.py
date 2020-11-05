@@ -163,6 +163,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                         "flags/frac_lost",
                     ),
                 )
+                self.logger.info("Validating {}".format(_file))
+
                 self.validate_flag_updates(ad, flg)
                 self.validate_freqs(ad)
 
