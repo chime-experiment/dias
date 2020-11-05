@@ -258,7 +258,7 @@ class Analyzer(config.Reader):
         """
         pass
 
-    def new_files(self, filetypes, start=None, end=None):
+    def new_files(self, filetypes, start=None, end=None, only_unprocessed=True):
         """
         Return a list of files unprocessed by dias_task_name, of its filetypes of interest.
 
@@ -271,10 +271,12 @@ class Analyzer(config.Reader):
             list of filetypes of interest.
         start : float, datetime, or None
             Float is expected to be a Unix timestamp.
-            If provided, will return a list of files that contain data between start and now. Files will be returned, even if previously processed.
+            If provided, will return a list of files that contain data after start and now. Files will be returned, even if previously processed..
         end : float, datetime, or None
             Float is expected to be a Unix timestamp.
-            If provided, will return a list of files that contain data between start and end. Requires a start.
+            If provided, will return a list of files that contain data before end.
+        only_unprocessed: boolean
+            If True, will return only un-processed files. If false, will return all files fitting the alternate constraints.
         """
         if self._tracker is not None:
             return self._tracker.new_files(self.name, filetypes, start, end)

@@ -80,7 +80,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         ds.get.index()
 
         # Use the tracker to get the chimestack files to analyze
-        cs_file_list = self.new_files(filetypes=self.instrument + "_corr")
+        end_time = datetime.datetime.utcnow() - self.offset
+
+        self.logger.info("Looking at files older than {0}".format(end_time))
+
+        cs_file_list = self.new_files(filetypes=self.instrument + "_corr", end=end_time)
 
         # Determine the range of time being processed
 
@@ -118,7 +122,9 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Use Finder to get the matching flaginput files
             self.logger.info("Finding flags between {} and {}.".format(tstart, tend))
-            flag_files = self.new_files("chime_flaginput", tstart, tend)
+            flag_files = self.new_files(
+                "chime_flaginput", tstart, tend, only_unprocessed=False
+            )
             flag_acqs = self.get_acquisitions(flag_files)
 
             self.logger.info(
@@ -287,7 +293,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 try:
                     flgind = update_ids.index(update_id)
                 except ValueError as err:
-                    self.logger.info("Flags not found in file {} for update_id {}: {}".format(f, update_id, err))
+                    self.logger.info(
+                        "Flags not found in file {} for update_id {}: {}".format(
+                            f, update_id, err
+                        )
+                    )
                     continue
                 flagsfile = f.flag[flgind]
             if flagsfile is None:

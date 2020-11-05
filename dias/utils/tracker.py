@@ -339,7 +339,15 @@ class Tracker:
         self.insert_files([f for f in files_on_disk if f not in files_in_db])
         self.remove_files([f for f in files_in_db if not os.path.isfile(f)])
 
-    def new_files(self, dias_task_name, filetypes, start=None, end=None, update=True):
+    def new_files(
+        self,
+        dias_task_name,
+        filetypes,
+        start=None,
+        end=datetime.utcnow().timestamp(),
+        only_unprocessed=True,
+        update=True,
+    ):
         """
         Return a list of files unprocessed by dias_task_name, of its filetype of interest.
 
@@ -355,10 +363,12 @@ class Tracker:
             If true, updates the File Table with the current state of `self.path`.
         start : float, datetime, or None
             Float is expected to be a Unix timestamp.
-            If provided, will return a list of files that contain data between start and now. Files will be returned, even if previously processed.
+            If provided, will return a list of files that contain data after start.
         end : float, datetime, or None
-            Float is expected to be a Unix timestamp.
-            If provided, will return a list of files that contain data between start and end. Requires a start.
+            Float is expected to be a Unix timestamp. Default: now
+            If start is not provided, only files before end will be returned.
+        only_unprocessed: boolean
+            If true, will return only un-processed files. If false, will return all files fitting the alternate constraints.
         """
         if update and self.write:
             self.update_file_table()
@@ -370,11 +380,12 @@ class Tracker:
 
         dias_task_analyzer, _ = Analyzer.get_or_create(name=dias_task_name)
 
-        # SELECT files of analyzer.file_type_id and NOT Processed by Analyzer
+        if not end:
+            end = (datetime.utcnow().timestamp(),)
 
-        if not start:
-            # return all un-processed files
+        end = self._ensure_time_unix(end)
 
+        if only_unprocessed:
             ## Select files processed by analyzer
             files_processed = (
                 File.select()
@@ -382,35 +393,34 @@ class Tracker:
                 .join(Analyzer)
                 .where(Processed.analyzer_id == dias_task_analyzer)
             )
-
-            ## Select which are un-processed
-            files_unprocessed = (
-                File.select()
-                .where(File.id.not_in(files_processed))
-                .where(File.file_type_id << filetypes)
-                .where(File.exists)
-                .order_by(File.start_time.asc())
-            )
-
-            return [f.filepath for f in files_unprocessed]
-
         else:
-            # return all files within timeframe
-            if not end:
-                end = datetime.utcnow().timestamp()
+            files_processed = tuple()
 
+        if start:
             start = self._ensure_time_unix(start)
-            end = self._ensure_time_unix(end)
 
+            # return files after start
             files = (
                 File.select()
+                .where(File.id.not_in(files_processed))
                 .where(File.file_type_id << filetypes)
                 .where(File.exists)
                 .where((File.start_time < end), (File.end_time > start))
                 .order_by(File.start_time.asc())
             )
 
-            return [f.filepath for f in files]
+        # Return files before end_time
+        else:
+            files = (
+                File.select()
+                .where(File.id.not_in(files_processed))
+                .where(File.file_type_id << filetypes)
+                .where(File.exists)
+                .where((File.start_time < end))
+                .order_by(File.start_time.asc())
+            )
+
+        return [f.filepath for f in files]
 
     def get_acquisitions(self, file_list):
         """
@@ -445,10 +455,9 @@ class Tracker:
             List of filepaths to be registered as processed. They need to already exist in the database File.
         """
         if not self.write:
-            self.logger.info(
+            raise DiasUsageError(
                 "Tracker is in read-only mode. You will not be able to update the database."
             )
-            return
 
         files_processed = File.select().where(File.filepath.in_(list_of_files))
 
