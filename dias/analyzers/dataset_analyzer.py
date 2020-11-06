@@ -147,7 +147,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
                 # Determine the range of time being processed
                 with h5py.File(all_flag_files[-1], "r") as final_file:
-                    flag_tend = final_file["index_map/update_time"][-1] if flag_tend < final_file["index_map/update_time"][-1] else flag_tend
+                    update_time = final_file["index_map/update_time"][-1]
+                    flag_tend = update_time if flag_tend < update_time else flag_tend
 
                 nfiles = len(all_flag_files)
 
@@ -163,9 +164,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
                 # if flag files are not available yet for stackfile, do not process the stackfile
                 with h5py.File(_file, "r") as f:
-                    file_end = f["index_map/update_time"][-1]
+                    file_end = f["index_map/time"][-1]["ctime"]
                     if flag_tend < file_end:
-                        self.logger.info("Flags not available for {0}, yet. Skipping..".format(_file))
+                        self.logger.info(
+                            "Flags not available for {0}, yet. Skipping..".format(_file)
+                        )
                         continue
 
                 ad = andata.CorrData.from_acq_h5(
@@ -298,22 +301,24 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Find the flag update from the files
             flagsfile = None
-            for f_acq in flg.keys():
-                flg_ad = flg[f_acq]
-                update_ids = list(f.update_id)
+            for flg_acq in flg.keys():
+                flg_ad = flg[flg_acq]
+                update_ids = list(flg_ad.update_id)
                 try:
                     flgind = update_ids.index(update_id)
                 except ValueError as err:
                     self.logger.info(
                         "Flags not found in file {} for update_id {}: {}".format(
-                            f_acq, update_id, err
+                            flg_acq, update_id, err
                         )
                     )
                     continue
-                flagsfile = f_ad.flag[flgind]
+                flagsfile = flg_ad.flag[flgind]
             if flagsfile is None:
                 raise DiasDataError(
-                    "Flag ID for {} file {} not found.".format(self.instrument, filename)
+                    "Flag ID for {} file {} not found.".format(
+                        self.instrument, filename
+                    )
                 )
             flagsfile[extra_bad] = False
 
@@ -322,6 +327,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
                     "'{}' file and '{}' flaginput file: Flags don't match for dataset {}.".format(
-                        filename, f_acq, ds_id
+                        filename, flg_acq, ds_id
                     )
                 )
