@@ -82,7 +82,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         # Use the tracker to get the chimestack files to analyze
         end_time = datetime.datetime.utcnow() - self.offset
 
-        self.logger.info("Looking at files older than {0}".format(end_time))
+        self.logger.debug("Looking at files older than {0}".format(end_time))
 
         cs_file_list = self.new_files(filetypes=self.instrument + "_corr", end=end_time)
 
@@ -136,6 +136,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 )
 
             # Loop over acquisitions
+            flag_tend = 0
             for flag_acq in flag_acqs.keys():
 
                 # Extract finder results within this acquisition
@@ -145,10 +146,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 flg = list()
 
                 # Determine the range of time being processed
-                with h5py.File(all_flag_files[0], "r") as first_file:
-                    flag_tstart = first_file["index_map/update_time"][0]
                 with h5py.File(all_flag_files[-1], "r") as final_file:
-                    flag_tend = final_file["index_map/update_time"][-1]
+                    flag_tend = final_file["index_map/update_time"][-1] if flag_tend < final_file["index_map/update_time"][-1] else flag_tend
 
                 nfiles = len(all_flag_files)
 
@@ -161,6 +160,14 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
 
             for _file in all_files:
+
+                # if flag files are not available yet for stackfile, do not process the stackfile
+                with h5py.File(_file, "r") as f:
+                    file_end = f["index_map/update_time"][-1]
+                    if flag_tend < file_end:
+                        self.logger.info("Flags not available for {0}, yet. Skipping..".format(_file))
+                        continue
+
                 ad = andata.CorrData.from_acq_h5(
                     _file,
                     datasets=(
