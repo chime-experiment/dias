@@ -143,7 +143,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 all_flag_files = flag_acqs[flag_acq]
 
                 # Loop over contiguous periods within this acquisition
-                flg = list()
+                flg = dict()
 
                 # Determine the range of time being processed
                 with h5py.File(all_flag_files[-1], "r") as final_file:
@@ -157,7 +157,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 self.logger.info(
                     "Now processing acquisition %s (%d files)" % (flag_acq, nfiles)
                 )
-                flg.append(andata.FlagInputData.from_acq_h5(all_flag_files))
+                flg[flag_acq] = andata.FlagInputData.from_acq_h5(all_flag_files)
 
             for _file in all_files:
 
@@ -176,19 +176,20 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                         "flags/frac_lost",
                     ),
                 )
-                self.logger.info("Validating {}".format(_file))
 
-                self.validate_flag_updates(ad, flg)
-                self.validate_freqs(ad)
+                self.validate_flag_updates(_file, ad, flg)
+                self.validate_freqs(_file, ad)
 
                 self.register_done([_file])
 
-    def validate_freqs(self, ad):
+    def validate_freqs(self, filename, ad):
         """
         Compare number of frequencies with freq state.
 
         Parameters
         ----------
+        filename : String
+            path to file loaded in ad
         ad : andata.CorrData
         """
         num_freqs = ad.nfreq
@@ -219,19 +220,21 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             if len(freq_state) != num_freqs:
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
-                    "Number of frequencies don't match for corr file '{}' and 'freq' state {}.".format(
-                        self.instrument, self.flags_instrument, ds_id
+                    "Number of frequencies don't match for corr file '{}' and 'freq' state {} for dataset id {}.".format(
+                        filename, self.flags_instrument, ds_id
                     )
                 )
 
-    def validate_flag_updates(self, ad, flg):
+    def validate_flag_updates(self, filename, ad, flg):
         """
         Compare flagging dataset states with flaginput files.
 
         Parameters
         ----------
+        filename: String
+            Path to andata.CorrData
         ad : andata.CorrData
-        flg : List(andata.FlagInputData)
+        flg : dict -> acquisition_name: andata.FlagInputData
         """
         # fmt: off
         extra_bad = [
@@ -295,21 +298,22 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Find the flag update from the files
             flagsfile = None
-            for f in flg:
+            for f_acq in flg.keys():
+                flg_ad = flg[f_acq]
                 update_ids = list(f.update_id)
                 try:
                     flgind = update_ids.index(update_id)
                 except ValueError as err:
                     self.logger.info(
                         "Flags not found in file {} for update_id {}: {}".format(
-                            f, update_id, err
+                            f_acq, update_id, err
                         )
                     )
                     continue
-                flagsfile = f.flag[flgind]
+                flagsfile = f_ad.flag[flgind]
             if flagsfile is None:
                 raise DiasDataError(
-                    "Flag ID for {} files {} not found.".format(self.instrument, ad)
+                    "Flag ID for {} file {} not found.".format(self.instrument, filename)
                 )
             flagsfile[extra_bad] = False
 
@@ -317,7 +321,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             if (flags != flagsfile[:, np.newaxis]).any():
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
-                    "'{}' corr file and '{}' flaginput file: Flags don't match for dataset {}.".format(
-                        self.instrument, self.flags_instrument, ds_id
+                    "'{}' file and '{}' flaginput file: Flags don't match for dataset {}.".format(
+                        filename, f_acq, ds_id
                     )
                 )
