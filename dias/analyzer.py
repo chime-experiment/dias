@@ -279,7 +279,9 @@ class Analyzer(config.Reader):
             If True, will return only un-processed files. If false, will return all files fitting the alternate constraints.
         """
         if self._tracker is not None:
-            return self._tracker.new_files(self.name, filetypes, start, end, only_unprocessed)
+            return self._tracker.new_files(
+                self.name, filetypes, start, end, only_unprocessed
+            )
         else:
             raise DiasUsageError("Analyzer does not have a tracker configured")
 

@@ -137,10 +137,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Loop over acquisitions
             flag_tend = 0
-            for flag_acq in flag_acqs.keys():
-
-                # Extract finder results within this acquisition
-                all_flag_files = flag_acqs[flag_acq]
+            for flag_acq, all_flag_files in flag_acqs.items():
 
                 # Loop over contiguous periods within this acquisition
                 flg = dict()
@@ -148,7 +145,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 # Determine the range of time being processed
                 with h5py.File(all_flag_files[-1], "r") as final_file:
                     update_time = final_file["index_map/update_time"][-1]
-                    flag_tend = update_time if flag_tend < update_time else flag_tend
+                    flag_tend = max(update_time, flag_tend)
 
                 nfiles = len(all_flag_files)
 
@@ -235,7 +232,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         Parameters
         ----------
         filename: String
-            Path to andata.CorrData
+            Path to file loaded in ad
         ad : andata.CorrData
         flg : dict -> acquisition_name: andata.FlagInputData
         """
@@ -301,8 +298,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Find the flag update from the files
             flagsfile = None
-            for flg_acq in flg.keys():
-                flg_ad = flg[flg_acq]
+            for flg_acq, flg_ad in flg.items():
                 update_ids = list(flg_ad.update_id)
                 try:
                     flgind = update_ids.index(update_id)
