@@ -21,7 +21,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
     Metrics
     -------
-    dias_task_<task_name>_failed_checks_total
+    dias_data_<task_name>_flaginput_not_available_total
+    ...................................................
+    Number of times flaginput files have not been available for more than 24h.
+
+    dias_data_<task_name>_failed_checks_total
     .....................................
     Number of datasets that failed a check.
 
@@ -67,9 +71,15 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             ["check"],
             "total",
         )
+        self.flaginput_not_available = self.add_data_metric(
+            "flaginput_not_available",
+            "Number of times flaginput files have not been available for more than 24h.",
+            unit="total",
+        )
 
         # Initialized failed_checks metric
         self.failed_checks.labels(check="flags").set(0)
+        self.flaginput_not_available.set(0)
 
     def run(self):
         """Run analyzer."""
@@ -145,7 +155,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 # Determine the range of time being processed
                 with h5py.File(all_flag_files[-1], "r") as final_file:
                     update_time = final_file["index_map/update_time"][-1]
-                    flag_tend = max(update_time, flag_tend)
+                flag_tend = max(update_time, flag_tend)
 
                 nfiles = len(all_flag_files)
 
@@ -162,11 +172,24 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 # if flag files are not available yet for stackfile, do not process the stackfile
                 with h5py.File(_file, "r") as f:
                     file_end = f["index_map/time"][-1]["ctime"]
-                    if flag_tend < file_end:
-                        self.logger.info(
-                            "Flags not available for {0}, yet. Skipping..".format(_file)
+
+                old = file_end < (
+                    datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+                )
+                flag_not_available = flag_tend < file_end
+
+                if flag_not_available:
+
+                    if old:
+                        self.logger.warn(
+                            "Flaginput files of older than 24h still not available."
                         )
-                        continue
+                        self.flaginput_not_available.inc()
+
+                    self.logger.info(
+                        "Flags not available for {0}, yet. Skipping..".format(_file)
+                    )
+                    continue
 
                 ad = andata.CorrData.from_acq_h5(
                     _file,
