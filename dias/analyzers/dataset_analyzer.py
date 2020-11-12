@@ -174,8 +174,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     file_end = f["index_map/time"][-1]["ctime"]
 
                 if flag_tend < file_end:  # flag not available
-                    old = file_end < (
-                        datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+                    old = (
+                        file_end
+                        < (
+                            datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+                        ).timestamp()
                     )
 
                     if old:
