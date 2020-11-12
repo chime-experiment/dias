@@ -147,10 +147,9 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Loop over acquisitions
             flag_tend = 0
+            flg = dict()
+            # Loop over contiguous periods within this acquisition
             for flag_acq, all_flag_files in flag_acqs.items():
-
-                # Loop over contiguous periods within this acquisition
-                flg = dict()
 
                 # Determine the range of time being processed
                 with h5py.File(all_flag_files[-1], "r") as final_file:
