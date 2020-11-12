@@ -173,12 +173,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 with h5py.File(_file, "r") as f:
                     file_end = f["index_map/time"][-1]["ctime"]
 
-                old = file_end < (
-                    datetime.datetime.utcnow() - datetime.timedelta(hours=24)
-                )
-                flag_not_available = flag_tend < file_end
-
-                if flag_not_available:
+                if flag_tend < file_end:  # flag not available
+                    old = file_end < (
+                        datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+                    )
 
                     if old:
                         self.logger.warn(
