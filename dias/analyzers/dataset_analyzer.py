@@ -308,6 +308,12 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
         for ds_id, update_id in states.items():
 
+            # kotekan-recv wil use initial_flags until it gets an actual update
+            # initial_flags will not be within the flaginput files
+            if b"initial_flags" in update_id:
+                self.logger.info("Skipping initial_flags update")
+                continue
+
             # Get all non-missing frames at this frequency
             present = ad.flags["frac_lost"][self.freq_id] < 1.0
 
