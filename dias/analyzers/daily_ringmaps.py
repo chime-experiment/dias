@@ -203,7 +203,7 @@ class DailyRingmapAnalyzer(CHIMEAnalyzer):
         # Create new file
         self.tag = ephem.unix_to_datetime(time[0]["ctime"]).strftime("%Y%m%dT%H%M%SZ")
         fname = path.join(self.write_dir, "{}.h5".format(self.tag))
-        fh = h5py.File(fname)
+        fh = h5py.File(fname, "w")
 
         # compression
         comp = h5.H5FILTER if self.use_bitshuffle else None
