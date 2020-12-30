@@ -220,3 +220,28 @@ def str2path(s):
         references to non-existing variables are left unchanged.
     """
     return os.path.expandvars(os.path.expanduser(s))
+
+
+def str2xpath(s):
+    """
+    Perform shell-expansion on a string, and check that the resultant
+    path exists.  Raises ValueError if the path doesn't exist.
+
+    Parameters
+    ----------
+    s : str
+        A path.
+
+    Returns
+    -------
+    str
+        The same path, but `~` or `~user` are replaced by the user's home
+        directory and substrings of the form `$name` or `${name}` are replaced
+        by the value of environment variable name. Malformed variable names and
+        references to non-existing variables are left unchanged.
+    """
+    path = str2path(s)
+
+    if not os.path.exists(path):
+        raise ValueError("Path {} does not exist.".format(path))
+    return path
