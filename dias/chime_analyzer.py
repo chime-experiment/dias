@@ -16,6 +16,11 @@ class CHIMEAnalyzer(Analyzer):
     archive_data_dir = config.Property(proptype=str)
     staging_data_dir = config.Property(proptype=str)
 
+    if not os.path.exists(archive_data_dir):
+        raise OSError("archive directory ({}) is missing".format(archive_data_dir))
+    if not os.path.exists(staging_data_dir):
+        raise OSError("staging directory ({}) is missing".format(staging_data_dir))
+
     def __init__(self, name, write_dir, state_dir, tracker):
         """Construct the CHIME analyzer base class.
 

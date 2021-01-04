@@ -3,7 +3,7 @@ import importlib
 import logging
 import yaml
 import os
-from dias.utils import str2timedelta, str2path, str2bytes
+from dias.utils import str2timedelta, str2path, str2bytes, str2xpath
 from dias import DiasConfigError, DiasUsageError, Task
 from dias.utils import Tracker
 import copy
@@ -64,12 +64,12 @@ class ConfigLoader:
         # the directory containing dais.conf
         self._check_config_variable(
             "task_config_dir",
-            proptype=str2path,
+            proptype=str2xpath,
             default=os.path.join(os.path.dirname(self.config_path), "tasks"),
         )
 
-        self._check_config_variable("task_write_dir", proptype=str2path)
-        self._check_config_variable("task_state_dir", proptype=str2path)
+        self._check_config_variable("task_write_dir", proptype=str2xpath)
+        self._check_config_variable("task_state_dir", proptype=str2xpath)
         # now shell-expand these paths
         self["task_config_dir"] = str2path(self["task_config_dir"])
         self["task_write_dir"] = str2path(self["task_write_dir"])
