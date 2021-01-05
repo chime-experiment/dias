@@ -1,5 +1,6 @@
 """CHIME-specifc Analyzer Base Class."""
 
+import os
 from caput import config
 from dias import Analyzer
 from ch_util import finder
