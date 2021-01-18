@@ -1,0 +1,85 @@
+name: dias-ci-build
+on:
+  pull_request:
+    branches:
+    - master
+  push:
+    branches:
+    - master
+
+jobs:
+
+  lint-code:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install black
+      run: pip install black
+
+    - name: Check code with black
+      run: |
+        black --check .
+
+    - name: Install pydocstyle
+      run: pip install pydocstyle
+
+    - name: Check code with pydocstyle
+      run: |
+        find . -name \*.py ! -name 'versioneer.py' ! -name '_version.py' -exec pydocstyle --convention=numpy --add-ignore=D105 {} +
+
+  run-tests:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install apt dependencies
+      run: |
+        sudo apt-get install -y libhdf5-serial-dev graphviz libopenmpi-dev openmpi-bin
+
+    - name: Install python general dependencies
+      run: |
+        pip install wheel future pytest
+        pip install numpy
+        pip install Cython
+        pip install --no-binary=h5py h5py
+        pip install git+https://github.com/kiyo-masui/bitshuffle.git
+
+    - name: Install dias and doc dependencies
+      run: |
+        pip install -r docs/rtd-requirements.txt
+        pip install sphinx==2.4.4
+
+    - name: Install dias
+      run: |
+        pip install .
+
+    - name: Run all tests in test folder
+      run: |
+        mkdir -p ~/dias_tmp/data
+        mkdir -p ~/dias_tmp/state
+        pytest --ignore dias/analyzers/test_analyzer.py
+
+    - name: Test dias script
+      run: |
+        python test/make_test_swarm.py test_conf 1
+        mkdir -p test_conf/output
+        python scripts/dias -c test_conf/dias.conf configtest
+        python scripts/dias -c test_conf/dias.conf tryrun task0
+
+    - name: Build docs
+      run: |
+        cd docs
+        make html
