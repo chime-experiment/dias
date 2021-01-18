@@ -260,9 +260,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         flg : dict -> acquisition_name: andata.FlagInputData
         """
         # fmt: off
+        # TODO: get them from a dataset state that should get registered by visCompression
         extra_bad = [
             # These are non-CHIME feeds we want to exclude (26m, noise source channels, etc.)
-            46, 142, 688, 944, 960, 1058, 1166, 1225, 1314, 1521, 2032, 2034,
+            46, 142, 688, 944, 960, 1058, 1141, 1166, 1225, 1314, 1521, 1642, 2032, 2034,
             # Below are the last eight feeds on each cylinder, masked out because their beams are very
             # different
             0, 1, 2, 3, 4, 5, 6, 7, 248, 249, 250, 251, 252, 253, 254, 255,
