@@ -352,7 +352,33 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             if (flags != flagsfile[:, np.newaxis]).any():
                 self.failed_checks.labels(check="flags").inc()
                 self.logger.warn(
-                    "'{}' file and '{}' flaginput file: Flags don't match for dataset {}.".format(
-                        filename, flg_acq, ds_id
+                    "Flags don't match for dataset {} ({}) between the following files:\n- '{}'\n- '{}/' ".format(
+                        ds_id, update_id, filename, flg_acq
                     )
                 )
+                self.report_flags_diff(
+                    flags, flagsfile[:, np.newaxis], ad.index_map["input"]
+                )
+
+    def report_flags_diff(self, flags_ds, flags_file, inputs):
+        diff = flags_ds != flags_file
+        self.logger.info(
+            f"Flags in {diff.any(0).sum()}/{diff.shape[1]} frames mismatch."
+        )
+        self.logger.info(f"Flags for {diff.any(1).sum()} inputs mismatch:")
+        for input_id, diff_input, flags_ds_input in zip(inputs, diff, flags_ds):
+            num_mismatches = diff_input.sum()
+            if num_mismatches != 0:
+                self.logger.info(
+                    f"Input {input_id} mismatches in {num_mismatches}/{diff_input.shape[0]} frames"
+                )
+                if np.all(flags_ds_input[diff_input] == True):
+                    self.logger.info(f"The input is only flagged in the dataset state.")
+                elif np.all(flags_ds_input[diff_input] == False):
+                    self.logger.info(
+                        f"The input is only flagged in the flaginput file."
+                    )
+                else:
+                    self.logger.info(
+                        "The input is flagged sometimes only in the flaginput file, sometimes only in the dataset state."
+                    )
