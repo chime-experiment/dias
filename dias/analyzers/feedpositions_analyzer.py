@@ -1,6 +1,6 @@
 """A CHIME analyzer to calculate the East-West feed positions."""
 from dias import CHIMEAnalyzer, DiasConfigError
-from datetime import datetime
+from datetime import datetime, timedelta
 from caput import config, time
 from dias.utils.string_converter import datetime2str
 
