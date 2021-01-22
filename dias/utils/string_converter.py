@@ -224,8 +224,9 @@ def str2path(s):
 
 def str2xpath(s):
     """
-    Perform shell-expansion on a string, and check that the resultant
-    path exists.  Raises ValueError if the path doesn't exist.
+    Perform shell-expansion on a string, and check that the resultant path exists.
+
+    Raises ValueError if the path doesn't exist.
 
     Parameters
     ----------

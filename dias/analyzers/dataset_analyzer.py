@@ -361,6 +361,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 )
 
     def report_flags_diff(self, flags_ds, flags_file, inputs):
+        """Generate a detailed diff for flagging mismatches."""
         diff = flags_ds != flags_file
         self.logger.info(
             f"Flags in {diff.any(0).sum()}/{diff.shape[1]} frames mismatch."
