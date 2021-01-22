@@ -1,6 +1,3 @@
-# Stub ch_util for readthedocs & travisCI
-ch_util @ git+https://github.com/chime-experiment/ch_util-stub.git#egg=ch_util
-
 # From install_requires
 chimedb.data_index @ git+https://github.com/chime-experiment/chimedb_di.git
 caput @ git+https://github.com/radiocosmology/caput.git

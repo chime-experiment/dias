@@ -27,7 +27,7 @@ setuptools.setup(
         "chimedb.dataset @ git+https://git@github.com/chime-experiment/chimedb_dataset.git",
         "caput @ git+https://github.com/radiocosmology/caput.git",
         "draco @ git+https://github.com/radiocosmology/draco.git",
-        "ch_util @ git+ssh://git@github.com/chime-experiment/ch_util.git",
+        "ch_util @ git+https://github.com/chime-experiment/ch_util.git",
         "prometheus_client>=0.5.0",
         "bitshuffle",
         "skyfield",
