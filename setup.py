@@ -29,7 +29,7 @@ setuptools.setup(
         "draco @ git+https://github.com/radiocosmology/draco.git",
         "ch_util @ git+https://github.com/chime-experiment/ch_util.git",
         "prometheus_client>=0.5.0",
-        "bitshuffle",
+        "bitshuffle @ git+https://github.com/kiyo-masui/bitshuffle.git",
         "skyfield",
         "pyyaml",
         "scipy",
