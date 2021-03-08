@@ -262,7 +262,7 @@ class Tracker:
 
         file_type_rows = self._get_filetypes()
 
-        self.logger.info("Adding {0} to database".format(len(files)))
+        self.logger.debug("Adding {0} DIAS input files to database".format(len(files)))
 
         # remove already logged files from list
         files_in_table = [f.filepath for f in File.select()]
@@ -308,8 +308,10 @@ class Tracker:
             )
             return
 
-        self.logger.info(
-            "Setting exists = False for {0} in database".format(len(files))
+        self.logger.debug(
+            "Removing {0} files, which are not present on disk anymore, from db".format(
+                len(files)
+            )
         )
 
         with db:
@@ -472,6 +474,12 @@ class Tracker:
             for batch in chunked(records, 100):
                 Processed.insert_many(batch).on_conflict_replace().execute()
 
+        self.logger.debug(
+            "Added {0} processed files for {1} analyzer".format(
+                len(records), dias_task_name
+            )
+        )
+
     def add_output_file(self, dias_task_name, start, end, filepath):
         """Add row to file index table.
 
@@ -511,6 +519,8 @@ class Tracker:
                     "exists": True,
                 }
             ).on_conflict_replace().execute()
+
+        self.logger.debug("Added 1 output file for {0} to db.".format(dias_task_name))
 
     def get_output_files(self, dias_task_name, start, end=None, update=True):
         """Return list of filepaths for dias_task_name that include data between start and end.
