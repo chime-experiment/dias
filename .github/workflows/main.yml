@@ -47,6 +47,7 @@ jobs:
 
     - name: Install apt dependencies
       run: |
+        sudo apt-get update
         sudo apt-get install -y libhdf5-serial-dev graphviz libopenmpi-dev openmpi-bin
 
     - name: Install python general dependencies
