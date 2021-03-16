@@ -270,6 +270,11 @@ class Tracker:
         files = [f for f in files if f not in files_in_table]
 
         for f in files:
+            lock_file = "." + Path(f).name + ".lock"
+            path_lock = Path(f).parent / lock_file
+            if path_lock.is_file():
+                # file is being written to, do not include in table
+                continue
             with h5py.File(f, "r") as source:
                 file_type = pattern.search(f).group(1)
                 if not file_type == "chime_flaginput":
