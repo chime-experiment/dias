@@ -301,8 +301,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             query_start_time = query_stop_time - self.period
 
         self.logger.info(
-            "Searching for transits from %s to %s"
-            % (str(query_start_time), str(query_stop_time))
+            f"Searching for transits from {query_start_time} to {query_stop_time}"
         )
 
         # Create transit tracker
@@ -310,9 +309,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
             src_body = fluxcat.FluxCatalog[src].skyfield
 
-            self.logger.info(
-                "Initializing offline point source processing for {}.".format(src)
-            )
+            self.logger.info(f"Initializing offline point source processing for {src}.")
 
             # nsigma distance in degree from transit from peak
             time_delta = (
@@ -333,8 +330,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             file_list = f.get_results()
 
             if len(file_list) == 0:
-                tmp = "No {} files found from last {} for "
-                "source transit {}.\n".format(self.acq_suffix, self.period, src)
+                tmp = f"No {self.acq_suffix} files found from last {self.period} for source transit {src}"
                 err_msg += tmp
                 self.logger.info(tmp)
                 continue
@@ -375,12 +371,11 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
                 if self.process_daytime < is_daytime:
                     self.logger.info(
-                        "Not processing % s as it does not "
-                        "meet daytime processing conditions" % (src)
+                        f"Not processing {src} as it does not meet daytime processing conditions"
                     )
                     continue
 
-                self.logger.info("Now processing %s transit on CSD %d" % (src, csd))
+                self.logger.info(f"Now processing {src} transit on CSD {csd}")
 
                 # Load index map and reverse map
                 data = andata.CorrData.from_acq_h5(
@@ -435,9 +430,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     fstop = min((block_number + 1) * self.nfreq_per_block, nfreq)
                     freq_sel = slice(fstart, fstop)
 
-                    self.logger.info(
-                        "Processing block %d (of %d):  %d - %d"
-                        % (block_number, nblock, fstart, fstop)
+                    self.logger.debug(
+                        f"Processing block {block_number} (of {nblock}):  {fstart} - {fstop}"
                     )
 
                     bdata = andata.CorrData.from_acq_h5(
@@ -462,7 +456,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     # Loop over polarizations
                     for ii, pol in enumerate(pols):
 
-                        self.logger.info("Processing Pol %s" % pol)
+                        self.logger.debug(f"Processing Pol {pol}")
 
                         pvis = bdata.vis[:, prod[pol], :]
                         pvar = bvar[:, prod[pol], :]
@@ -488,9 +482,8 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                             pscale * pcnt * pflag, axis=1
                         )
 
-                    self.logger.info(
-                        "Took %0.1f seconds to process this block."
-                        % (time.time() - t0,)
+                    self.logger.debug(
+                        f"Took {time.time() - t0} seconds to process this block."
                     )
 
                     del bdata
@@ -543,7 +536,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     self.write_dir,
                     "%s_csd_%d_%s.h5" % (src.lower(), csd, self.output_suffix),
                 )
-                self.logger.info("Writing {}...".format(output_file))
+                self.logger.info(f"Writing {output_file}")
 
                 self.update_data_index(
                     data.time[0], data.time[-1], filename=output_file
@@ -615,9 +608,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         ["id", "-u", "-n"]
                     ).strip()
                     handler.attrs["git_version_tag"] = dias_version_tag
-                    self.logger.info(
-                        "File for {} successfully written out.".format(src)
-                    )
+                    self.logger.info(f"File for {src} written.")
 
         if err_msg:
             raise exception.DiasDataError(err_msg)
@@ -639,8 +630,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
 
         if not np.all(stack_flag):
             self.logger.warning(
-                "There are %d stacked baselines that are masked "
-                "by the inputmap." % np.sum(~stack_flag)
+                f"There are {np.sum(~stack_flag)} stacked baselines that are masked by the inputmap."
             )
 
         for pp, (this_prod, this_conj) in enumerate(stack):
@@ -768,7 +758,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 cursor = self.data_index.cursor()
                 cursor.execute("DELETE FROM files WHERE filename = ?", (filename,))
                 self.data_index.commit()
-                self.logger.info("Removed %s from data index database." % filename)
+                self.logger.debug(f"Removed {filename} from data index database.")
 
     def finish(self):
         """Close connection to data index database."""
