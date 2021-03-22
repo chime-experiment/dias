@@ -98,21 +98,18 @@ class Task:
                 "Total times task ran.",
                 labelnames=["task"],
                 namespace="dias",
-                unit="total",
             )
             task_metrics["failed"] = Counter(
                 "failed",
                 "Counts how often each task failed.",
                 labelnames=["task"],
                 namespace="dias",
-                unit="total",
             )
             task_metrics["no_data"] = Counter(
                 "no_data",
                 "Counts how often each task failed because it couldn't find any data.",
                 labelnames=["task"],
                 namespace="dias",
-                unit="total",
             )
 
         self.data_written_metric = task_metrics["data_written"]

@@ -85,7 +85,6 @@ class Scheduler:
             "still running when rescheduled.",
             labelnames=["task"],
             namespace="dias",
-            unit="total",
         )
 
         self.config = config
