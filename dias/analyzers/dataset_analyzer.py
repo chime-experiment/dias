@@ -79,6 +79,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
         # Initialized failed_checks metric
         self.failed_checks.labels(check="flags").set(0)
+        self.failed_checks.labels(check="validnulls").set(0)
         self.flaginput_not_available.set(0)
 
     def run(self):
@@ -200,10 +201,29 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     ),
                 )
 
+                self.validate_null(_file, ad)
                 self.validate_flag_updates(_file, ad, flg)
                 self.validate_freqs(_file, ad)
 
                 self.register_done([_file])
+
+    def validate_null(self, filename, ad):
+        """
+        Check that data that is considered valid (i.e. frac_lost < 1) does not have a null dataset ID.
+
+        Paramaters
+        ----------
+        filename : String
+            path to file loaded in ad
+        ad : andata.CorrData
+        """
+        file_ds = ad.flags["dataset_id"][:] == "00000000000000000000000000000000"
+        file_frac_lost = ad.flags["frac_lost"][:] < 1.0
+        if np.logical_and(file_ds, file_frac_lost).any():
+            self.failed_checks.labels(check="validnulls").inc()
+            self.logger.warn(
+                f"Corr file {filename} contains null dataset ids associated with valid frames (i.e. frac_lost < 1.0)"
+            )
 
     def validate_freqs(self, filename, ad):
         """
