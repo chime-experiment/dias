@@ -131,6 +131,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 % (acq.split("/")[-1], nfiles)
             )
 
+            # chimestack files may contain older flag updates, especially during hot periods
+            # when flag updates are re-sent
+            tstart -= 32 * 60 * 60
+
             # Use Finder to get the matching flaginput files
             self.logger.info("Finding flags between {} and {}.".format(tstart, tend))
             flag_files = self.new_files(
