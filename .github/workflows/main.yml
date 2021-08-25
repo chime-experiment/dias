@@ -66,6 +66,11 @@ jobs:
     - name: Install dias
       run: |
         pip install .
+        
+    - name: Download bitshuffle and run unit tests
+      run: |
+        git clone git+https://github.com/kiyo-masui/bitshuffle.git ~/dias_tmp/
+        pytest -s ~/dias_tmp/bitshuffle/tests
 
     - name: Run all tests in test folder
       run: |
