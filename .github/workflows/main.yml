@@ -71,7 +71,7 @@ jobs:
       run: |
         mkdir -p ~/dias_tmp/data
         mkdir -p ~/dias_tmp/state
-        pytest --ignore dias/analyzers/test_analyzer.py
+        pytest -s --ignore dias/analyzers/test_analyzer.py
 
     - name: Test dias script
       run: |
