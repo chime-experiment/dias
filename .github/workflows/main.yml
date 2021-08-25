@@ -61,7 +61,7 @@ jobs:
     - name: Download bitshuffle and run unit tests
       run: |
         git clone https://github.com/kiyo-masui/bitshuffle.git ~/dias_tmp/bitshuffle; ls ~/dias_tmp/bitshuffle
-        pytest -s ~/dias_tmp/bitshuffle/tests
+        CI_BUILD_WHEEL=1 pytest -s ~/dias_tmp/bitshuffle/tests
     
     - name: Install dias and doc dependencies
       run: |
