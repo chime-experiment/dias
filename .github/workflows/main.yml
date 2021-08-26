@@ -55,7 +55,7 @@ jobs:
         pip install wheel future pytest
         pip install numpy
         pip install Cython
-        pip install h5py
+        pip install --no-binary=h5py h5py
         pip install git+https://github.com/kiyo-masui/bitshuffle.git
         
     - name: Download bitshuffle and run unit tests
