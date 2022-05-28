@@ -204,6 +204,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         )
 
         for files in file_list:
+            self.logger.info(f"Reading file {files}")
 
             # Load index map and reverse map
             data = andata.CorrData.from_acq_h5(
@@ -222,6 +223,12 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             # Also used in the output file name and database
             timestamp = data.time
             ntime = timestamp.size
+
+            # skip bad files
+            if np.isnan(timestamp[0]):
+                self.logger.warning(f"Invalid timestamp in {files}.  Skipping.")
+                self.register_done([files])
+                continue
 
             # Determine groups
             polstr = np.array(sorted(prod.keys()))
