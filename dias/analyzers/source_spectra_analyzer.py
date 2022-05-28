@@ -492,7 +492,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                 # Normalize
                 inv_counter = tools.invert_no_zero(counter)
                 vis *= inv_counter
-                var *= inv_counter ** 2
+                var *= inv_counter**2
 
                 ra = np.degrees(np.unwrap(ra))
                 ha = ra - np.degrees(src_ra)

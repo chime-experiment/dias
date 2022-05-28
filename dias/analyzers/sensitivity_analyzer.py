@@ -293,7 +293,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
             # Normalize
             inv_counter = tools.invert_no_zero(counter)
-            var *= inv_counter ** 2
+            var *= inv_counter**2
 
             # Compute metric to be exported
             self.sens.labels(pol="EW").set(
