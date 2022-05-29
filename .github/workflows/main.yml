@@ -61,6 +61,7 @@ jobs:
     - name: Install dias and doc dependencies
       run: |
         pip install -r docs/rtd-requirements.txt
+        pip install Jinja2<3.1
         pip install sphinx==2.4.4
 
     - name: Install dias
