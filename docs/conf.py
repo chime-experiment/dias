@@ -2,9 +2,15 @@
 """Configuration file for the Sphinx documentation builder."""
 from recommonmark.parser import CommonMarkParser
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../analyzers'))
+import dias
+import dias.analyzers.daily_ringmaps.DailyRingmapAnalyzer
+
 # Mock imports
 
-import sys
 from unittest.mock import MagicMock
 
 
@@ -23,7 +29,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 project = "dias"
 copyright = "2019, The CHIME Collaboration"
-author = "Donald Wiebe and Rick Nitsche"
+author = "The CHIME Collaboration"
 
 # The short X.Y version
 version = ""
