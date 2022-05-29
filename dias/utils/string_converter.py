@@ -10,7 +10,7 @@ TIMEDELTA_REGEX = re.compile(
     r"((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
 )
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-DATA_UNITS = {"B": 1, "kB": 10 ** 3, "MB": 10 ** 6, "GB": 10 ** 9}
+DATA_UNITS = {"B": 1, "kB": 10**3, "MB": 10**6, "GB": 10**9}
 DATA_UNITS_SORTED = ["B", "kB", "MB", "GB"]
 
 
