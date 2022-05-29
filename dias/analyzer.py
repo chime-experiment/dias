@@ -25,8 +25,8 @@ class Analyzer(config.Reader):
     will be overridden with instance attributes with the same name but with the
     values specified in the config file.
 
-    Attributes
-    ----------
+    Config Attributes
+    -----------------
     period : String
         A time period (e.g. '1h'), indicating the schedule for this task
     start_time : String

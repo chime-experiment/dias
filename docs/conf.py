@@ -6,8 +6,6 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../analyzers'))
-import dias
-import dias.analyzers.daily_ringmaps.DailyRingmapAnalyzer
 
 # Mock imports
 
@@ -41,7 +39,7 @@ release = ""
 
 autoclass_content = "both"  # include both class docstring and __init__
 autodoc_warningiserror = True
-autosummary_generate = True  # Make _autosummary files and include them
+autosummary_generate = False  # Make _autosummary files and include them
 napoleon_use_rtype = False  # More legible
 
 # Add any Sphinx extension module names here, as strings. They can be
