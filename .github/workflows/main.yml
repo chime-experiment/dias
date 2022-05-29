@@ -60,7 +60,6 @@ jobs:
 
     - name: Install dias and doc dependencies
       run: |
-        pip install 'Jinja2<3.1'
         pip install -r docs/rtd-requirements.txt
         pip install sphinx==2.4.4
 
@@ -81,7 +80,7 @@ jobs:
         python scripts/dias -c test_conf/dias.conf configtest
         python scripts/dias -c test_conf/dias.conf tryrun task0
 
-    - name: Build docs
-      run: |
-        cd docs
-        make html
+#    - name: Build docs
+#     run: |
+#       cd docs
+#       make html
