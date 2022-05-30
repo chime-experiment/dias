@@ -29,6 +29,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
     .....................................
     Number of datasets that failed a check.
 
+    dias_data_<task_name>_updateid_not_found_total
+    ..............................................
+    Number of datasets whose update ids were not found in the expected flaginput files.
+
     Labels
         check : string
             Type of check that failed. One of: `flags`.
@@ -76,11 +80,17 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             "Number of times flaginput files have not been available for more than 24h.",
             unit="total",
         )
+        self.updateid_not_found = self.add_data_metric(
+            "updateid_not_found",
+            "Number of times the update id was not found in expected flaginput files",
+            unit="total",
+        )
 
         # Initialized failed_checks metric
         self.failed_checks.labels(check="flags").set(0)
         self.failed_checks.labels(check="validnulls").set(0)
         self.flaginput_not_available.set(0)
+        self.updateid_not_found.set(0)
 
     def run(self):
         """Run analyzer."""
@@ -130,6 +140,10 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 "Now processing acquisition %s (%d files)"
                 % (acq.split("/")[-1], nfiles)
             )
+
+            # chimestack files may contain older flag updates, especially during hot periods
+            # when flag updates are re-sent
+            tstart -= 32 * 60 * 60
 
             # Use Finder to get the matching flaginput files
             self.logger.info("Finding flags between {} and {}.".format(tstart, tend))
@@ -361,6 +375,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                     continue
                 flagsfile = flg_ad.flag[flgind]
             if flagsfile is None:
+                self.updateid_not_found.inc()
                 raise DiasDataError(
                     "Flag ID for {} file {} not found.".format(
                         self.instrument, filename
