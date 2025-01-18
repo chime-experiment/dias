@@ -1,4 +1,5 @@
 """dias Job."""
+
 from dias import DiasConcurrencyError
 
 

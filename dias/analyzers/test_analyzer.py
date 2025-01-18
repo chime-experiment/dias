@@ -1,4 +1,5 @@
 """Analyzer to test the dias scheduler."""
+
 from dias import Analyzer
 from dias.utils import str2timedelta
 from time import sleep

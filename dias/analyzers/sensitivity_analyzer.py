@@ -243,9 +243,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 ):
                     cnt[ss, :] += flag_ind[pp[0], :] * flag_ind[pp[1], :]
             else:
-                for ss, val in Counter(
-                    data.reverse_map["stack"]["stack"][:]
-                ).items():
+                for ss, val in Counter(data.reverse_map["stack"]["stack"][:]).items():
                     cnt[ss, :] = val
 
             # Initialize arrays

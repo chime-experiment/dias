@@ -3,7 +3,6 @@
 This is a basic example for how to write an analyzer for dias.
 """
 
-
 from dias import CHIMEAnalyzer
 from datetime import datetime
 from caput import config
