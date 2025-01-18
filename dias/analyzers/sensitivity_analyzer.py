@@ -245,7 +245,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
             else:
                 for ss, val in Counter(
                     data.reverse_map["stack"]["stack"][:]
-                ).iteritems():
+                ).items():
                     cnt[ss, :] = val
 
             # Initialize arrays
