@@ -1,4 +1,5 @@
 """Analyzer Base Class."""
+
 import logging
 import os
 import re

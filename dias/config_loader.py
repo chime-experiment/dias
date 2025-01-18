@@ -1,4 +1,5 @@
 """dias config loader."""
+
 import importlib
 import logging
 import yaml

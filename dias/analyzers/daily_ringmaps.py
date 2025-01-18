@@ -1,4 +1,5 @@
 """Analyzer to retrieve and store daily ringmaps."""
+
 import numpy as np
 import requests
 import msgpack

@@ -1,4 +1,5 @@
 """dias, a data integrity analysis system."""
+
 from .exception import DiasException, DiasUsageError, DiasConfigError
 from .exception import DiasConcurrencyError
 from .analyzer import Analyzer

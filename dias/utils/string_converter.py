@@ -1,4 +1,5 @@
 """Helper functions to convert to and from strings."""
+
 from dias.exception import DiasException
 
 import os
@@ -42,7 +43,7 @@ def str2timedelta(time_str):
         return
     parts = parts.groupdict()
     time_params = {}
-    for (name, param) in parts.items():
+    for name, param in parts.items():
         if param:
             time_params[name] = int(param)
     if not time_params:
