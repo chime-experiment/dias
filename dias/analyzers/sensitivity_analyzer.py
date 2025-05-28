@@ -311,13 +311,13 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
 
                 index_map = handler.create_group("index_map")
                 index_map.create_dataset("freq", data=data.index_map["freq"][:])
-                index_map.create_dataset("pol", data=np.string_(polstr))
+                index_map.create_dataset("pol", data=np.bytes_(polstr))
                 index_map.create_dataset("time", data=data.time)
 
                 dset = handler.create_dataset("rms", data=np.sqrt(var))
                 dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
-                dset = handler.create_dataset("count", data=counter.astype(np.int))
+                dset = handler.create_dataset("count", data=counter.astype(int))
                 dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
                 handler.attrs["instrument_name"] = self.correlator
