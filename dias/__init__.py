@@ -10,7 +10,12 @@ from .config_loader import ConfigLoader
 from .job import Job
 from .scheduler import Scheduler, stop_scheduler
 
-from ._version import get_versions
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = get_versions()["version"]
-del get_versions
+try:
+    __version__ = version("dias")
+except PackageNotFoundError:
+    # package is not installed
+    pass
+
+del version, PackageNotFoundError
