@@ -357,7 +357,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
 
             # Extract the input flags and mark any extra missing data
             # (i.e. that static mask list in baselineCompression)
-            flags = ad.flags["inputs"][:, sel].astype(np.bool)
+            flags = ad.flags["inputs"][:, sel].astype(bool)
             flags[extra_bad, :] = False
 
             # Find the flag update from the files

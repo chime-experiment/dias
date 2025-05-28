@@ -317,7 +317,7 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
                 dset = handler.create_dataset("rms", data=np.sqrt(var))
                 dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
-                dset = handler.create_dataset("count", data=counter.astype(np.int))
+                dset = handler.create_dataset("count", data=counter.astype(int))
                 dset.attrs["axis"] = np.array(["freq", "pol", "time"], dtype="S")
 
                 handler.attrs["instrument_name"] = self.correlator

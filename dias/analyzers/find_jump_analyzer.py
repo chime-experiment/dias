@@ -71,7 +71,7 @@ def _flag_transit(name, timestamp, window=900.0):
     """Flag times near the transit of a source."""
     extend = 24.0 * 3600.0
 
-    flag = np.zeros(timestamp.size, dtype=np.bool)
+    flag = np.zeros(timestamp.size, dtype=bool)
 
     if name.lower() == "sun":
         ttrans = ephemeris.solar_transit(timestamp[0] - extend, timestamp[-1] + extend)
@@ -139,7 +139,7 @@ def mod_max_finder(scale, coeff, search_span=0.5, threshold=None):
     mod = np.abs(coeff)
 
     # Flag local maxima of the modulus for each wavelet scale
-    flg_mod_max = np.zeros(mod.shape, dtype=np.bool)
+    flg_mod_max = np.zeros(mod.shape, dtype=bool)
 
     for ss, sca in enumerate(scale):
 
@@ -222,7 +222,7 @@ def finger_finder(scale, flag, mod_max, istart=3, do_fill=False):
     if ncandidate == 0:
         return [None] * 6
 
-    candidates = np.zeros((nscale, ncandidate), dtype=np.int) - 1
+    candidates = np.zeros((nscale, ncandidate), dtype=int) - 1
     candidates[istart, :] = icandidate
 
     isort = np.argsort(mod_max[istart, icandidate])[::-1]
@@ -265,13 +265,13 @@ def finger_finder(scale, flag, mod_max, istart=3, do_fill=False):
         candidates[0:istart, :] = candidates[istart, np.newaxis, :]
 
     # Create ancillarly information
-    start = np.zeros(ncandidate, dtype=np.int)
-    stop = np.zeros(ncandidate, dtype=np.int)
+    start = np.zeros(ncandidate, dtype=int)
+    stop = np.zeros(ncandidate, dtype=int)
     pdrift = np.zeros(ncandidate, dtype=np.float32)
 
     cmm = np.zeros((nscale, ncandidate), dtype=mod_max.dtype) * np.nan
 
-    lbl = np.zeros((nscale, ntime), dtype=np.int) * np.nan
+    lbl = np.zeros((nscale, ntime), dtype=int) * np.nan
     lbl[flag] = -1
 
     for cc, index in enumerate(candidates.T):
@@ -647,10 +647,10 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                 np.log10(self.min_scale),
                 np.log10(self.max_scale + 2),
                 num=self.num_scale,
-                dtype=np.int,
+                dtype=int,
             )
         else:
-            self.scale = np.arange(self.min_scale, self.max_scale + 2, dtype=np.int)
+            self.scale = np.arange(self.min_scale, self.max_scale + 2, dtype=int)
 
         self.istart = max(self.min_rise - self.min_scale, 0)
         self.nedge = self.edge_buffer * self.max_scale
@@ -751,7 +751,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
             )
 
             if self.use_input_flag:
-                ngt = np.sum(all_data.flags["inputs"][:], axis=-1, dtype=np.int)
+                ngt = np.sum(all_data.flags["inputs"][:], axis=-1, dtype=int)
                 ifeed = np.flatnonzero(
                     (ngt / float(all_data.ntime)) > self.input_threshold
                 )
@@ -1084,7 +1084,7 @@ class FindJumpAnalyzer(chime_analyzer.CHIMEAnalyzer):
                                 - np.median(signal[aa:icenter])
                             )
 
-                            temp_var = np.zeros(self.nwin, dtype=np.bool)
+                            temp_var = np.zeros(self.nwin, dtype=bool)
                             temp_var[0:ncut] = True
                             jump_flag.append(temp_var)
 

@@ -566,7 +566,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     )
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
-                    dset = handler.create_dataset("count", data=counter.astype(np.int))
+                    dset = handler.create_dataset("count", data=counter.astype(int))
                     dset.attrs["axis"] = np.array(["freq", "pol", "ha"], dtype="S")
 
                     index_map.create_dataset("param", data=fitter.parameter_names)
