@@ -37,6 +37,7 @@ setuptools.setup(
         "numpy",
         "h5py",
         "pywavelets",
+        "requests",
     ],
     license="GPL v3.0",
     url="http://github.com/chime-experiment/dias",
