@@ -457,10 +457,10 @@ class FeedpositionsAnalyzer(CHIMEAnalyzer):
             return vx, vy
 
         # Construct masks for the X and Y polarisations
-        Ax = (((np.arange(NINPUT, dtype=np.int) // NCYLPOL) % 2) == 1).astype(
+        Ax = (((np.arange(NINPUT, dtype=int) // NCYLPOL) % 2) == 1).astype(
             np.float64
         )
-        Ay = (((np.arange(NINPUT, dtype=np.int) // NCYLPOL) % 2) == 0).astype(
+        Ay = (((np.arange(NINPUT, dtype=int) // NCYLPOL) % 2) == 0).astype(
             np.float64
         )
 

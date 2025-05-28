@@ -510,11 +510,11 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
                         # Create an index map
                         index_map = handler.create_group("index_map")
                         index_map.create_dataset("freq", data=data.index_map["freq"])
-                        index_map.create_dataset("stack", data=np.string_(stack))
+                        index_map.create_dataset("stack", data=np.bytes_(stack))
                         index_map.create_dataset("time", data=data.time)
 
                         # Write 2D arrays containing snapshots of each jump
-                        ax = np.string_(["freq", "stack", "time"])
+                        ax = np.bytes_(["freq", "stack", "time"])
 
                         dset = handler.create_dataset("mask", data=mask_after)
                         dset.attrs["axis"] = ax
