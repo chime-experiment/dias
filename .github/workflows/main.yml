@@ -13,12 +13,12 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v1
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version: "3.12"
 
     - name: Install black
       run: pip install black
@@ -38,17 +38,20 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - name: Set up python 3.9
-      uses: actions/setup-python@v1
+    - name: Set up python 3.12
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version: "3.12"
 
     - name: Install apt dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libhdf5-serial-dev graphviz libopenmpi-dev openmpi-bin
+
+    - name: Update pip
+      run: pip install --upgrade pip
 
     - name: Install python general dependencies
       run: |
@@ -65,7 +68,7 @@ jobs:
 
     - name: Install dias
       run: |
-        pip install .
+        pip install -e .
 
     - name: Run all tests in test folder
       run: |
