@@ -231,7 +231,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             path to file loaded in ad
         ad : andata.CorrData
         """
-        file_ds = ad.flags["dataset_id"][:] == "00000000000000000000000000000000"
+        file_ds = ad.dataset_id[:] == "00000000000000000000000000000000"
         file_frac_lost = ad.flags["frac_lost"][:] < 1.0
         if np.logical_and(file_ds, file_frac_lost).any():
             self.failed_checks.labels(check="validnulls").inc()
@@ -252,7 +252,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         num_freqs = ad.nfreq
 
         # Get the unique dataset_ids in each file
-        file_ds = ad.flags["dataset_id"][:]
+        file_ds = ad.dataset_id[:]
         unique_ds = np.unique(file_ds)
 
         # Remove the null dataset
@@ -319,7 +319,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         # fmt: on
 
         # Get the unique dataset_ids in each file
-        file_ds = ad.flags["dataset_id"][:]
+        file_ds = ad.dataset_id[:]
         unique_ds = np.unique(file_ds)
 
         # Remove the null dataset
