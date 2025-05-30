@@ -86,7 +86,7 @@ print("dias-{}".format(__version__))
 # on the command line or else in the environment
 dias_conf = os.getenv(
         "DIAS_CONF",
-        os.path.normpath(os.path.join(sys.path[0], "../conf/dias.conf")))
+        os.path.normpath(os.path.join(sys.path[0], "../../conf/dias.conf")))
 
 parser = argparse.ArgumentParser(
         description="This is the dias control program.",

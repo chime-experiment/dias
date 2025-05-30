@@ -33,6 +33,9 @@ dependencies = [
     "requests",
 ]
 
+[project.scripts]
+dias = "dias.scripts.dias_wrapper:main"
+
 [tool.setuptools.packages.find]
 exclude = ["conf"]
 
