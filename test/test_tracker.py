@@ -52,7 +52,7 @@ def testdata(chimecal_testfolder, chimestack_testfolder):
 
                 arr = np.rec.fromarrays(
                     [np.arange(1596549345.2508698, 1596551880.0784922)],
-                    dtype=np.dtype({"names": ["ctime"], "formats": [(float)]}),
+                    dtype=np.dtype({"names": ["ctime"], "formats": [float]}),
                 )
 
                 index_map.create_dataset("time", data=arr)
