@@ -33,8 +33,8 @@ dependencies = [
     "requests",
 ]
 
-[tool.setuptools]
-packages = ["dias"]
+[tool.setuptools.packages.find]
+exclude = ["conf"]
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
