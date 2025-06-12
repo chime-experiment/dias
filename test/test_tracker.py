@@ -46,16 +46,20 @@ def testdata(chimecal_testfolder, chimestack_testfolder):
     """Create all of the testdata."""
     for folder in [chimecal_testfolder, chimestack_testfolder]:
         Path(folder).mkdir(exist_ok=True)
-        for i in range(10):
+        for i in range(20):
             with h5py.File("{0}/sample_{1}.h5".format(folder, i), "w") as hf:
                 index_map = hf.create_group("index_map")
 
                 arr = np.rec.fromarrays(
                     [np.arange(1596549345.2508698, 1596551880.0784922)],
-                    dtype=np.dtype({"names": ["ctime"], "formats": [(float)]}),
+                    dtype=np.dtype({"names": ["ctime"], "formats": [float]}),
                 )
 
                 index_map.create_dataset("time", data=arr)
+
+        # Lock some of the files
+        for i in range(10):
+            open(f"{folder}/.sample_{i+10}.h5.lock", "w").close()
 
 
 @pytest.fixture(scope="function")
