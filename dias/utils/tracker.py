@@ -335,9 +335,13 @@ class Tracker:
 
         files_on_disk = []
         for ft in FILETYPES:
-            files_on_disk.extend(
-                glob.glob(os.path.join(self.base_path, "*_{0}".format(ft), "*.h5"))
-            )
+            for file_ in glob.glob(
+                os.path.join(self.base_path, "*_{0}".format(ft), "*.h5")
+            ):
+                # skip locked files
+                path = Path(file_)
+                if not Path(file_).with_name(f".{path.name}.lock").exists():
+                    files_on_disk.append(file_)
 
         files_in_db = [
             query.filepath for query in (File.select().where(File.exists == True))
