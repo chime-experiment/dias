@@ -36,6 +36,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 exclude = ["conf"]
 
+[tool.setuptools]
+script-files = ["scripts/dias"]
+
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
