@@ -8,7 +8,6 @@ listed here.
 
 .. autosummary::
    :template: baseanalyzer_user.rst
-   :toctree: _autosummary
 
    Analyzer
 
@@ -17,7 +16,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    FeedpositionsAnalyzer
 
@@ -25,7 +23,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    ThermalDataAnalyzer
 
@@ -33,7 +30,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    FindJumpAnalyzer
 
@@ -41,7 +37,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    FlagRFIAnalyzer
 
@@ -49,7 +44,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    SensitivityAnalyzer
 
@@ -57,7 +51,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    DailyRingmapAnalyzer
 
@@ -65,7 +58,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    SourceSpectraAnalyzer 
 
@@ -73,7 +65,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    TestAnalyzer
 
@@ -81,7 +72,6 @@ listed here.
 
 .. autosummary::
    :template: analyzer_user.rst
-   :toctree: _autosummary
 
    SampleAnalyzer
 

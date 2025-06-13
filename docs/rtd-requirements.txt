@@ -1,6 +1,7 @@
 # From install_requires
 chimedb.data_index @ git+https://github.com/chime-experiment/chimedb_di.git
 caput @ git+https://github.com/radiocosmology/caput.git
+draco @ git+https://github.com/radiocosmology/draco.git
 prometheus_client>=0.5.0
 bitshuffle
 pyyaml
