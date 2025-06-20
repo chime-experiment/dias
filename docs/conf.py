@@ -2,9 +2,13 @@
 """Configuration file for the Sphinx documentation builder."""
 from recommonmark.parser import CommonMarkParser
 
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(".."))
+
 # Mock imports
 
-import sys
 from unittest.mock import MagicMock
 
 
@@ -23,7 +27,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 project = "dias"
 copyright = "2019, The CHIME Collaboration"
-author = "Donald Wiebe and Rick Nitsche"
+author = "The CHIME Collaboration"
 
 # The short X.Y version
 version = ""
@@ -35,7 +39,7 @@ release = ""
 
 autoclass_content = "both"  # include both class docstring and __init__
 autodoc_warningiserror = True
-autosummary_generate = True  # Make _autosummary files and include them
+autosummary_generate = False  # Make _autosummary files and include them
 napoleon_use_rtype = False  # More legible
 
 # Add any Sphinx extension module names here, as strings. They can be
