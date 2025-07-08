@@ -167,10 +167,10 @@ class SensitivityAnalyzer(CHIMEAnalyzer):
         file_list = self.new_files(filetypes=self.instrument + "_" + self.acq_suffix)
 
         if not file_list:
-            err_msg = "No {}_{} files found from last {}.".format(
-                self.instrument, self.acq_suffix, self.period
+            print(
+                f"No {self.instrument}_{self.acq_suffix} files found from last {self.period}."
             )
-            raise exception.DiasDataError(err_msg)
+            return
 
         with h5py.File(file_list[0], "r") as hf:
             start_time = ephemeris.unix_to_datetime(hf["index_map/time"][0]["ctime"])
