@@ -61,10 +61,10 @@ jobs:
         pip install --no-binary=h5py h5py
         pip install git+https://github.com/kiyo-masui/bitshuffle.git
 
-    - name: Install dias and doc dependencies
-      run: |
-        pip install -r docs/rtd-requirements.txt
-        pip install sphinx==2.4.4
+#    - name: Install dias and doc dependencies
+#      run: |
+#        pip install -r docs/rtd-requirements.txt
+#        pip install sphinx==2.4.4
 
     - name: Install dias
       run: |
