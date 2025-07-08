@@ -277,7 +277,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
         Write fluxes for a given time and frequency to disk.
         """
         lat = np.radians(ephemeris.CHIMELATITUDE)
-        err_msg = ""
         query_inputmap = datetime.timestamp(datetime.utcnow() - self.offset)
 
         # Look up inputmap
@@ -330,8 +329,9 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
             file_list = f.get_results()
 
             if len(file_list) == 0:
-                tmp = f"No {self.acq_suffix} files found from last {self.period} for source transit {src}"
-                err_msg += tmp
+                print(
+                    f"No {self.acq_suffix} files found from last {self.period} for source transit {src}"
+                )
                 self.logger.info(tmp)
                 continue
 
@@ -609,9 +609,6 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                     ).strip()
                     handler.attrs["git_version_tag"] = dias_version_tag
                     self.logger.info(f"File for {src} written.")
-
-        if err_msg:
-            raise exception.DiasDataError(err_msg)
 
     def get_baselines(self, indexmap, inputmap, reverse_stack):
         """Return baseline indices for averaging."""
