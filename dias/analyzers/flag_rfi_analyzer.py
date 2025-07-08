@@ -336,6 +336,13 @@ class FlagRFIAnalyzer(chime_analyzer.CHIMEAnalyzer):
         results = list(cursor.execute(query))
         start_time = results[0][0] if results else end_time - self.period
 
+        # Check for sensible time range
+        if start_time >= end_time:
+            self.logger.warning(
+                f"Non-positive time range: {datetime2str(start_time)} to {datetime2str(end_time)}"
+            )
+            return
+
         self.logger.info(
             "Analyzing data between {} and {}.".format(
                 datetime2str(start_time), datetime2str(end_time)
