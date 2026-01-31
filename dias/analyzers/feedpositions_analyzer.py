@@ -18,7 +18,6 @@ import scipy.linalg as la
 
 import h5py
 
-
 # Choose 10 good frequencies. I chose the same ones that we used when writing
 # full N2 data for 10 frequencies.
 freq_sel = [

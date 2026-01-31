@@ -244,7 +244,7 @@ class Task:
 
         # Check for disk space overage, delete files, export metrics
         before_data_space_used = self.data_space_used
-        (data_size, self.data_space_used) = self.cleanup(
+        data_size, self.data_space_used = self.cleanup(
             self.analyzer.write_dir, self.analyzer.data_size_max
         )
         data_written = data_size - before_data_space_used
@@ -257,7 +257,7 @@ class Task:
 
         # For now don't enforce state data size limit.
         before_state_space_used = self.state_space_used
-        (state_size, self.state_space_used) = self.cleanup(
+        state_size, self.state_space_used = self.cleanup(
             self.analyzer.state_dir, self.analyzer.state_size_max, check=True
         )
         state_written = state_size - before_state_space_used
