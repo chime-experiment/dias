@@ -6,7 +6,8 @@ Note: This analyzer has been turned off since 2021-01-21.
 
 from dias import CHIMEAnalyzer, DiasConfigError
 from datetime import datetime, timedelta
-from caput import config, time
+from caput import config
+from caput.astro import time
 from dias.utils.string_converter import datetime2str
 
 from chimedb import data_index
