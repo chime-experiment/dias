@@ -266,7 +266,7 @@ class ConfigLoader:
             In case a class or module couldn't be found.
         """
         # Split the name into a module and a classname
-        (modulename, separator, classname) = name.rpartition(".")
+        modulename, separator, classname = name.rpartition(".")
 
         # Check if we successfully split
         if separator == "":

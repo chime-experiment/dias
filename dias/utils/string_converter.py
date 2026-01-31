@@ -6,7 +6,6 @@ import os
 import re
 from datetime import timedelta, datetime
 
-
 TIMEDELTA_REGEX = re.compile(
     r"((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
 )

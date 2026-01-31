@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Configuration file for the Sphinx documentation builder."""
+
 from recommonmark.parser import CommonMarkParser
 
 # Mock imports

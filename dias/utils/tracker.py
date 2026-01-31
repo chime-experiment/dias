@@ -56,7 +56,6 @@ from peewee import (
     chunked,
 )
 
-
 # Initialize db in Tracker.__init__()
 db = SqliteDatabase(None)
 
