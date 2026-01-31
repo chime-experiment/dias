@@ -41,7 +41,7 @@ from collections import namedtuple, defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from caput import time as ctime
+from caput.astro import time as ctime
 from dias import DiasUsageError
 from caput import config
 from peewee import (
