@@ -203,10 +203,10 @@ class Analyzer(config.Reader):
             # files have naming structure *_%.h5
             # where * is the number of seconds after the folder_datetime that the data was acquired
             # % is the fraction of a second
-            folder_datetime = re.search("(\d*T\d*)Z.*", f).groups()[0]
+            folder_datetime = re.search(r"(\d*T\d*)Z.*", f).groups()[0]
             folder_datetime = datetime.strptime(folder_datetime, "%Y%m%dT%H%M%S")
             # we are not going to care about the fractions of a second
-            file_seconds = re.search("(\d*)_\d\d\d\d.h5", f).groups()[0]
+            file_seconds = re.search(r"(\d*)_\d\d\d\d.h5", f).groups()[0]
 
             file_time = folder_datetime + timedelta(seconds=int(file_seconds))
 
