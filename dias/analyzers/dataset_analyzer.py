@@ -475,11 +475,12 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             found = self.find_flags(update_id, flg)
             if found is None:
                 self.updateid_not_found.inc()
-                raise DiasDataError(
-                    "Flag ID for {} file {} not found.".format(
-                        self.instrument, filename
+                self.logger.warn(
+                    "Flag ID {} for {} file {} not found, skipping dataset {}.".format(
+                        update_id, self.instrument, filename, ds_id
                     )
                 )
+                continue
 
             # Copy, because the flags are cached in flg and masked here
             flg_acq, flagsfile = found
