@@ -6,14 +6,10 @@ CHIME complex gain.
 """
 
 from dias import CHIMEAnalyzer
-from datetime import datetime
 from caput import config
-from dias.utils import str2timedelta
 from dias import exception
 import numpy as np
 from ch_util import andata
-
-import re
 
 # Constant
 SLOPE_TO_SECONDS = 1.0 / 2.0 / np.pi / 1e6  # Convert slope to seconds
@@ -47,31 +43,22 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
     Config Variables
     ----------------
 
-    Data to analyze is selected from `<now>` - `<offset>` until `<now>` -
-    `<offset>` + `<trange>`.
+    Data to analyze is the newest `chimetiming` file that has appeared since
+    the previous run. Any older files that arrived in the meantime are
+    registered as processed without being analyzed.
 
     Attributes
     ----------
-    offset : str
-        A string describing a timedelta. Don't analyze data older than this
-        much before task execution time.
-    trange: str
-        A string describing a timedelta. Time range data is accepted from.
-    loop_ids : list(inst)
+    loop_ids : list(int)
         Channel IDs of the cable loops.  Default : [944, 1314, 2034].
     ref_ids : list(int)
         Channel IDs to use as reference. Default: [688, 1058, 2032].
     """
 
     # Config parameters
-    offset = config.Property(proptype=str2timedelta, default="12h")
-    trange = config.Property(proptype=str2timedelta, default="1h")
     # TODO: In the future, could figure out the loop ids from the database.
     loop_ids = config.Property(proptype=list, default=CABLE_LOOP_CHANNEL_IDS)
     ref_ids = config.Property(proptype=list, default=REFERENCE_CHANNEL_IDS)
-
-    nchecks = 1  # Number of time bins to check.
-    checkoffset = 20  # Start checking from this time bin.
 
     def setup(self):
         """
@@ -91,52 +78,34 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
         """
         Run task.
 
-        Loads chimetiming data.
+        Loads the newest chimetiming file.
         Fits for delay of cable loops and exports delays to prometheus.
         """
         ncables = len(self.loop_ids)  # Number of cable loops
 
-        # Calculate the start and end the data to be loaded.
-        # TODO: Could instead monitor for new chimetiming files.
-        start_time = datetime.now() - self.offset
-        end_time = start_time + self.trange
+        # Get the list of files that have not been analyzed yet.
+        file_list = self.new_files("chimetiming_corr")
 
-        from chimedb import data_index
-
-        # get the full list of files within that time range
-        results_list = self.new_files("chimetiming_corr")
-
-        # only using the first acquisition found
+        # The delays are exported as gauges describing the current state of the
+        # cable loops, so only the newest file is of interest. Any older files
+        # in the list are discarded (see register_done below).
         try:
-            first_result = results_list[0]
+            newest_file = file_list[-1]
         except IndexError:
-            msg = "Could not find any 'chimetiming' data between {0} and {1}"
-            msg = msg.format(
-                start_time.strftime("%m/%d/%Y-%H:%M:%S"),
-                end_time.strftime("%m/%d/%Y-%H:%M:%S"),
+            raise exception.DiasDataError(
+                "Could not find any unprocessed 'chimetiming' data."
             )
-            raise exception.DiasDataError(msg)
 
-        first_result_folder_datetime = re.search("(\d*T\d*)Z", first_result).groups()[0]
-        first_acquisition = []
+        self.logger.info("Analyzing {0}.".format(newest_file))
 
-        # an acquisition can represent a list of files in the same 'acq' folder
-        for f in results_list:
-            if first_result_folder_datetime in f:
-                first_acquisition.append(f)
-
-        assert (
-            len(first_acquisition) >= 1
-        ), "At this point, there should be at least 1 result"
-
-        reader = andata.CorrReader(first_acquisition)
+        reader = andata.CorrReader([newest_file])
         inputs = list(reader.input["chan_id"])
         prods = reader.prod
         freq = reader.freq["centre"]
+
+        # Only the newest time bin of the file is needed.
         ntimes = len(reader.time)
-        time_indices = np.linspace(
-            self.checkoffset, ntimes, self.nchecks, endpoint=False, dtype=int
-        )
+        reader.time_sel = (ntimes - 1, ntimes)
 
         # Determine prod_sel
         prod_sel = []
@@ -155,20 +124,24 @@ class ThermalDataAnalyzer(CHIMEAnalyzer):
             )[0][0]
             prod_sel.append(pidx)
 
-        # Load data from first acquisition
-        setattr(reader, "prod_sel", np.array(prod_sel))
+        # Load the selected data
+        reader.prod_sel = np.array(prod_sel)
         data = reader.read()
         phases = np.angle(data.vis)
+
+        # A single time bin was read, so that is the one to fit.
+        time_indices = np.array([0])
 
         # Perform the fits
         for cc in range(ncables):
             prms = self._get_fits(time_indices, phases[:, cc, :], freq)
-            for tt in range(len(prms)):
-                # First parameter is the slope
-                delay_temp = prms[tt][0] * SLOPE_TO_SECONDS
-                self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
+            # First parameter is the slope
+            delay_temp = prms[0][0] * SLOPE_TO_SECONDS
+            self.delay.labels(chan_id=self.loop_ids[cc]).set(delay_temp)
 
-        self.register_done(results_list)
+        # Register the whole list, including the older files that were skipped,
+        # so that they are not considered again on the next run.
+        self.register_done(file_list)
 
     def _find_longest_stretch(self, phase, freq, step=None, tol=0.2):
         """Find the longest stretch of frequencies without phase wrapping.
