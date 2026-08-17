@@ -86,6 +86,9 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             unit="total",
         )
 
+        # Paths of the flaginput files read for the acquisition being processed
+        self._flag_files_read = set()
+
         # Initialized failed_checks metric
         self.failed_checks.labels(check="flags").set(0)
         self.failed_checks.labels(check="validnulls").set(0)
@@ -150,36 +153,20 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flag_files = self.new_files(
                 "chime_flaginput", tstart, tend, only_unprocessed=False
             )
-            flag_acqs = self.get_acquisitions(flag_files)
 
-            self.logger.info(
-                "Found {} acqws in flags files".format(len(flag_acqs.keys()))
-            )
-            if len(flag_acqs.keys()) < 1:
+            if not flag_files:
                 raise DiasDataError(
                     "No flags found for {} files {}.".format(self.instrument, all_files)
                 )
 
-            # Loop over acquisitions
-            flag_tend = 0
+            # new_files returns files oldest first, so the last one holds the most
+            # recent update
+            with h5py.File(flag_files[-1], "r") as final_file:
+                flag_tend = final_file["index_map/update_time"][-1]
+
+            self._flag_files_read = set()
             flg = dict()
-            # Loop over contiguous periods within this acquisition
-            for flag_acq, all_flag_files in flag_acqs.items():
-
-                # Determine the range of time being processed
-                with h5py.File(all_flag_files[-1], "r") as final_file:
-                    update_time = final_file["index_map/update_time"][-1]
-                flag_tend = max(update_time, flag_tend)
-
-                nfiles = len(all_flag_files)
-
-                if nfiles == 0:
-                    continue
-
-                self.logger.info(
-                    "Now processing acquisition %s (%d files)" % (flag_acq, nfiles)
-                )
-                flg[flag_acq] = andata.FlagInputData.from_acq_h5(all_flag_files)
+            self.load_flags(flag_files, flg)
 
             for _file in all_files:
 
@@ -220,6 +207,34 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 self.validate_freqs(_file, ad)
 
                 self.register_done([_file])
+
+    def load_flags(self, flag_files, flg):
+        """
+        Read flaginput files into a mapping of update ID to input flags.
+
+        Files that have already been read into `flg` are skipped.
+
+        Parameters
+        ----------
+        flag_files : list of String
+            Paths of the flaginput files to read.
+        flg : dict -> update_id (bytes): (acquisition name, flags)
+            Updated in place with the flags found in `flag_files`.
+        """
+        flag_files = [f for f in flag_files if f not in self._flag_files_read]
+
+        for flag_acq, all_flag_files in self.get_acquisitions(flag_files).items():
+
+            self.logger.info(
+                "Now processing acquisition %s (%d files)"
+                % (flag_acq, len(all_flag_files))
+            )
+            flg_ad = andata.FlagInputData.from_acq_h5(all_flag_files)
+
+            for update_id, flag in zip(flg_ad.update_id[:], flg_ad.flag[:]):
+                flg[update_id] = (flag_acq, flag)
+
+            self._flag_files_read.update(all_flag_files)
 
     def validate_null(self, filename, ad):
         """
@@ -291,7 +306,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         filename: String
             Path to file loaded in ad
         ad : andata.CorrData
-        flg : dict -> acquisition_name: andata.FlagInputData
+        flg : dict -> update_id (bytes): (acquisition name, flags)
         """
         # fmt: off
         # TODO: get them from a dataset state that should get registered by visCompression
@@ -363,26 +378,17 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flags[extra_bad, :] = False
 
             # Find the flag update from the files
-            flagsfile = None
-            for flg_acq, flg_ad in flg.items():
-                update_ids = list(flg_ad.update_id)
-                try:
-                    flgind = update_ids.index(update_id)
-                except ValueError as err:
-                    self.logger.info(
-                        "Flags not found in file {} for update_id {}: {}".format(
-                            flg_acq, update_id, err
-                        )
-                    )
-                    continue
-                flagsfile = flg_ad.flag[flgind]
-            if flagsfile is None:
+            if update_id not in flg:
                 self.updateid_not_found.inc()
                 raise DiasDataError(
                     "Flag ID for {} file {} not found.".format(
                         self.instrument, filename
                     )
                 )
+
+            # Copy, because the flags are cached in flg and masked here
+            flg_acq, flagsfile = flg[update_id]
+            flagsfile = np.array(flagsfile)
             flagsfile[extra_bad] = False
 
             # Test if all flag entries match the one from the flaginput file
