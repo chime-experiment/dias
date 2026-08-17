@@ -14,6 +14,48 @@ from ch_util import andata
 import datetime
 import numpy as np
 
+# Widen the search for the flaginput file holding a given update by this much
+# (in seconds) on either side. The tracker selects files with `start_time < end`
+# and `end_time > start`, so an update that is the first or last one in its file
+# is only found if the search window extends past it.
+UPDATE_ID_SEARCH_MARGIN = 3600
+
+
+def get_update_id_time(update_id):
+    """
+    Get the time an update was created from its update ID.
+
+    ch_flag builds these as `<type>_<YYYYmmddTHHMMSS.ffffffZ>_<sources>`, e.g.
+    `flaginput_20260717T202222.356129Z_raw`.
+
+    Parameters
+    ----------
+    update_id : bytes or String
+        The update ID.
+
+    Returns
+    -------
+    float
+        UNIX time at which the update was created.
+
+    Raises
+    ------
+    ValueError
+        If the update ID doesn't carry a timestamp in the expected format.
+    """
+    if isinstance(update_id, bytes):
+        update_id = update_id.decode()
+
+    parts = update_id.split("_")
+    if len(parts) < 2:
+        raise ValueError("No timestamp in update ID '{}'.".format(update_id))
+
+    return (
+        datetime.datetime.strptime(parts[1], "%Y%m%dT%H%M%S.%fZ")
+        .replace(tzinfo=datetime.timezone.utc)
+        .timestamp()
+    )
+
 
 class DatasetAnalyzer(CHIMEAnalyzer):
     """
@@ -145,7 +187,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             )
 
             # chimestack files may contain older flag updates, especially during hot periods
-            # when flag updates are re-sent
+            # when flag updates are re-sent. This is only a guess at how far back to
+            # pre-load; updates older than this are fetched on demand by find_flags.
             tstart -= 32 * 60 * 60
 
             # Use Finder to get the matching flaginput files
@@ -235,6 +278,57 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 flg[update_id] = (flag_acq, flag)
 
             self._flag_files_read.update(all_flag_files)
+
+    def find_flags(self, update_id, flg):
+        """
+        Get the flags for an update ID, reading more flaginput files if needed.
+
+        A chimestack file can reference a flag update much older than its own data:
+        when the flag broker restarts it re-sends the last update it knows about,
+        keeping that update's original ID. Instead of guessing how far back to look,
+        use the time carried by the update ID itself to find the file holding it.
+
+        Parameters
+        ----------
+        update_id : bytes
+            The update ID to look for.
+        flg : dict -> update_id (bytes): (acquisition name, flags)
+            Flags loaded so far. Updated in place with any file read here, including
+            a `None` for `update_id` if it could not be found anywhere.
+
+        Returns
+        -------
+        tuple or None
+            (acquisition name, flags) for the update, or None if it was not found.
+        """
+        if update_id in flg:
+            return flg[update_id]
+
+        try:
+            utime = get_update_id_time(update_id)
+        except ValueError as err:
+            self.logger.warn("Can't search for update {}: {}".format(update_id, err))
+            flg[update_id] = None
+            return None
+
+        self.logger.info(
+            "Update {} is not in the flags loaded so far, looking for it around {}.".format(
+                update_id, utime
+            )
+        )
+        flag_files = self.new_files(
+            "chime_flaginput",
+            utime - UPDATE_ID_SEARCH_MARGIN,
+            utime + UPDATE_ID_SEARCH_MARGIN,
+            only_unprocessed=False,
+        )
+        self.load_flags(flag_files, flg)
+
+        if update_id not in flg:
+            # Remember the miss so we don't search for the same update again
+            flg[update_id] = None
+
+        return flg[update_id]
 
     def validate_null(self, filename, ad):
         """
@@ -378,7 +472,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             flags[extra_bad, :] = False
 
             # Find the flag update from the files
-            if update_id not in flg:
+            found = self.find_flags(update_id, flg)
+            if found is None:
                 self.updateid_not_found.inc()
                 raise DiasDataError(
                     "Flag ID for {} file {} not found.".format(
@@ -387,7 +482,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
                 )
 
             # Copy, because the flags are cached in flg and masked here
-            flg_acq, flagsfile = flg[update_id]
+            flg_acq, flagsfile = found
             flagsfile = np.array(flagsfile)
             flagsfile[extra_bad] = False
 
