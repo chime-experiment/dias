@@ -171,7 +171,6 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         # Loop over acquisitions
         for acq in cs_acqs.keys():
 
-            # Loop over contiguous periods within this acquisition
             all_files = cs_acqs[acq]
 
             # Determine the range of time being processed
@@ -191,7 +190,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
             # pre-load; updates older than this are fetched on demand by find_flags.
             tstart -= 32 * 60 * 60
 
-            # Use Finder to get the matching flaginput files
+            # Use the tracker to get the matching flaginput files
             self.logger.info("Finding flags between {} and {}.".format(tstart, tend))
             flag_files = self.new_files(
                 "chime_flaginput", tstart, tend, only_unprocessed=False
@@ -261,7 +260,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         ----------
         flag_files : list of String
             Paths of the flaginput files to read.
-        flg : dict -> update_id (bytes): (acquisition name, flags)
+        flg : dict -> update_id (bytes): (acquisition directory, flags)
             Updated in place with the flags found in `flag_files`.
         """
         flag_files = [f for f in flag_files if f not in self._flag_files_read]
@@ -269,8 +268,8 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         for flag_acq, all_flag_files in self.get_acquisitions(flag_files).items():
 
             self.logger.info(
-                "Now processing acquisition %s (%d files)"
-                % (flag_acq, len(all_flag_files))
+                "Reading %d flaginput file(s) from acquisition %s"
+                % (len(all_flag_files), flag_acq)
             )
             flg_ad = andata.FlagInputData.from_acq_h5(all_flag_files)
 
@@ -292,14 +291,14 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         ----------
         update_id : bytes
             The update ID to look for.
-        flg : dict -> update_id (bytes): (acquisition name, flags)
+        flg : dict -> update_id (bytes): (acquisition directory, flags)
             Flags loaded so far. Updated in place with any file read here, including
             a `None` for `update_id` if it could not be found anywhere.
 
         Returns
         -------
         tuple or None
-            (acquisition name, flags) for the update, or None if it was not found.
+            (acquisition directory, flags) for the update, or None if it was not found.
         """
         if update_id in flg:
             return flg[update_id]
@@ -400,7 +399,7 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         filename: String
             Path to file loaded in ad
         ad : andata.CorrData
-        flg : dict -> update_id (bytes): (acquisition name, flags)
+        flg : dict -> update_id (bytes): (acquisition directory, flags)
         """
         # fmt: off
         # TODO: get them from a dataset state that should get registered by visCompression
