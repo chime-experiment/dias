@@ -318,9 +318,11 @@ class DatasetAnalyzer(CHIMEAnalyzer):
         ]
         # fmt: on
 
-        # Get the unique dataset_ids in each file
+        # Get the unique dataset_ids in each file. Dataset IDs vary with frequency,
+        # but the input flags don't, so only look at the frequency the comparison
+        # below is made at.
         file_ds = ad.dataset_id[:]
-        unique_ds = np.unique(file_ds)
+        unique_ds = np.unique(file_ds[self.freq_id])
 
         # Remove the null dataset
         unique_ds = unique_ds[unique_ds != "00000000000000000000000000000000"]
