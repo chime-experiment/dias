@@ -37,6 +37,7 @@ from caput import config
 from chimedb import data_index
 from ch_util import ephemeris, andata, tools, cal_utils, fluxcat
 from draco.util import tools as draco_tools
+from draco.util import interferometry as draco_interferometry
 
 from dias import CHIMEAnalyzer, exception
 from dias import __version__ as dias_version_tag
@@ -464,7 +465,7 @@ class SourceSpectraAnalyzer(CHIMEAnalyzer):
                         pcnt = cnt[np.newaxis, prod[pol], :]
                         pscale = scale[pol][np.newaxis, :, np.newaxis]
 
-                        fringestop_phase = tools.fringestop_phase(
+                        fringestop_phase = draco_interferometry.fringestop_phase(
                             ha,
                             lat,
                             src_dec,
